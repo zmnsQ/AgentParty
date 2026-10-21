@@ -41,6 +41,8 @@ bun run setup:commons
 bun run dev:commons
 ```
 
+本轮并发修复新增 `0048_collaboration_lease_fencing.sql`。已有部署应暂停新任务/发布并让旧请求结束，先备份、应用迁移，再启用新代码；不要长期混跑不检查租约所有权的旧写入者。迁移也会清除已撤销连接保存的凭据密文，历史审计记录保留。详见 [第二轮审查与升级说明](commons-hardening-2026-10-21.zh.md)。
+
 服务只监听 `http://127.0.0.1:8787`。Wrangler 在本地模拟并持久化 D1、Durable Objects 和 R2；这不需要把用户数据发到原项目服务。更改数据库结构后重新运行 `bun run --cwd worker migrate:local`。
 
 另开终端初始化一个本地人类账户：

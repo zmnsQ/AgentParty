@@ -4,6 +4,26 @@ Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
 
+## Hardening follow-up (2026-10-21)
+
+The subsequent concurrency/revocation review ran the entire current gate on
+macOS ARM64 (Node 24.11.1, Bun 1.4.3): **408 / 408 tests passed in 27 files**,
+with no skipped tests and exit code 0. Worker coverage increased from 91 to 99;
+the other layer counts are unchanged. Eight new deterministic regressions also
+failed against the original implementation before the fixed code was restored.
+
+See the [follow-up review and migration notes](commons-hardening-2026-10-21.zh.md)
+and [machine-readable check summary](validation/hardening-2026-10-21.json).
+Migration `0048_collaboration_lease_fencing.sql` must be applied before the new
+Worker is enabled; drain old handlers rather than mixing unfenced writers with
+new ones. This adds request-owner fencing and purges saved credentials for
+revoked connections. It does not establish permanent exactly-once messaging or
+live-provider/native-desktop acceptance.
+
+The original 400-test Linux run below is retained as the **initial preview's
+historical validation**, not the latest gate count. Its independent HTTP smoke
+was not rerun for this hardening pass.
+
 ## Source and sequence
 
 - Upstream baseline: `leeguooooo/AgentParty@25384eca99b24ed823ab54b4e850a0c9079a3b24`.
@@ -150,17 +170,17 @@ See the [development guide](commons-development.zh.md),
 [roadmap](personal-agent-roadmap.zh.md) for setup and remaining milestones.
 
 
-## Follow-up hardening validation — 2026-10-21
+## Follow-up hardening validation after branch reconciliation — 2026-10-21
 
 A second review ran on **macOS ARM64, Node 24.11.1, Bun 1.4.3**. The complete
-`bun run check:commons` gate exited **0**: **419 / 419 tests in 27 files**, with
-**19 new regression cases**. This is a newly executed gate, not a reinterpretation
+`bun run check:commons` gate exited **0**: **427 / 427 tests in 27 files**, with
+**27 new regression cases relative to the original 400-test preview**. This is a newly executed gate, not a reinterpretation
 of the original Linux result above. No dependency or lockfile upgrade was made.
 
 | Layer | Follow-up result |
 | --- | --- |
 | Provider / GitHub loopback HTTP contracts | 45 / 45 |
-| Worker integration and authorization | 102 / 102 |
+| Worker integration and authorization | 110 / 110 |
 | Web / desktop-facing React UI | 167 / 167 |
 | CLI and process isolation | 101 / 101 |
 | Fork configuration | 4 / 4 |
@@ -184,3 +204,10 @@ The 10-minute message deduplication limitation above remains in effect.
 
 See the [review and upgrade notes](commons-hardening-2026-10-21.zh.md) and
 [machine-readable results](validation/hardening-2026-10-21.json).
+
+The final merged gate retains all eight concurrent regression cases from incoming
+commit `4d0ea5e2d340a0652b080e005a02e3d3d454f45a` and adds nineteen further cases.
+The previous 408-test review is preserved in
+[its historical report](commons-lease-review-2026-10-21.zh.md) and
+[JSON record](validation/hardening-leases-2026-10-21.json), including its observed
+intermittent loopback HTTP timeout. No force push or history rewrite was used.
