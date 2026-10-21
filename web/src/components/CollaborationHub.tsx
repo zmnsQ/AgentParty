@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CollaborationSummary } from "@agentparty/shared/collaboration";
-import { AuthError } from "../lib/api";
+import { AuthError, ForbiddenError } from "../lib/api";
+import { apiBase } from "../lib/base";
 import { collaborationApi, CollaborationApiError, collaborationError, type CollaborationClient } from "../lib/collaborationApi";
 import { useT } from "../i18n/useT";
 import { CloudAgentConnections } from "./CloudAgentConnections";
@@ -21,19 +22,14 @@ interface CollaborationHubProps {
 }
 
 export function CollaborationHub(props: CollaborationHubProps) {
-  const client = props.client ?? collaborationApi;
-  const [scope, setScope] = useState({ token: props.token, slug: props.slug, client, revision: 0 });
-  if (scope.token !== props.token || scope.slug !== props.slug || scope.client !== client) {
-    // Reset before committing children. An effect-only reset leaves a render of
-    // the previous group's data, drafts, credentials and permissions visible.
-    // Keep the React key opaque: never embed bearer credentials in it.
-    setScope({ token: props.token, slug: props.slug, client, revision: scope.revision + 1 });
-    return null;
-  }
-  return <CollaborationSession key={scope.revision} {...props} client={client} />;
+  const server = apiBase();
+  // Reset the whole private workspace, including unsent prompts, credentials and
+  // child request state. The key is opaque: never place a bearer token in a key.
+  const scope = useMemo(() => crypto.randomUUID(), [props.token, props.slug, props.client, server]);
+  return <ScopedCollaborationHub key={scope} {...props} server={server} />;
 }
 
-function CollaborationSession({ token, slug, archived = false, onAuthFailed, client = collaborationApi }: CollaborationHubProps) {
+function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server }: CollaborationHubProps & { server: string }) {
   const t = useT();
   const [tab, setTab] = useState<Tab>("agents");
   const [summary, setSummary] = useState<CollaborationSummary | null>(null);
@@ -45,20 +41,19 @@ function CollaborationSession({ token, slug, archived = false, onAuthFailed, cli
   authFailure.current = onAuthFailed;
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
+    if (!alive.current || apiBase() !== server || signal?.aborted) return;
     const current = ++generation.current;
     setLoading(true); setError(null);
     try {
       const result = await client.summary(token, slug, signal);
-      if (alive.current && current === generation.current) setSummary(result);
+      if (alive.current && !signal?.aborted && apiBase() === server && current === generation.current) setSummary(result);
     } catch (cause) {
-      if (!alive.current || signal?.aborted || current !== generation.current) return;
-      if (cause instanceof AuthError || (cause instanceof CollaborationApiError && [401, 403].includes(cause.status))) {
-        setSummary(null);
-        if (cause instanceof AuthError) authFailure.current?.(cause.message);
-      }
+      if (!alive.current || signal?.aborted || apiBase() !== server || current !== generation.current) return;
+      if (cause instanceof AuthError || cause instanceof ForbiddenError || (cause instanceof CollaborationApiError && [401, 403].includes(cause.status))) setSummary(null);
+      if (cause instanceof AuthError) authFailure.current?.(cause.message);
       setError(cause instanceof CollaborationApiError && cause.status === 404 ? t("Collab.offline") : collaborationError(cause));
-    } finally { if (alive.current && current === generation.current) setLoading(false); }
-  }, [client, slug, t, token]);
+    } finally { if (alive.current && apiBase() === server && current === generation.current) setLoading(false); }
+  }, [client, slug, t, token, server]);
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController(); void refresh(controller.signal);

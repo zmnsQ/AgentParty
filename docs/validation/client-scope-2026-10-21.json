@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-21",
+  "baseline_commit": "b215c4ba0522412cf2cfb70f4d844617519e6418",
+  "environment": {
+    "os": "macOS",
+    "architecture": "arm64",
+    "node": "24.11.1",
+    "bun": "1.4.3"
+  },
+  "command": "bun run check:commons",
+  "exit_code": 0,
+  "tests": {
+    "contracts": 49,
+    "worker": 121,
+    "web": 178,
+    "cli": 101,
+    "config": 4,
+    "total": 453,
+    "failed": 0,
+    "skipped": 0,
+    "files": 27,
+    "new_in_this_patch": 11,
+    "new_since_initial_preview": 53
+  },
+  "typescript": [
+    "shared",
+    "worker",
+    "web",
+    "cli"
+  ],
+  "vite_build": "passed",
+  "migration_numbering": "passed",
+  "diff_check": "passed",
+  "backend_changed": false,
+  "lockfile_changed": false,
+  "license_changed": false,
+  "native_build_executed": false,
+  "production_deployed": false,
+  "github_actions_dispatched": false,
+  "real_provider_accounts_tested": false,
+  "real_product_github_publication_tested": false,
+  "source_sha256": {
+    "web/src/components/ChannelFiles.tsx": "b598a5e878fdd97ccc4d7ccc6c01b80d7fa47daf624ba99d0c090c7638d564c2",
+    "web/src/components/CollaborationHub.tsx": "6a0d3f1eaafac8a388ea8f0c097b51cfde9a920355c7ef16eed80c522b3c3a2b",
+    "web/src/components/CollaborationHub.test.tsx": "ce625c51868acd0c2d1895b462aca675f228c1e25bf39bed65a8b0bf4b8acd73"
+  },
+  "known_limits": [
+    "Prior reviews recorded intermittent existing 1000ms loopback fixture timeouts; root cause remains unconfirmed.",
+    "In-flight HTTP requests cannot be recalled.",
+    "Provider OAuth/Events, durable background dispatch and native distribution remain unfinished."
+  ]
+}

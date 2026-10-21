@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChannelFile } from "@agentparty/shared/collaboration";
 import type { Attachment } from "@agentparty/shared";
 import { uploadAttachment } from "../lib/api";
+import { apiBase } from "../lib/base";
 import { collaborationError, type CollaborationClient } from "../lib/collaborationApi";
 import { formatSize, resolveAttachmentDownloadUrl } from "./AttachmentList";
 import { collaborationDate } from "./CloudAgentConnections";
@@ -9,10 +10,18 @@ import { useT } from "../i18n/useT";
 import { useLocale } from "../i18n/locale";
 import "../i18n/strings/CollaborationHub";
 
-export function ChannelFiles({ token, slug, canUpload, client, upload = uploadAttachment }: {
+interface ChannelFilesProps {
   token: string; slug: string; canUpload: boolean; client: CollaborationClient;
   upload?: typeof uploadAttachment;
-}) {
+}
+
+export function ChannelFiles(props: ChannelFilesProps) {
+  const server = apiBase();
+  const scope = useMemo(() => crypto.randomUUID(), [props.token, props.slug, props.client, props.upload, server]);
+  return <ScopedChannelFiles key={scope} {...props} server={server} />;
+}
+
+function ScopedChannelFiles({ token, slug, canUpload, client, upload = uploadAttachment, server }: ChannelFilesProps & { server: string }) {
   const t = useT();
   const { locale } = useLocale();
   const [files, setFiles] = useState<ChannelFile[]>([]);
@@ -25,72 +34,79 @@ export function ChannelFiles({ token, slug, canUpload, client, upload = uploadAt
   const [shareAfterUpload, setShareAfterUpload] = useState(true);
   const input = useRef<HTMLInputElement | null>(null);
   const alive = useRef(true);
+  // Follow-up requests must never use an old account token against a newly
+  // selected server, even before React has rendered the server switch.
+  const isActive = useCallback(() => alive.current && apiBase() === server, [server]);
+  const uploadAllowed = useRef(canUpload);
+  uploadAllowed.current = canUpload;
   const operationBusy = useRef(false);
   const generation = useRef(0);
   const postIds = useRef(new Map<string, string>());
 
   const load = useCallback(async (nextCursor: string | null = null, signal?: AbortSignal) => {
+    if (!isActive() || signal?.aborted) return;
     const current = ++generation.current;
     setLoading(true);
     try {
       const result = await client.files(token, slug, nextCursor, signal);
-      if (!alive.current || current !== generation.current) return;
+      if (!isActive() || signal?.aborted || current !== generation.current) return;
       setFiles((previous) => nextCursor === null ? result.files : [...new Map([...previous, ...result.files].map((file) => [file.key, file])).values()]);
       setCursor(result.cursor);
-    } catch (cause) { if (alive.current && !signal?.aborted && current === generation.current) setError(collaborationError(cause)); }
-    finally { if (alive.current && current === generation.current) setLoading(false); }
-  }, [client, slug, token]);
+    } catch (cause) { if (isActive() && !signal?.aborted && current === generation.current) setError(collaborationError(cause)); }
+    finally { if (isActive() && current === generation.current) setLoading(false); }
+  }, [client, slug, token, isActive]);
   useEffect(() => {
     alive.current = true; const controller = new AbortController(); void load(null, controller.signal);
     return () => { alive.current = false; controller.abort(); };
   }, [load]);
 
   const share = async (attachment: Attachment) => {
+    if (!isActive() || !uploadAllowed.current) return;
     const requestId = postIds.current.get(attachment.key) ?? crypto.randomUUID();
     postIds.current.set(attachment.key, requestId);
     const result = await client.shareFile(token, slug, attachment, requestId);
     postIds.current.delete(attachment.key);
-    if (alive.current) setNotice(t("Collab.fileShared", { name: attachment.filename, seq: result.seq }));
+    if (isActive()) setNotice(t("Collab.fileShared", { name: attachment.filename, seq: result.seq }));
   };
   const post = async (attachment: Attachment) => {
-    if (operationBusy.current || !canUpload) return;
+    if (!isActive() || operationBusy.current || !canUpload) return;
     operationBusy.current = true; setBusy(attachment.key); setError(null); setNotice(null);
     try { await share(attachment); }
-    catch (cause) { if (alive.current) setError(collaborationError(cause)); }
-    finally { operationBusy.current = false; if (alive.current) setBusy(null); }
+    catch (cause) { if (isActive()) setError(collaborationError(cause)); }
+    finally { operationBusy.current = false; if (isActive()) setBusy(null); }
   };
   const addFiles = async (picked: File[]) => {
-    if (!canUpload || operationBusy.current || picked.length === 0) return;
+    if (!isActive() || !canUpload || operationBusy.current || picked.length === 0) return;
     operationBusy.current = true; setBusy("upload"); setError(null); setNotice(null);
     const failures: string[] = [];
     for (const file of picked) {
-      if (!alive.current) break;
+      if (!isActive() || !uploadAllowed.current) break;
       try {
         const attachment = await upload(token, slug, file);
-        // The upload may finish after switching account/group or closing this
-        // panel. Keep the stored file, but do not start a new automatic post.
-        if (!alive.current) break;
-        setNotice(t("Collab.fileUploaded", { name: file.name }));
+        if (!isActive() || !uploadAllowed.current) break;
+        if (isActive()) setNotice(t("Collab.fileUploaded", { name: file.name }));
         if (shareAfterUpload) await share(attachment);
       } catch (cause) { failures.push(`${file.name}: ${collaborationError(cause)}`); }
     }
-    if (alive.current) {
+    if (isActive()) {
       await load();
+      if (!isActive()) { operationBusy.current = false; return; }
       if (failures.length > 0) setError(failures.join("\n"));
       setBusy(null);
     }
     operationBusy.current = false;
   };
   const download = async (file: ChannelFile) => {
+    if (!isActive()) return;
     setError(null);
     try {
       const resolved = await resolveAttachmentDownloadUrl(token, file.url);
-      if (!alive.current) { if (resolved.revoke) URL.revokeObjectURL(resolved.href); return; }
+      if (!isActive()) { if (resolved.revoke) URL.revokeObjectURL(resolved.href); return; }
       const anchor = document.createElement("a");
       anchor.href = resolved.href; anchor.download = file.filename; anchor.rel = "noreferrer";
       document.body.appendChild(anchor); anchor.click(); anchor.remove();
       if (resolved.revoke) setTimeout(() => URL.revokeObjectURL(resolved.href), 10_000);
-    } catch (cause) { if (alive.current) setError(collaborationError(cause)); }
+    } catch (cause) { if (isActive()) setError(collaborationError(cause)); }
   };
   const query = search.trim().toLocaleLowerCase();
   const visible = files.filter((file) => file.filename.toLocaleLowerCase().includes(query));

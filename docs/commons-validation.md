@@ -1,5 +1,14 @@
 # Commons development-preview validation
 
+## Client-scope supplement (2026-10-21)
+
+Based on `b215c4b`, the isolated client-scope patch passed **453/453 tests**,
+27 files, no skips, exit code 0. It preserves all existing backend fixes and
+adds 11 UI regressions for server/account/group switching, access rejection
+and upload follow-up boundaries. See [review and limits](client-scope-review-2026-10-21.zh.md)
+and [machine-readable results](validation/client-scope-2026-10-21.json).
+Earlier validation snapshots are retained below.
+
 > **Latest merged gate: 442 / 442 tests passed, 27 files, exit 0.**
 > This retains the 423-test incoming branch and adds 19 further checks, including
 > client-session isolation. Intermediate 400/408/423-test records below are historical.
