@@ -13,56 +13,51 @@ import "../styles/collaboration.css";
 const TABS = ["agents", "repositories", "files"] as const;
 type Tab = typeof TABS[number];
 
-export function CollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi }: {
+interface CollaborationHubProps {
   token: string;
   slug: string;
   archived?: boolean;
   onAuthFailed?(message: string): void;
   client?: CollaborationClient;
-}) {
+}
+
+export function CollaborationHub(props: CollaborationHubProps) {
+  const server = apiBase();
+  // Reset the whole private workspace, including unsent prompts, credentials and
+  // child request state. The key is opaque: never place a bearer token in a key.
+  const scope = useMemo(() => crypto.randomUUID(), [props.token, props.slug, props.client, server]);
+  return <ScopedCollaborationHub key={scope} {...props} server={server} />;
+}
+
+function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server }: CollaborationHubProps & { server: string }) {
   const t = useT();
   const [tab, setTab] = useState<Tab>("agents");
-  // Never hand a new group/token/server the previous workspace's data or
-  // capabilities, even for the render before its replacement request begins.
-  const server = apiBase();
-  const scope = useMemo(() => ({}), [token, slug, client, server]);
-  const activeScope = useRef(scope);
-  activeScope.current = scope;
-  const [loaded, setLoaded] = useState<{
-    scope: object; summary: CollaborationSummary | null; loading: boolean; error: string | null;
-  } | null>(null);
-  const summary = loaded?.scope === scope ? loaded.summary : null;
-  const loading = loaded?.scope === scope ? loaded.loading : true;
-  const error = loaded?.scope === scope ? loaded.error : null;
+  const [summary, setSummary] = useState<CollaborationSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);
   const alive = useRef(true);
   const authFailure = useRef(onAuthFailed);
   authFailure.current = onAuthFailed;
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
-    const active = () => alive.current && activeScope.current === scope && apiBase() === server && !signal?.aborted;
-    // A mutation finishing in an unmounted child must not refresh its old group
-    // using the new server selected by the global API client.
-    if (!active()) return;
+    if (!alive.current || apiBase() !== server || signal?.aborted) return;
     const current = ++generation.current;
-    setLoaded((previous) => ({ scope, summary: previous?.scope === scope ? previous.summary : null, loading: true, error: null }));
+    setLoading(true); setError(null);
     try {
       const result = await client.summary(token, slug, signal);
-      if (active() && current === generation.current) setLoaded({ scope, summary: result, loading: false, error: null });
+      if (alive.current && !signal?.aborted && apiBase() === server && current === generation.current) setSummary(result);
     } catch (cause) {
-      if (!active() || current !== generation.current) return;
-      const accessLost = cause instanceof AuthError || cause instanceof ForbiddenError || (cause instanceof CollaborationApiError && [401, 403, 404, 410].includes(cause.status));
-      const message = cause instanceof CollaborationApiError && cause.status === 404 ? t("Collab.offline") : collaborationError(cause);
-      setLoaded((previous) => ({ scope, summary: !accessLost && previous?.scope === scope ? previous.summary : null, loading: false, error: message }));
+      if (!alive.current || signal?.aborted || apiBase() !== server || current !== generation.current) return;
+      if (cause instanceof AuthError || cause instanceof ForbiddenError || (cause instanceof CollaborationApiError && [401, 403, 404, 410].includes(cause.status))) setSummary(null);
       if (cause instanceof AuthError) authFailure.current?.(cause.message);
-    } finally {
-      if (active() && current === generation.current) setLoaded((previous) => previous?.scope === scope ? { ...previous, loading: false } : previous);
-    }
-  }, [client, scope, server, slug, t, token]);
+      setError(cause instanceof CollaborationApiError && cause.status === 404 ? t("Collab.offline") : collaborationError(cause));
+    } finally { if (alive.current && apiBase() === server && current === generation.current) setLoading(false); }
+  }, [client, slug, t, token, server]);
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController(); void refresh(controller.signal);
-    return () => { alive.current = false; generation.current++; controller.abort(); };
+    return () => { alive.current = false; controller.abort(); };
   }, [refresh]);
   const selectWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>, active: Tab) => {
     const index = TABS.indexOf(active);

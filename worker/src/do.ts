@@ -1,3 +1,4 @@
+import { lookupBrowserAccess } from "./browser-auth/session";
 // channel durable object — seq 分配 / 广播 / presence / 补拉 / 各类熔断 / webhook 投递 / temp 归档
 import {
   parseSessionOutputClientFrame,
@@ -1398,6 +1399,12 @@ function sendRejectMessage(raw: unknown): string {
 }
 
 // 幂等键（#98）：仅接受非空、长度受限的字符串；异常值静默丢弃（不因它拒收整条 send，向后兼容）。
+// Collaboration operation IDs are immutable UUIDs, not reusable chat send keys.
+// Retain a payload-free receipt for these operations beyond chat-history retention.
+function isCollaborationDeliveryKey(key: string | undefined): key is string {
+  return key !== undefined && /^(cloud-run|code-proposal|code-published):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+}
+
 function parseIdempotencyKey(raw: unknown): string | undefined {
   if (typeof raw !== "string") return undefined;
   if (raw.length === 0 || raw.length > IDEMPOTENCY_KEY_MAX) return undefined;
@@ -1948,6 +1955,18 @@ export class ChannelDO extends Server<Env> {
     }
     // 幂等去重查询走 (sender_name, idempotency_key)；NULL 键（老客户端/非幂等发送）不进有效查询路径。
     sql.exec("CREATE INDEX IF NOT EXISTS idx_messages_idempotency ON messages(sender_name, idempotency_key)");
+    // This is DO-local SQLite, not D1. A receipt and its message are committed in
+    // the same transaction. No body, attachments or provider credentials are copied.
+    sql.exec(`CREATE TABLE IF NOT EXISTS collaboration_message_receipts (
+      sender_name TEXT NOT NULL,
+      sender_kind TEXT NOT NULL,
+      sender_owner TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      message_seq INTEGER NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (sender_name, sender_kind, sender_owner, idempotency_key)
+    )`);
+    sql.exec("CREATE INDEX IF NOT EXISTS idx_collaboration_receipts_identity ON collaboration_message_receipts(sender_name, message_seq)");
     sql.exec("CREATE INDEX IF NOT EXISTS idx_messages_pending_decisions ON messages(decision_state, seq)");
     // #1130：presence 序列化要查「哪些消息带收件箱回执」。部分索引只收录带回执的行（稀有），
     // 查询条件与索引条件逐字相同（inbox_receipts_json IS NOT NULL）才会被选中。
@@ -7643,6 +7662,7 @@ export class ChannelDO extends Server<Env> {
       };
       return Response.json(this.exportIdentityData(name, {
         messages: cursor("message_after"), audit: cursor("audit_after"), wake_deliveries: cursor("wake_after"),
+        collaboration_receipts: cursor("receipt_after"),
       }));
     }
     if (identityDataMatch && request.method === "DELETE") {
@@ -7740,7 +7760,7 @@ export class ChannelDO extends Server<Env> {
         await this.closeInactiveConnections();
         await this.afterSend(sent, undefined, true);
       }
-      const sent = out.frames[0] as MsgFrame;
+      const sent = out.frames[0] as MsgFrame | undefined;
       return Response.json({
         seq: out.seq,
         ...(out.roleWarning === undefined ? {} : { role_warning: out.roleWarning }),
@@ -7752,11 +7772,11 @@ export class ChannelDO extends Server<Env> {
         ...(out.undeliverableMentions !== undefined && out.undeliverableMentions.length > 0
           ? { undeliverable_mentions: out.undeliverableMentions }
           : {}),
-        ...(sent.completion_review === undefined ? {} : { completion_review: sent.completion_review }),
-        ...(sent.decision_request === undefined
+        ...(sent?.completion_review === undefined ? {} : { completion_review: sent.completion_review }),
+        ...(sent?.decision_request === undefined
           ? {}
           : { decision_request: publicDecisionRequest(sent.decision_request) }),
-        ...(sent.decision_resolution === undefined ? {} : { decision_resolution: sent.decision_resolution }),
+        ...(sent?.decision_resolution === undefined ? {} : { decision_resolution: sent.decision_resolution }),
       });
     }
     if (url.pathname === "/internal/webhooks" && request.method === "GET") {
@@ -9251,46 +9271,59 @@ export class ChannelDO extends Server<Env> {
         };
       }
     }
-    // 幂等去重（#98）：必须在 rate/loop/workflow guard 与 INSERT 之前——重试是网络产物而非第二条消息，
-    // 不能重复消耗配额、不能重复触发熔断，更不能重复落库/重复唤醒。命中就原样返回首发那条的 seq。
-    // 窗口 IDEMPOTENCY_WINDOW_MS 内、同一 sender_name 的同一 key 才去重；DO 单线程 + 重试串行发生，
-    // SELECT→INSERT 之间无并发同键写入之虞。
-    if (frame.idempotency_key !== undefined) {
-      const priorRow = this.ctx.storage.sql
-        .exec(
-          "SELECT * FROM messages WHERE sender_name = ? AND idempotency_key = ? AND ts >= ? ORDER BY seq DESC LIMIT 1",
-          identity.name,
-          frame.idempotency_key,
-          Date.now() - IDEMPOTENCY_WINDOW_MS,
-        )
-        .toArray()[0];
-      if (priorRow !== undefined) {
-        if (options.expectedDecisionResponderOwner !== undefined) {
-          const priorDecision = parseStoredDecisionRequest(priorRow.decision_request_json);
-          if (priorDecision?.expected_responder_owner !== options.expectedDecisionResponderOwner) {
-            return {
-              ok: false,
-              code: "bad_request",
-              message: "idempotent decision responder binding does not match the stored request",
-            };
-          }
+    // Authorization remains ahead of every receipt lookup. Scope retries to the
+    // authenticated principal, not just a display name that another owner may reuse.
+    const idempotencyKey = frame.idempotency_key;
+    const durableReceipt = frame.kind === "message" && isCollaborationDeliveryKey(idempotencyKey);
+    const rememberReceipt = (seq: number, createdAt: number): void => {
+      if (!durableReceipt) return;
+      this.ctx.storage.sql.exec(
+        `INSERT OR IGNORE INTO collaboration_message_receipts
+          (sender_name, sender_kind, sender_owner, idempotency_key, message_seq, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+        identity.name, identity.kind, identity.owner ?? "", idempotencyKey!, seq, createdAt,
+      );
+    };
+    const priorSend = (): SendOutcome | undefined => {
+      if (idempotencyKey === undefined) return undefined;
+      const sql = this.ctx.storage.sql;
+      const receipt = durableReceipt ? sql.exec(
+        `SELECT message_seq FROM collaboration_message_receipts
+          WHERE sender_name = ? AND sender_kind = ? AND sender_owner = ? AND idempotency_key = ?`,
+        identity.name, identity.kind, identity.owner ?? "", idempotencyKey,
+      ).toArray()[0] : undefined;
+      const priorRow = receipt !== undefined
+        ? sql.exec("SELECT * FROM messages WHERE seq = ?", Number(receipt.message_seq)).toArray()[0]
+        : sql.exec(
+          `SELECT * FROM messages WHERE sender_name = ? AND sender_kind = ? AND sender_owner IS ?
+            AND idempotency_key = ? AND (? = 1 OR ts >= ?) ORDER BY seq ASC LIMIT 1`,
+          identity.name, identity.kind, identity.owner ?? null, idempotencyKey,
+          durableReceipt ? 1 : 0, Date.now() - IDEMPOTENCY_WINDOW_MS,
+        ).toArray()[0];
+      if (receipt === undefined && priorRow === undefined) return undefined;
+      if (options.expectedDecisionResponderOwner !== undefined) {
+        const priorDecision = parseStoredDecisionRequest(priorRow?.decision_request_json);
+        if (priorDecision?.expected_responder_owner !== options.expectedDecisionResponderOwner) {
+          return { ok: false, code: "bad_request",
+            message: "idempotent decision responder binding does not match the stored request" };
         }
-        // #665：幂等命中（重试）也要重算 undeliverable_mentions——首发的 sent ack 可能已丢，
-        // 用存库的 delivery_targets_json 对齐当前 presence 重算，让重发仍能给发送方当场知情。
-        const dedupUndeliverable = this.undeliverableAgentMentions(
-          parseStoredTargetNames(priorRow.delivery_targets_json),
-          Date.now(),
-        );
-        return {
-          ok: true,
-          seq: Number(priorRow.seq),
-          frames: [this.rowToFrame(priorRow)],
-          deduped: true,
-          ...(roleWarning === undefined ? {} : { roleWarning }),
-          ...(dedupUndeliverable.length > 0 ? { undeliverableMentions: dedupUndeliverable } : {}),
-        };
       }
-    }
+      // Upgrade retained pre-receipt messages lazily. Already-pruned legacy rows
+      // cannot be reconstructed, and are not represented as protected history.
+      if (receipt === undefined && priorRow !== undefined) rememberReceipt(Number(priorRow.seq), Number(priorRow.ts));
+      const undeliverable = priorRow === undefined ? [] : this.undeliverableAgentMentions(
+        parseStoredTargetNames(priorRow.delivery_targets_json), Date.now(),
+      );
+      return {
+        ok: true, seq: Number(receipt?.message_seq ?? priorRow!.seq),
+        // A retained receipt must not resurrect a pruned/retracted message body.
+        frames: priorRow === undefined ? [] : [this.rowToFrame(priorRow)], deduped: true,
+        ...(roleWarning === undefined ? {} : { roleWarning }),
+        ...(undeliverable.length > 0 ? { undeliverableMentions: undeliverable } : {}),
+      };
+    };
+    const earlyDuplicate = priorSend();
+    if (earlyDuplicate !== undefined) return earlyDuplicate;
     const payload = frame.kind === "message" ? frame.body : frame.note;
     if (byteLength(payload) > BODY_LIMIT) {
       return { ok: false, code: "too_large", message: `body exceeds ${BODY_LIMIT} bytes` };
@@ -9521,7 +9554,13 @@ export class ChannelDO extends Server<Env> {
     let stagedOutcome: SendSuccessOutcome | undefined;
     let rateFailure: SendErrorOutcome | null = null;
     let decisionPreconditionFailure: SendErrorOutcome | null = null;
+    let concurrentDuplicate: SendOutcome | undefined;
     const atomicEffects = this.captureAtomicDeliveryEffects(() => {
+      // Mention routing and authority checks above await external D1 I/O. Another
+      // request can commit while those await: recheck inside the actual write
+      // transaction, before consuming rate or writing delivery/presence effects.
+      concurrentDuplicate = priorSend();
+      if (concurrentDuplicate !== undefined) return;
       // Re-read the compare-and-set lineage inside the same SQLite transaction that writes the
       // question and parks its source. A stale runner can therefore produce neither a message nor a
       // decision/waiting_owner state, even if storage changed after the earlier validation work.
@@ -9605,6 +9644,7 @@ export class ChannelDO extends Server<Env> {
         : null,
       now,
     );
+    rememberReceipt(seq, now);
     // #913：与 INSERT 同一事务里补 @ 倒排索引，让 next-mention 不必再全表 LIKE。
     this.indexMessageMentions(seq, msg.mentions, deliveryTargets);
     this.ensureDirectedDeliveries(msg, deliveryTargets, deliveryTargetOwners);
@@ -9815,6 +9855,7 @@ export class ChannelDO extends Server<Env> {
       ...(undeliverableMentions.length > 0 ? { undeliverableMentions } : {}),
     };
     });
+    if (concurrentDuplicate !== undefined) return concurrentDuplicate;
     if (decisionPreconditionFailure !== null) return decisionPreconditionFailure;
     if (rateFailure !== null) return rateFailure;
     if (stagedOutcome === undefined) throw new Error("atomic send produced no outcome");
@@ -10448,6 +10489,7 @@ export class ChannelDO extends Server<Env> {
     if (!hash) return false;
     if (hash.startsWith("oidc:")) return true;
     try {
+      if (hash.startsWith("browser:")) return (await lookupBrowserAccess(this.env.DB, hash.slice(8))) !== null;
       const row = await this.env.DB.prepare(
         `SELECT id FROM tokens
           WHERE hash = ?
@@ -10479,6 +10521,7 @@ export class ChannelDO extends Server<Env> {
     // OIDC 人类 token 不落 D1，无法被吊销扫描；生命周期由 JWT exp 在 worker 边界管辖（spec §10）
     if (hash.startsWith("oidc:")) return true;
     try {
+      if (hash.startsWith("browser:")) return (await lookupBrowserAccess(this.env.DB, hash.slice(8))) !== null;
       if (hash.startsWith("desktop:")) {
         const row = await this.env.DB.prepare(
           `SELECT id FROM desktop_sessions
@@ -10557,7 +10600,7 @@ export class ChannelDO extends Server<Env> {
   // 复用 rowToFrame / presenceFor / readCursors，与现有观测端点同口径，不另造字段。
   private exportIdentityData(
     name: string,
-    after: { messages: number; audit: number; wake_deliveries: number },
+    after: { messages: number; audit: number; wake_deliveries: number; collaboration_receipts: number },
   ): IdentityExportData {
     const sql = this.ctx.storage.sql;
     const pageSize = 200;
@@ -10614,6 +10657,15 @@ export class ChannelDO extends Server<Env> {
         ack_seq: r.ack_seq === null || r.ack_seq === undefined ? null : Number(r.ack_seq),
         resume_seq: r.resume_seq === null || r.resume_seq === undefined ? null : Number(r.resume_seq),
       }));
+    const receiptRows = sql.exec(
+      `SELECT sender_kind, sender_owner, idempotency_key, message_seq, created_at
+        FROM collaboration_message_receipts WHERE sender_name = ? AND message_seq > ?
+        ORDER BY message_seq LIMIT ?`, name, after.collaboration_receipts, pageSize + 1,
+    ).toArray();
+    const collaborationReceipts = receiptRows.slice(0, pageSize).map((row) => ({
+      sender_kind: String(row.sender_kind), sender_owner: String(row.sender_owner),
+      idempotency_key: String(row.idempotency_key), message_seq: Number(row.message_seq), created_at: Number(row.created_at),
+    }));
     const cursor = this.readCursors().find((c) => c.name === name) ?? null;
     const presenceEntry = this.presenceFor(name);
     return {
@@ -10622,12 +10674,14 @@ export class ChannelDO extends Server<Env> {
       messages,
       audit,
       wake_deliveries,
+      ...(receiptRows.length === 0 ? {} : { collaboration_receipts: collaborationReceipts }),
       read_cursor: cursor,
       presence: presenceEntry === null ? [] : [presenceEntry],
       next: {
         messages: messageRows.length > pageSize ? Number(messageRows[pageSize - 1]!.seq) : null,
         audit: auditRows.length > pageSize ? Number(auditRows[pageSize - 1]!.id) : null,
         wake_deliveries: wakeRows.length > pageSize ? Number(wakeRows[pageSize - 1]!.id) : null,
+        ...(receiptRows.length === 0 ? {} : { collaboration_receipts: receiptRows.length > pageSize ? Number(receiptRows[pageSize - 1]!.message_seq) : null }),
       },
     };
   }
@@ -10650,6 +10704,8 @@ export class ChannelDO extends Server<Env> {
     const attachmentKeys: string[] = [];
     const updatedSeqs: number[] = [];
     this.ctx.storage.transactionSync(() => {
+      // Identity erasure deliberately ends the receipt guarantee for this identity.
+      sql.exec("DELETE FROM collaboration_message_receipts WHERE sender_name = ?", name);
       const affected = sql.exec(
         "SELECT seq, attachments_json FROM messages WHERE sender_name = ? AND body != '[erased]' ORDER BY seq",
         name,

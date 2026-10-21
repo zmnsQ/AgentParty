@@ -1,3 +1,5 @@
+import { githubLoginUrl, securityError } from "../lib/browserAuth";
+import "./browser-auth.css";
 // 登录闸（spec §10 双轨）：配置了 SSO provider 时先给 provider 登录，粘贴 token 始终保留
 import { useState } from "react";
 import type { AuthProviderConfig } from "../lib/oidc";
@@ -8,13 +10,14 @@ import "../i18n/strings/App";
 import "../i18n/strings/TokenGate";
 
 interface Props {
+  github?: { configured: boolean; loading: boolean; error: unknown };
   error: string | null;
   providers: AuthProviderConfig[];
   onSso(provider: AuthProviderConfig): void;
   onSubmit(token: string): void;
 }
 
-export function TokenGate({ error, providers, onSso, onSubmit }: Props) {
+export function TokenGate({ error, providers, onSso, onSubmit, github }: Props) {
   const [value, setValue] = useState("");
   const t = useT();
   const { locale } = useLocale();
@@ -26,6 +29,12 @@ export function TokenGate({ error, providers, onSso, onSubmit }: Props) {
       </h1>
       <p className="d-hand gate-sub">{t("TokenGate.subtitle")}</p>
       <div className="d-card gate-card">
+        {github && <section className="browser-auth-stack">
+          {github.configured ? <a className="d-btn d-btn--primary github-login-primary" href={githubLoginUrl()}>{locale === "zh" ? "使用 GitHub 登录" : "Continue with GitHub"}</a>
+            : <button className="d-btn d-btn--primary" disabled>{github.loading ? (locale === "zh" ? "正在读取登录方式…" : "Loading sign-in…") : (locale === "zh" ? "GitHub 登录等待管理员完成配置" : "GitHub sign-in awaits administrator setup")}</button>}
+          <p className="gate-social">{locale === "zh" ? "无需填写 token。登录后可在账号安全中启用验证器二步验证。" : "No token to paste. Enable authenticator verification in Account security after signing in."}</p>
+          {github.error != null && <p className="banner banner--red" role="alert">{securityError(github.error, locale === "zh")}</p>}
+        </section>}
         {providers.length > 0 && (
           <>
             {providers.map((provider) => (
@@ -44,6 +53,7 @@ export function TokenGate({ error, providers, onSso, onSubmit }: Props) {
             <p className="t-mono gate-or">{t("TokenGate.or")}</p>
           </>
         )}
+        <details className="browser-auth-advanced"><summary>{locale === "zh" ? "高级：机器或旧版凭据" : "Advanced: machine or legacy credentials"}</summary>
         <form
           className="gate-form"
           onSubmit={(e) => {
@@ -63,7 +73,6 @@ export function TokenGate({ error, providers, onSso, onSubmit }: Props) {
             autoComplete="off"
             aria-invalid={error !== null}
             aria-describedby={error !== null ? "ap-token-error" : undefined}
-            autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
@@ -77,6 +86,7 @@ export function TokenGate({ error, providers, onSso, onSubmit }: Props) {
           </button>
           <p className="gate-hint">party token create --name you --role human</p>
         </form>
+        </details>
       </div>
       <div className="gate-lang">
         <LanguageSwitcher />

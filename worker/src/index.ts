@@ -1,3 +1,4 @@
+import { registerBrowserAuth } from "./browser-auth/routes";
 // worker 入口 — rest 路由 + ws 升级转发
 import {
   CHANNEL_CREATE_WINDOW_MS,
@@ -148,6 +149,15 @@ export type AppEnv = Env & {
   OIDC_ISSUER?: string;
   OIDC_CLIENT_ID?: string;
   AUTH_PROVIDERS?: string;
+  AUTH_PUBLIC_ORIGIN?: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
+  GITHUB_AUTH_KIND?: string;
+  AUTH_GITHUB_APP_OWNER_ID?: string;
+  AUTH_GITHUB_ALLOWED_IDS?: string;
+  AUTH_SETUP_TOKEN_HASH?: string;
+  AUTH_SETUP_EXPIRES_AT?: string;
+  AUTH_REQUIRE_GITHUB_LOGIN?: string;
   LARK_CLIENT_SECRET?: string;
   FEISHU_CLIENT_SECRET?: string;
   DESKTOP_PAIRING_SECRET?: string;
@@ -1787,6 +1797,9 @@ const requireBearer = createMiddleware<AppContext>(async (c, next) => {
     if (!identity) {
       return c.json(errorBody("unauthorized", "invalid or revoked token"), 401);
     }
+    if (c.env.AUTH_REQUIRE_GITHUB_LOGIN === "true" && identity.role === "human" && !identity.browserSessionId && !identity.desktopSessionId) {
+      return c.json(errorBody("unauthorized", "Use GitHub browser sign-in or a paired desktop session."), 401);
+    }
     if (bearer?.source === "query" && identity.role !== "readonly") {
       return c.json(errorBody("unauthorized", "query-string websocket tokens must be readonly"), 403);
     }
@@ -2875,7 +2888,7 @@ app.use("/api/desktop/*", async (c, next) => {
 app.use("/api/*", async (c, next) => {
   const origin = c.req.header("origin") ?? "";
   if (!origin) return next();
-  const sameOrigin = origin === new URL(c.req.url).origin;
+  const sameOrigin = origin === new URL(c.req.url).origin || origin === c.env.AUTH_PUBLIC_ORIGIN;
   if (!sameOrigin && !DESKTOP_CORS_ORIGINS.has(origin)) {
     return c.json(errorBody("forbidden", "origin not allowed"), 403);
   }
@@ -2922,6 +2935,8 @@ app.use("/api/*", async (c, next) => {
     // 不可变响应头：跳过建言头，不影响正文
   }
 });
+
+registerBrowserAuth(app, { enroll: enrollInstanceMember });
 
 app.get("/api/health", (c) => {
   c.header("cache-control", "no-store");

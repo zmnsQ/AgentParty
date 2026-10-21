@@ -149,6 +149,23 @@ The base can move after a check. The created commit still has the exact approved
 parent, and the adapter never writes that base ref; review the PR against its
 current target branch before merging.
 
+## Publication lease fencing
+
+Migration `0048` adds a random token to each publication claim. Acquisition
+compares the prior state, proposal digest, and prior lease token/deadline; every completion,
+error and release compares the acquired token. A late publisher cannot replace
+a newer confirmed `published` state with `unknown`, clear a successor's active
+lease, or emit an additional publication notice after losing ownership. The
+existing exact-tree/parent/PR recovery rules remain in force; tokens do not make
+separate GitHub REST writes transactional.
+
+Proposal and publication notices use `code-proposal:<UUID>` and
+`code-published:<UUID>` receipts in the group DO. Receipt scope includes the
+authenticated sender's name, kind and owner. It does not deduplicate independent
+senders globally, nor repair a notification that was never committed. Identity
+erasure ends this receipt history. Group insertion and receipt metadata commit
+atomically, but remote notifications and their acknowledgements do not.
+
 ## Transport and resource limits
 
 All URLs are constructed beneath `https://api.github.com/repos/<owner>/<repo>`.

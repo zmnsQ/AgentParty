@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "validation_date": "2026-10-21",
+  "base_commit": "01866a7ac816506f52518ea6b19fff8a5130595c",
+  "branch": "fix/durable-receipts-export-20261021",
+  "environment": {
+    "platform": "macOS ARM64",
+    "node": "24.11.1",
+    "bun": "1.4.3",
+    "frozen_lockfile": true
+  },
+  "commons_gate": {
+    "command": "bun run check:commons",
+    "exit_code": 0,
+    "passed": 522,
+    "failed": 0,
+    "skipped": 0,
+    "files": 38,
+    "layers": {
+      "http_contracts": 53,
+      "worker_integration": 179,
+      "web": 175,
+      "cli": 111,
+      "fork_configuration": 4
+    }
+  },
+  "full_worker": {
+    "command": "cd worker && bunx vitest run",
+    "exit_code": 0,
+    "passed": 1086,
+    "failed": 0,
+    "skipped": 0,
+    "files": 131
+  },
+  "counting_note": "The 179 Commons Worker cases are a subset of the full 1086 Worker cases; do not add those totals as distinct cases.",
+  "new_regressions": 22,
+  "existing_regressions_added_to_commons_gate": 37,
+  "other_checks": [
+    "Shared/Worker/Web/CLI TypeScript",
+    "Vite production build",
+    "migration numbering",
+    "git diff whitespace",
+    "LICENSE/lockfile/workflow preservation"
+  ],
+  "scope": {
+    "real_local_databases": true,
+    "real_loopback_http": true,
+    "synthetic_provider_credentials": true,
+    "personal_provider_account_acceptance": false,
+    "production_deployment": false,
+    "production_migrations": false,
+    "github_actions_dispatched": false,
+    "native_desktop_build_or_acceptance": false
+  },
+  "observations": [
+    "Earlier parallel HTTP-contract attempts had three 1-second Hermes timeouts; all assertions were retained and files are now serial. The original intermittent root cause is not established.",
+    "Expected SQLite fault-injection diagnostics; Vite retains its existing large-chunk warning."
+  ],
+  "limitations": [
+    "Receipts are principal-scoped immutable-operation metadata, not a cross-system exactly-once guarantee.",
+    "Already-pruned pre-upgrade messages cannot be reconstructed; identity/group erasure ends receipt guarantees.",
+    "Provider execution remains manual-sync; OAuth/MCP Events, live provider and signed native installer acceptance remain pending."
+  ]
+}

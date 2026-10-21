@@ -1,0 +1,9 @@
+.browser-security{width:min(94vw,580px);margin:2rem auto;padding:clamp(1.2rem,4vw,2.2rem);box-sizing:border-box;line-height:1.65}
+.browser-security h1{font-size:1.65rem;margin:1rem 0}.browser-security h2{font-size:1.1rem;margin:1rem 0 .5rem}
+.browser-auth-stack{display:flex;flex-direction:column;gap:.85rem;margin:1rem 0}.browser-auth-stack label{display:flex;flex-direction:column;gap:.4rem}
+.browser-auth-stack input[type=checkbox]{align-self:flex-start}.browser-auth-qr{align-self:center;max-width:100%;height:auto;border-radius:8px;background:white}
+.browser-auth-secret{display:block;overflow-wrap:anywhere;padding:.8rem;font-size:.9rem}.browser-auth-status{font-weight:700}
+.browser-auth-muted{opacity:.7;font-size:.85rem}.browser-recovery{border:1px solid currentColor;border-radius:10px;padding:1rem;margin:1rem 0}
+.browser-recovery pre{font-size:.85rem;overflow:auto;line-height:1.8}.browser-recovery button{margin:.4rem .4rem .4rem 0}
+.browser-auth-advanced{margin-top:1.5rem}.browser-auth-advanced summary{cursor:pointer;opacity:.7}
+.github-login-primary{display:block;text-align:center;text-decoration:none;width:100%;box-sizing:border-box}
