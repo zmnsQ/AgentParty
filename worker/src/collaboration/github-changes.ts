@@ -161,7 +161,12 @@ class GitHubOperation {
     const isWrite = body !== undefined;
     if (isWrite && this.options.beforeWrite) {
       let ownsPublication = false;
-      try { ownsPublication = await this.options.beforeWrite(); } catch { /* Fail closed; never expose database errors. */ }
+      try { ownsPublication = await this.options.beforeWrite(); }
+      catch {
+        this.checkDeadline();
+        // Ownership is unverified: another request may already have written.
+        throw new GitHubChangesError("transport_failed", "Publication authority could not be verified. Check the saved proposal before retrying.", 502, true);
+      }
       this.checkDeadline();
       if (!ownsPublication) {
         // Another publisher may already be writing. Preserve uncertainty even if

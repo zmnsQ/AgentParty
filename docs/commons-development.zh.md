@@ -150,6 +150,12 @@ bunx wrangler r2 bucket create agentparty-commons-attachments
 
 将返回的数据库 ID 填入自己的配置，设置所需 secret（`wrangler secret put <NAME>`），配置 OIDC 和 Hermes allowlist，再应用远端迁移及部署。正式托管前还需要域名/TLS、备份恢复、文件保留、用量预算和平台账号联调。当前工作没有替用户创建云资源、付费服务、域名或平台授权。
 
+### 升级到任务与发布租约加固版本
+
+新迁移 `0048_collaboration_lease_fencing.sql` 为任务和代码提案添加请求所有权标识，并清空已撤销连接保存的凭据密文。升级已有实例前先暂停写入并排空旧 Worker 请求，再应用迁移、切换全部实例并恢复服务；旧代码不检查新字段，不应与新代码混跑。数据库字段清空不代表备份或供应商端凭据已销毁。
+
+详见 [2026-10-21 加固与验证记录](commons-hardening-2026-10-21.md)。本轮完整检查在 macOS arm64 上通过 423 项，但这不是 Tauri 原生安装包或平台账号验收。
+
 ## 6. 验证记录与剩余工作
 
 [开发路线](personal-agent-roadmap.zh.md) 是开发前提交的研究与决策记录；[实施记录](collaboration-implementation.md) 和 [验证记录](commons-validation.md) 区分已实现、已运行测试与待真实账户/操作系统验证的内容。

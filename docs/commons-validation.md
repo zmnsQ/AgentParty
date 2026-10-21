@@ -1,10 +1,30 @@
 # Commons development-preview validation
 
+> **Latest merged gate: 442 / 442 tests passed, 27 files, exit 0.**
+> This retains the 423-test incoming branch and adds 19 further checks, including
+> client-session isolation. Intermediate 400/408/423-test records below are historical.
+
 Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
 
-## Hardening follow-up (2026-10-21)
+## Historical intermediate hardening — 423 tests (2026-10-21)
+
+The follow-up [lease fencing and recovery audit](commons-hardening-2026-10-21.md)
+ran on macOS arm64 / Node 24.11.1 / Bun 1.4.3: **423 tests passed** in the full
+`check:commons` gate after preserving the eight parallel regression cases from
+`4d0ea5e`. An initial merged attempt had three existing 1-second loopback timeouts;
+the unchanged full command passed on rerun. Their root cause remains unresolved.
+Eleven new Worker regression cases failed against the
+pre-fix production code and passed with the fixes; four additional loopback
+contracts cover publication-authority loss and deadlines. Migration `0048`
+requires draining old requests before switching all writers to the new code.
+No native app build, live provider certification or deployment is implied.
+
+The **400-test Linux run below is the earlier baseline**, not the follow-up's
+current test total. Its independent HTTP smoke was not rerun for this patch.
+
+## Parallel hardening baseline (2026-10-21, commit 4d0ea5e)
 
 The subsequent concurrency/revocation review ran the entire current gate on
 macOS ARM64 (Node 24.11.1, Bun 1.4.3): **408 / 408 tests passed in 27 files**,
@@ -12,8 +32,8 @@ with no skipped tests and exit code 0. Worker coverage increased from 91 to 99;
 the other layer counts are unchanged. Eight new deterministic regressions also
 failed against the original implementation before the fixed code was restored.
 
-See the [follow-up review and migration notes](commons-hardening-2026-10-21.zh.md)
-and [machine-readable check summary](validation/hardening-2026-10-21.json).
+See the [historical review and migration notes](commons-lease-review-2026-10-21.zh.md)
+and [historical check summary](validation/hardening-leases-2026-10-21.json).
 Migration `0048_collaboration_lease_fencing.sql` must be applied before the new
 Worker is enabled; drain old handlers rather than mixing unfenced writers with
 new ones. This adds request-owner fencing and purges saved credentials for
@@ -173,14 +193,14 @@ See the [development guide](commons-development.zh.md),
 ## Follow-up hardening validation after branch reconciliation — 2026-10-21
 
 A second review ran on **macOS ARM64, Node 24.11.1, Bun 1.4.3**. The complete
-`bun run check:commons` gate exited **0**: **427 / 427 tests in 27 files**, with
-**27 new regression cases relative to the original 400-test preview**. This is a newly executed gate, not a reinterpretation
+`bun run check:commons` gate exited **0**: **442 / 442 tests in 27 files**, with
+**42 new regression cases relative to the original 400-test preview**. This is a newly executed gate, not a reinterpretation
 of the original Linux result above. No dependency or lockfile upgrade was made.
 
 | Layer | Follow-up result |
 | --- | --- |
-| Provider / GitHub loopback HTTP contracts | 45 / 45 |
-| Worker integration and authorization | 110 / 110 |
+| Provider / GitHub loopback HTTP contracts | 49 / 49 |
+| Worker integration and authorization | 121 / 121 |
 | Web / desktop-facing React UI | 167 / 167 |
 | CLI and process isolation | 101 / 101 |
 | Fork configuration | 4 / 4 |
@@ -211,3 +231,11 @@ The previous 408-test review is preserved in
 [its historical report](commons-lease-review-2026-10-21.zh.md) and
 [JSON record](validation/hardening-leases-2026-10-21.json), including its observed
 intermittent loopback HTTP timeout. No force push or history rewrite was used.
+
+The last incoming commit, `1fdb25d101b83f099c4d52b8e8576060b61a1cb6`,
+was also merged without removing its test coverage. The combined totals are
+49 contract + 121 Worker + 167 Web + 101 CLI + 4 configuration checks = **442**.
+Authority loss or an unverified ownership lookup now conservatively retains
+uncertainty even before this request writes, because a successor may have acted.
+The incoming timeout/no-post tests remain present; two ownership-loss assertions
+were updated to reflect this explicit conservative outcome contract.

@@ -10,12 +10,12 @@
   "command": "bun run check:commons",
   "exit_code": 0,
   "test_files": 27,
-  "tests_passed": 427,
+  "tests_passed": 442,
   "tests_failed": 0,
-  "new_tests": 27,
+  "new_tests": 42,
   "layers": {
-    "contracts": 45,
-    "worker": 110,
+    "contracts": 49,
+    "worker": 121,
     "web": 167,
     "cli": 101,
     "configuration": 4
@@ -56,6 +56,10 @@
     "Prior remote review observed intermittent loopback HTTP timeout; merged passing gate does not establish its elimination"
   ],
   "additional_tests_after_remote_commit": 19,
-  "merged_remote_commit": "4d0ea5e2d340a0652b080e005a02e3d3d454f45a",
-  "preserved_remote_validation": "hardening-leases-2026-10-21.json"
+  "merged_remote_commit": "1fdb25d101b83f099c4d52b8e8576060b61a1cb6",
+  "preserved_remote_validation": "hardening-leases-2026-10-21.json",
+  "preserved_remote_validations": [
+    "hardening-leases-2026-10-21.json",
+    "lease-fencing.json"
+  ]
 }

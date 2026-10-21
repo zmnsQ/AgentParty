@@ -457,6 +457,44 @@ test("write timeout is an uncertain outcome and a later identical retry recovers
 });
 
 
+// Even before this request writes, a successor may have published. Keep its
+// outcome uncertain rather than reopening deletion or fresh publication.
+test("lost publication authority prevents the first write", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return false; } }), errorIs("conflict", true));
+  assert.equal(checks, 1);
+  assert.equal(posts().length, 0);
+});
+
+test("authority is checked before every write and a loss after a tree write stays uncertain", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => ++checks === 1 }), errorIs("conflict", true));
+  assert.equal(checks, 2);
+  assert.deepEqual(posts().map((request) => request.path), [`${ROOT}/git/trees`]);
+  assert.equal(state.refs.has("agentparty/proposal-001"), false);
+  assert.equal(state.pulls.length, 0);
+});
+
+test("authority-check failures are scrubbed and fail closed", async () => {
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error(TOKEN); } }), errorIs("transport_failed", true));
+  assert.equal(posts().length, 0);
+});
+
+test("operation deadline prevents a delayed authority check from starting a late write", async () => {
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  let arrived;
+  const entered = new Promise((resolve) => { arrived = resolve; });
+  const pending = publishChanges(proposal(), { ...options, timeoutMs: 250, beforeWrite: async () => { arrived(); await held; return true; } });
+  const rejection = assert.rejects(pending, errorIs("timeout", false));
+  try { await Promise.race([entered, pending]); await rejection; }
+  finally { release(); }
+  // Drain the continuation after its gate; it must observe the elapsed deadline.
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(posts().length, 0);
+});
+
+
 test("expired publication authority prevents the first GitHub write", async () => {
   let checks = 0;
   await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return false; } }),
