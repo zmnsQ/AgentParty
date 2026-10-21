@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-21",
+  "baseline_commit": "5e74a599309e2afb1ebbcd2eaf46f6a38f6f49d1",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "24.11.1",
+    "bun": "1.4.3"
+  },
+  "gate": {
+    "command": "bun run check:commons",
+    "exit_code": 0,
+    "passed": 415,
+    "failed": 0,
+    "skipped": 0,
+    "test_files": 27,
+    "layers": {
+      "contracts": 46,
+      "worker": 102,
+      "web": 162,
+      "cli": 101,
+      "configuration": 4
+    }
+  },
+  "negative_control": {
+    "production_source": "baseline_commit",
+    "new_worker_regressions": 11,
+    "failed": 11,
+    "unselected_original_tests": 21,
+    "exit_code": 1,
+    "fixed_sources_restored": true
+  },
+  "external_provider_accounts_tested": false,
+  "native_desktop_build_tested": false,
+  "github_actions_dispatched": false,
+  "production_deployed": false
+}

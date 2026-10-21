@@ -36,7 +36,7 @@ interface RunRow {
   id: string; channel_slug: string; connection_id: string; request_id: string; requested_by: string;
   state: CloudAgentRunState; prompt: string; remote_run_id: string | null; reference_json: string | null;
   result: string | null; error: string | null; reply_message_seq: number | null;
-  lease_until: number; created_at: number; updated_at: number;
+  lease_until: number; lease_token: string | null; created_at: number; updated_at: number;
 }
 export interface RepositoryRow {
   id: string; channel_slug: string; full_name: string; base_branch: string; is_private: number;
@@ -45,6 +45,13 @@ export interface RepositoryRow {
 const ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 const ACTIVE_SQL = "'starting','running','needs_input','unknown'";
 const LEASE_MS = 60_000;
+// Fence every outcome and receipt write by its owner, in the same SQL statement
+// as the live-connection check. A preflight SELECT alone races with revocation.
+const OWNED_RUN_SQL = `id = ? AND lease_token = ? AND EXISTS (
+  SELECT 1 FROM cloud_agent_connections AS connection
+  WHERE connection.channel_slug = cloud_agent_runs.channel_slug
+    AND connection.id = cloud_agent_runs.connection_id AND connection.revoked_at IS NULL
+)`;
 const MAX_PROMPT = 20_000;
 const encoder = new TextEncoder();
 
@@ -172,8 +179,14 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
   }), c.env, c.executionCtx);
 
   /** Persist the final answer first, then use the real scoped agent's normal message API. */
-  async function publishResult(c: Ctx, connection: ConnectionRow, run: RunRow): Promise<RunRow> {
+  async function publishResult(c: Ctx, connection: ConnectionRow, run: RunRow, leaseToken: string): Promise<RunRow> {
     if (connection.provider !== "hermes" || run.state !== "completed" || !run.result || run.reply_message_seq !== null) return run;
+    // Refresh ownership before the message side effect; a stale provider response
+    // must not publish even if another request has already completed the run.
+    const held = await c.env.DB.prepare(`UPDATE cloud_agent_runs SET lease_until = ?
+      WHERE ${OWNED_RUN_SQL} AND state = 'completed' AND reply_message_seq IS NULL`)
+      .bind(Date.now() + LEASE_MS, run.id, leaseToken).run();
+    if (held.meta.changes !== 1) return (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
     let sequence: number | null = null;
     try {
       const token = await openCredential(connection.agent_token_ciphertext, c.env.COLLABORATION_ENCRYPTION_KEY, connectionContext(connection, "token"));
@@ -187,20 +200,17 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       }
     } catch { /* A delivery/key/receipt error must not erase a completed remote outcome. */ }
     if (sequence === null) {
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET error = ?, updated_at = ? WHERE id = ?")
-        .bind("The answer is saved, but posting to the group could not be confirmed. Check the server key and agent's channel permission, then sync again.", Date.now(), run.id).run();
+      await c.env.DB.prepare(`UPDATE cloud_agent_runs SET error = ?, updated_at = ?
+        WHERE ${OWNED_RUN_SQL} AND state = 'completed' AND reply_message_seq IS NULL`)
+        .bind("The answer is saved, but posting to the group could not be confirmed. Check the server key and agent's channel permission, then sync again.", Date.now(), run.id, leaseToken).run();
     } else {
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET reply_message_seq = ?, error = NULL, updated_at = ? WHERE id = ?")
-        .bind(sequence, Date.now(), run.id).run();
+      await c.env.DB.prepare(`UPDATE cloud_agent_runs SET reply_message_seq = ?, error = NULL, updated_at = ?
+        WHERE ${OWNED_RUN_SQL} AND state = 'completed' AND reply_message_seq IS NULL`)
+        .bind(sequence, Date.now(), run.id, leaseToken).run();
     }
     return (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
   }
-  async function persistUpdate(c: Ctx, connection: ConnectionRow, run: RunRow, update: ProviderRunUpdate): Promise<RunRow> {
-    if (!(await loadConnection(c.env.DB, connection.channel_slug, connection.id))) {
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET state = 'unknown', result = NULL, error = ?, updated_at = ? WHERE id = ?")
-        .bind("The connection was revoked while this request was in flight. Check the remote outcome in the provider.", Date.now(), run.id).run();
-      return (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
-    }
+  async function persistUpdate(c: Ctx, connection: ConnectionRow, run: RunRow, update: ProviderRunUpdate, leaseToken: string): Promise<RunRow> {
     // Provider adapters deliberately never return Manus personal conversation bodies.
     const output = connection.provider === "hermes" && update.state === "completed" ? update.text ?? null : null;
     if (output && encoder.encode(output).byteLength > 90_000) {
@@ -211,10 +221,11 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       ...(update.sessionId === undefined ? {} : { sessionId: update.sessionId }),
       ...(update.cursor === undefined ? {} : { cursor: update.cursor }),
       ...(update.deliveryMode === undefined ? {} : { deliveryMode: update.deliveryMode }) };
-    await c.env.DB.prepare("UPDATE cloud_agent_runs SET state = ?, remote_run_id = ?, reference_json = ?, result = ?, error = ?, updated_at = ? WHERE id = ?")
-      .bind(update.state, update.remoteRunId, JSON.stringify(reference), result, update.note ?? null, Date.now(), run.id).run();
+    const saved = await c.env.DB.prepare(`UPDATE cloud_agent_runs SET state = ?, remote_run_id = ?, reference_json = ?, result = ?, error = ?, updated_at = ?
+      WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`)
+      .bind(update.state, update.remoteRunId, JSON.stringify(reference), result, update.note ?? null, Date.now(), run.id, leaseToken).run();
     const current = (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
-    return publishResult(c, connection, current);
+    return saved.meta.changes === 1 ? publishResult(c, connection, current, leaseToken) : current;
   }
 
   app.get("/api/channels/:slug/collaboration", route(async (c) => {
@@ -303,9 +314,10 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
     if (!connection) return fail(c, 404, "Connection not found.", "not_found");
     const now = Date.now();
     await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE cloud_agent_connections SET revoked_at = ?, updated_at = ? WHERE channel_slug = ? AND id = ?").bind(now, now, granted.slug, connection.id),
+      c.env.DB.prepare("UPDATE cloud_agent_connections SET revoked_at = ?, updated_at = ?, credential_ciphertext = '', agent_token_ciphertext = '' WHERE channel_slug = ? AND id = ?").bind(now, now, granted.slug, connection.id),
+      c.env.DB.prepare("UPDATE cloud_agent_runs SET lease_token = NULL, lease_until = 0 WHERE channel_slug = ? AND connection_id = ?").bind(granted.slug, connection.id),
       c.env.DB.prepare("UPDATE tokens SET revoked_at = ? WHERE hash = ?").bind(now, connection.agent_token_hash),
-      c.env.DB.prepare(`UPDATE cloud_agent_runs SET state = 'unknown', error = ?, updated_at = ? WHERE channel_slug = ? AND connection_id = ? AND state IN (${ACTIVE_SQL})`)
+      c.env.DB.prepare(`UPDATE cloud_agent_runs SET state = 'unknown', result = NULL, error = ?, updated_at = ? WHERE channel_slug = ? AND connection_id = ? AND state IN (${ACTIVE_SQL})`)
         .bind("Connection revoked. Any already-started remote work must be checked in the provider; no further results will be imported.", now, granted.slug, connection.id),
     ]);
     return c.json({ revoked: true, remote_work_cancelled: false });
@@ -332,12 +344,12 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       return c.json({ run: runView(prior), reused: true });
     }
     const config = await providerConfig(connection, c.env);
-    const id = crypto.randomUUID(); const now = Date.now();
+    const id = crypto.randomUUID(); const now = Date.now(); const leaseToken = crypto.randomUUID();
     try {
       const inserted = await c.env.DB.prepare(`INSERT INTO cloud_agent_runs
-        (id,channel_slug,connection_id,request_id,requested_by,state,prompt,lease_until,created_at,updated_at)
-        SELECT ?,?,?,?,?, 'starting',?,?,?,? FROM cloud_agent_connections WHERE channel_slug = ? AND id = ? AND revoked_at IS NULL`)
-        .bind(id, granted.slug, connection.id, body.request_id, granted.identity.name, body.prompt, now + LEASE_MS, now, now, granted.slug, connection.id).run();
+        (id,channel_slug,connection_id,request_id,requested_by,state,prompt,lease_until,lease_token,created_at,updated_at)
+        SELECT ?,?,?,?,?, 'starting',?,?,?,?,? FROM cloud_agent_connections WHERE channel_slug = ? AND id = ? AND revoked_at IS NULL`)
+        .bind(id, granted.slug, connection.id, body.request_id, granted.identity.name, body.prompt, now + LEASE_MS, leaseToken, now, now, granted.slug, connection.id).run();
       if (inserted.meta.changes !== 1) return fail(c, 409, "The connection was revoked.", "conflict");
     } catch (error) {
       if (uniqueViolation(error)) {
@@ -351,15 +363,18 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
     let run = (await loadRun(c.env.DB, granted.slug, connection.id, id))!;
     try {
       const update = await startProviderRun(config, { prompt: body.prompt, requestId: id, sessionId: connection.session_id ?? undefined }, options(c.env));
-      run = await persistUpdate(c, connection, run, update);
+      run = await persistUpdate(c, connection, run, update, leaseToken);
     } catch (error) {
       const unknown = !(error instanceof ProviderError) || error.outcomeUnknown;
       const message = error instanceof ProviderError ? error.message : "The remote outcome could not be confirmed. Check this run in the provider before submitting any duplicate work.";
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET state = ?, error = ?, updated_at = ? WHERE id = ?")
-        .bind(unknown ? "unknown" : "failed", message, Date.now(), id).run();
+      // Delivery/storage errors after completion do not undo the saved provider
+      // outcome. A superseded or revoked request cannot mutate its successor.
+      await c.env.DB.prepare(`UPDATE cloud_agent_runs SET state = ?, error = ?, updated_at = ?
+        WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`)
+        .bind(unknown ? "unknown" : "failed", message, Date.now(), id, leaseToken).run();
       run = (await loadRun(c.env.DB, granted.slug, connection.id, id))!;
     } finally {
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0 WHERE id = ?").bind(id).run();
+      await c.env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0, lease_token = NULL WHERE id = ? AND lease_token = ?").bind(id, leaseToken).run();
     }
     return c.json({ run: runView(run), reused: false }, 201);
   }));
@@ -368,31 +383,43 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
     const granted = await access(c, "run"); if (granted instanceof Response) return granted;
     const connection = await loadConnection(c.env.DB, granted.slug, c.req.param("id") ?? "");
     if (!connection) return fail(c, 404, "Connection not found.", "not_found");
-    const run = await loadRun(c.env.DB, granted.slug, connection.id, c.req.param("runId") ?? "");
-    if (!run) return fail(c, 404, "Run not found.", "not_found");
-    const now = Date.now();
-    const lock = await c.env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = ? WHERE id = ? AND lease_until < ?")
-      .bind(now + LEASE_MS, run.id, now).run();
-    if (lock.meta.changes !== 1) return c.json({ run: runView(run), reused: true });
+    const initial = await loadRun(c.env.DB, granted.slug, connection.id, c.req.param("runId") ?? "");
+    if (!initial) return fail(c, 404, "Run not found.", "not_found");
+    const now = Date.now(); const leaseToken = crypto.randomUUID();
+    const lock = await c.env.DB.prepare(`UPDATE cloud_agent_runs SET lease_until = ?, lease_token = ?
+      WHERE id = ? AND lease_until <= ? AND EXISTS (SELECT 1 FROM cloud_agent_connections AS connection
+        WHERE connection.channel_slug = cloud_agent_runs.channel_slug
+          AND connection.id = cloud_agent_runs.connection_id AND connection.revoked_at IS NULL)`)
+      .bind(now + LEASE_MS, leaseToken, initial.id, now).run();
+    if (lock.meta.changes !== 1) return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, initial.id))!), reused: true });
     try {
-      if (["completed", "failed", "cancelled", "submitted"].includes(run.state)) return c.json({ run: runView(await publishResult(c, connection, run)) });
+      // Another request may have completed between the first SELECT and acquiring
+      // the lease. Decisions must use the post-acquisition row, not that snapshot.
+      const run = (await loadRun(c.env.DB, granted.slug, connection.id, initial.id))!;
+      if (run.lease_token !== leaseToken) return c.json({ run: runView(run), reused: true });
+      if (["completed", "failed", "cancelled", "submitted"].includes(run.state)) return c.json({ run: runView(await publishResult(c, connection, run, leaseToken)) });
       if (!run.remote_run_id || !run.reference_json) {
-        await c.env.DB.prepare("UPDATE cloud_agent_runs SET state = 'unknown', error = ?, updated_at = ? WHERE id = ?")
-          .bind("No remote receipt was saved. Check the provider before creating another request; this integration will not blindly retry a paid operation.", now, run.id).run();
+        await c.env.DB.prepare(`UPDATE cloud_agent_runs SET state = 'unknown', error = ?, updated_at = ?
+          WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`)
+          .bind("No remote receipt was saved. Check the provider before creating another request; this integration will not blindly retry a paid operation.", now, run.id, leaseToken).run();
         return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, run.id))!) });
       }
       if (action === "cancel" && !connection.supports_cancel) return fail(c, 400, "This connection cannot cancel a single group request. Check the task in the provider.", "unsupported");
       const config = await providerConfig(connection, c.env);
+      const ready = await c.env.DB.prepare(`UPDATE cloud_agent_runs SET lease_until = ?
+        WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`).bind(Date.now() + LEASE_MS, run.id, leaseToken).run();
+      if (ready.meta.changes !== 1) return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, run.id))!), reused: true });
       const reference = JSON.parse(run.reference_json) as ProviderRunReference;
       const update = action === "cancel" ? await cancelProviderRun(config, reference, options(c.env)) : await pollProviderRun(config, reference, options(c.env));
-      return c.json({ run: runView(await persistUpdate(c, connection, run, update)) });
+      return c.json({ run: runView(await persistUpdate(c, connection, run, update, leaseToken)) });
     } catch (error) {
       if (!(error instanceof ProviderError)) throw error;
       // A failed status GET never proves the run failed; retain its state and receipt for recovery.
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET error = ?, updated_at = ? WHERE id = ?").bind(error.message, Date.now(), run.id).run();
-      return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, run.id))!) });
+      await c.env.DB.prepare(`UPDATE cloud_agent_runs SET error = ?, updated_at = ?
+        WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`).bind(error.message, Date.now(), initial.id, leaseToken).run();
+      return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, initial.id))!) });
     } finally {
-      await c.env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0 WHERE id = ?").bind(run.id).run();
+      await c.env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0, lease_token = NULL WHERE id = ? AND lease_token = ?").bind(initial.id, leaseToken).run();
     }
   }
   app.post("/api/channels/:slug/cloud-agents/:id/runs/:runId/sync", route((c) => controlRun(c, "sync")));

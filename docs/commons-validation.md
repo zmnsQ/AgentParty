@@ -4,6 +4,19 @@ Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
 
+## Follow-up hardening (2026-10-21)
+
+The follow-up [lease fencing and recovery audit](commons-hardening-2026-10-21.md)
+ran on macOS arm64 / Node 24.11.1 / Bun 1.4.3: **415 tests passed** in the full
+`check:commons` gate. Eleven new Worker regression cases failed against the
+pre-fix production code and passed with the fixes; four additional loopback
+contracts cover publication-authority loss and deadlines. Migration `0048`
+requires draining old requests before switching all writers to the new code.
+No native app build, live provider certification or deployment is implied.
+
+The **400-test Linux run below is the earlier baseline**, not the follow-up's
+current test total. Its independent HTTP smoke was not rerun for this patch.
+
 ## Source and sequence
 
 - Upstream baseline: `leeguooooo/AgentParty@25384eca99b24ed823ab54b4e850a0c9079a3b24`.

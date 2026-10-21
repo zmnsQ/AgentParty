@@ -13,7 +13,7 @@ type ReplyFn = (opts: {
   method: string;
   headers: Record<string, string>;
   body: string;
-}) => ReplyBody;
+}) => ReplyBody | Promise<ReplyBody>;
 
 interface Interceptor {
   origin: string;
@@ -111,7 +111,7 @@ class FetchMock {
         request.headers.forEach((value, key) => {
           headers[key] = value;
         });
-        body = body({ origin, path, method, headers, body: await request.text() });
+        body = await body({ origin, path, method, headers, body: await request.text() });
       }
       if (typeof body === "string") {
         return new Response(body, { status: match.status });

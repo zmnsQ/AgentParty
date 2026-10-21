@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CodeProposalDetail, CodeProposalInput } from "@agentparty/shared/code-proposals";
 import type { ChannelRepository } from "@agentparty/shared/collaboration";
 import { fetchMock } from "./fetch-mock";
+import { requestGate } from "./request-gate";
+import { handlerApi, statementHook } from "./handler-api";
 import { api, createChannel, seedToken, uniq } from "./helpers";
 
 const READ_KEY = "synthetic-github-read-credential";
@@ -254,5 +256,86 @@ describe("reviewed GitHub code proposals", () => {
     expect(response.status).toBe(404);
     expect(await env.DB.prepare("SELECT id FROM code_change_proposals WHERE repository_id=?").bind(context.repository.id).first()).toBeNull();
     expect(context.state.writes).toEqual([]);
+  });
+});
+
+
+function publishForRace(context: Setup, proposal: CodeProposalDetail) {
+  return handlerApi(`${context.base}/proposals/${proposal.id}/publish`, context.owner.token, {
+    method: "POST", body: JSON.stringify({ expected_digest: proposal.digest, credential: WRITE_KEY }),
+  });
+}
+
+describe("proposal publication lease fencing", () => {
+  it("does not downgrade a recovered publication when an older request fails", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    // Suspend the old publisher before any GitHub write.
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const gate = requestGate();
+    fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+      .reply(403, async () => { await gate.wait(); return { message: "Old credential rejected" }; });
+    const stale = Promise.resolve(publishForRace(context, proposal));
+    try {
+      await gate.arrived;
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until = 0 WHERE id = ?").bind(proposal.id).run();
+      const recovery = await fixture(); recovery.publishing(proposal);
+      const current = await (await publishForRace(context, proposal)).json() as { proposal: CodeProposalDetail };
+      expect(current.proposal).toMatchObject({ state: "published", pull_request_number: 42 });
+      gate.release();
+      expect(await (await stale).json()).toMatchObject({ proposal: current.proposal });
+      expect(await env.DB.prepare("SELECT state,lease_token,lease_until FROM code_change_proposals WHERE id = ?").bind(proposal.id).first())
+        .toEqual({ state: "published", lease_token: null, lease_until: 0 });
+      const messages = await (await handlerApi(`/api/channels/${context.slug}/messages`, context.owner.token)).json() as { messages: Array<{ body: string }> };
+      expect(messages.messages.filter((message) => message.body?.includes("Code proposal published for review:"))).toHaveLength(1);
+      expect(recovery.state.writes).toEqual(["tree", "commit", "new-branch", "draft-pr"]);
+    } finally { gate.release(); await stale; }
+  });
+
+  it("does not release or overwrite an active successor after a stale publisher fails", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const firstGate = requestGate(); const nextGate = requestGate();
+    const github = fetchMock.get("https://api.github.com");
+    github.intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+      .reply(403, async () => { await firstGate.wait(); return { message: "Old credential denied" }; });
+    github.intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+      .reply(403, async () => { await nextGate.wait(); return { message: "Recovery denied" }; });
+    const stale = Promise.resolve(publishForRace(context, proposal)); let next: Promise<Response> | undefined;
+    try {
+      await firstGate.arrived;
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until = 0 WHERE id = ?").bind(proposal.id).run();
+      next = Promise.resolve(publishForRace(context, proposal)); await nextGate.arrived;
+      const lease = await env.DB.prepare("SELECT state,lease_token,lease_until,error FROM code_change_proposals WHERE id = ?").bind(proposal.id).first();
+      expect(lease).toMatchObject({ state: "publishing", lease_token: expect.any(String), error: null });
+      firstGate.release(); await (await stale).text();
+      expect(await env.DB.prepare("SELECT state,lease_token,lease_until,error FROM code_change_proposals WHERE id = ?").bind(proposal.id).first()).toEqual(lease);
+      expect((await publishForRace(context, proposal)).status).toBe(409);
+      expect((await handlerApi(context.base, context.owner.token, { method: "DELETE" })).status).toBe(409);
+      nextGate.release();
+      expect(await (await next).json()).toMatchObject({ proposal: { state: "unknown" } });
+    } finally { firstGate.release(); nextGate.release(); await stale; await next; }
+  });
+});
+
+
+describe("proposal pre-lock state validation", () => {
+  it("rejects an approval based on a stale proposed state after another request becomes uncertain", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    context.publishing(proposal, true);
+    const db = statementHook(env.DB, "SELECT * FROM code_change_proposals WHERE channel_slug = ? AND repository_id = ? AND id = ?", "first", async () => {
+      expect(await (await publishForRace(context, proposal)).json()).toMatchObject({ proposal: { state: "unknown" } });
+      // A subsequent read denial must not turn that uncertain write into 'failed'.
+      fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+      fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+        .reply(403, { message: "Recovery credential denied" }).persist();
+    });
+    const response = await handlerApi(`${context.base}/proposals/${proposal.id}/publish`, context.owner.token, {
+      method: "POST", body: JSON.stringify({ expected_digest: proposal.digest, credential: WRITE_KEY }),
+    }, db);
+    expect(response.status).toBe(409);
+    expect(await env.DB.prepare("SELECT state,lease_token,lease_until FROM code_change_proposals WHERE id = ?").bind(proposal.id).first())
+      .toEqual({ state: "unknown", lease_token: null, lease_until: 0 });
+    expect((await api(context.base, context.owner.token, { method: "DELETE" })).status).toBe(409);
+    expect(context.state.writes).toEqual(["tree", "commit", "new-branch"]);
   });
 });
