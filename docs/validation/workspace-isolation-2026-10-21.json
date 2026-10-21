@@ -1,6 +1,6 @@
 {
   "date_utc": "2026-10-21",
-  "baseline_commit": "4d0ea5e2d340a0652b080e005a02e3d3d454f45a",
+  "baseline_commit": "b215c4ba0522412cf2cfb70f4d844617519e6418",
   "scope": "Workspace isolation, upload follow-up boundaries and pre-write GitHub authority checks; development preview only",
   "environment": {
     "os": "macOS",
@@ -12,16 +12,16 @@
   "command": "bun run check:commons",
   "exit_code": 0,
   "tests": {
-    "passed": 429,
+    "passed": 463,
     "failed": 0,
     "skipped": 0,
     "files": 28,
     "added_since_baseline": 21
   },
   "layers": {
-    "provider_github_http_contracts": 46,
-    "worker_local_routes_d1_do_r2": 108,
-    "web": 170,
+    "provider_github_http_contracts": 53,
+    "worker_local_routes_d1_do_r2": 130,
+    "web": 175,
     "cli": 101,
     "fork_configuration": 4
   },
@@ -48,7 +48,9 @@
       "failed": 4,
       "exit_code": 1
     },
-    "method": "Selected new tests against baseline production files in a separate temporary worktree; original working files restored afterward."
+    "method": "Selected new tests against baseline production files in a separate temporary worktree; original working files restored afterward.",
+    "baseline_commit": "4d0ea5e2d340a0652b080e005a02e3d3d454f45a",
+    "tested_revision": "3a1d28b7cebcc74bee4b5bb07fc15cb9f41698be"
   },
   "validation_boundaries": [
     "HTTP contract tests use loopback synthetic credentials, not live provider accounts.",
@@ -59,6 +61,18 @@
   "local_log_sha256": {
     "check-commons-verified.log": "c45c29412913162212e008bbef36b7ac13e172f3d7c650e1ecc6efad23fad213",
     "negative-ui.log": "92a26741956bcdbf136302ccae82d95202bcd927f7c881764ce24ecbe041c8ba",
-    "negative-contracts.log": "6284cdf893ab30d1d7f0df3bffb2a11191931aae5995c9e3e7c156acefdd4304"
+    "negative-contracts.log": "6284cdf893ab30d1d7f0df3bffb2a11191931aae5995c9e3e7c156acefdd4304",
+    "check-commons-merged.log": "72bd2aba357bf64009df98b2ea19cd6f5e61bf0c783de5b459d64a389804f8dd"
+  },
+  "merge_parents": [
+    "3a1d28b7cebcc74bee4b5bb07fc15cb9f41698be",
+    "b215c4ba0522412cf2cfb70f4d844617519e6418"
+  ],
+  "intermediate_validation": {
+    "implementation_commit": "3a1d28b7cebcc74bee4b5bb07fc15cb9f41698be",
+    "baseline_commit": "4d0ea5e2d340a0652b080e005a02e3d3d454f45a",
+    "passed": 429,
+    "exit_code": 0,
+    "superseded_by": "463-test merged result"
   }
 }

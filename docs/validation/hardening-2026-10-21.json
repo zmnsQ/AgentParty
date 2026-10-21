@@ -1,92 +1,65 @@
 {
-  "date_utc": "2026-10-21",
+  "date": "2026-10-21",
   "baseline_commit": "5e74a599309e2afb1ebbcd2eaf46f6a38f6f49d1",
-  "scope": "Development-preview concurrency and credential-revocation hardening; not production certification",
   "environment": {
     "os": "macOS",
     "architecture": "arm64",
     "node": "24.11.1",
-    "bun": "1.4.3",
-    "frozen_lockfile": true
+    "bun": "1.4.3"
   },
   "command": "bun run check:commons",
   "exit_code": 0,
-  "tests": {
-    "passed": 408,
-    "failed": 0,
-    "skipped": 0,
-    "files": 27,
-    "new_regressions": 8
-  },
+  "test_files": 27,
+  "tests_passed": 442,
+  "tests_failed": 0,
+  "new_tests": 42,
   "layers": {
-    "http_contracts": 42,
-    "worker_integration": 99,
-    "web": 162,
+    "contracts": 49,
+    "worker": 121,
+    "web": 167,
     "cli": 101,
-    "fork_config": 4
+    "configuration": 4
   },
-  "checks": {
-    "shared_typecheck": true,
-    "worker_typecheck": true,
-    "web_typecheck": true,
-    "cli_typecheck": true,
-    "vite_production_build": true,
-    "migration_numbering": true,
-    "sql_migration_files": 50
-  },
-  "baseline_negative_control": {
-    "reverted_production_files": [
-      "worker/src/collaboration/routes.ts",
-      "worker/src/collaboration/proposals.ts"
-    ],
-    "new_tests_failed": 8,
-    "existing_tests_not_selected": 21,
-    "exit_code": 1,
-    "patched_sources_restored_before_final_gate": true
-  },
-  "external_services": "Protocol fixtures only; no personal provider account or live product GitHub publication.",
-  "concurrency_test_method": "Real Worker handler and local D1/DO/R2 within a single test I/O context; explicit barriers; sequential integration tests retain SELF.fetch.",
-  "not_executed": [
-    "native_desktop_build",
-    "native_installer_acceptance",
-    "signed_release",
-    "production_deployment",
-    "remote_migrations",
-    "github_actions_dispatch",
-    "live_provider_acceptance",
-    "independent_http_smoke_rerun"
+  "typescript": [
+    "shared",
+    "worker",
+    "web",
+    "cli"
   ],
-  "source_sha256": {
-    "worker/src/collaboration/routes.ts": "bbb79ccca9fa80bd3f1e35feaec64742a200eb38d468c23670457f90c4e3c30c",
-    "worker/src/collaboration/proposals.ts": "f50a3443ccbe955084812a63a889844de165c7680dbe94b745fb01904b6ec77d",
-    "worker/migrations/0048_collaboration_lease_fencing.sql": "8d7c037749d73fbd1dd3a3d4c6736e5f094a5592facf628d260cd091f9962c42",
-    "worker/test/collaboration.spec.ts": "254f270c5dd00bbea217e81d46fb0252008fba2b583b7c726c39b693091ddc8e",
-    "worker/test/code-proposals.spec.ts": "984ed14dadd57e2cda1e9178733f3bef23d521fab79e33820167cf4ee59dbb1d",
-    "worker/test/concurrent-api.ts": "cc817c8a698e1ea31106ebc7426f5c32efc53e763052464ce0246e28c8490f20",
-    "worker/test/fetch-mock.ts": "4d955b54a95e122c0f337e96575e9d41665c1b730dba31b5a03d2d98e27aae30"
-  },
-  "recheck_incident": {
-    "observed": "One repeat full gate stopped with 3 existing local HTTP contract timeouts; 39/42 contracts passed.",
-    "followup_contract_runs": [
-      {
-        "passed": 42,
-        "failed": 0,
-        "exit_code": 0
-      },
-      {
-        "passed": 42,
-        "failed": 0,
-        "exit_code": 0
-      }
-    ],
-    "followup_full_gate": {
-      "passed": 408,
-      "failed": 0,
-      "exit_code": 0
+  "vite_build": "passed",
+  "migration_numbering": "passed",
+  "diff_check": "passed",
+  "migration": "0048_collaboration_lease_fencing.sql",
+  "migration_files": 50,
+  "baseline_regression_probe": {
+    "contracts": {
+      "passed": 0,
+      "failed": 3
     },
-    "production_transport_changed": false,
-    "contract_tests_changed": false,
-    "test_timeout_changed": false,
-    "cause": "Unconfirmed; intermittent local test stability remains under investigation."
-  }
+    "ui": {
+      "passed": 1,
+      "failed": 4
+    },
+    "purpose": "Confirm new tests detect old behavior; these are intentionally failing old-baseline probes, not the repaired gate."
+  },
+  "dependency_updates": false,
+  "license_changed": false,
+  "real_provider_accounts_tested": false,
+  "real_product_github_publication_tested": false,
+  "native_client_built": false,
+  "production_deployed": false,
+  "github_actions_dispatched": false,
+  "known_limits": [
+    "10-minute group-message deduplication window remains",
+    "In-flight external HTTP requests cannot be recalled",
+    "Provider authorization and native platform acceptance remain unfinished",
+    "Prior remote review observed intermittent loopback HTTP timeout; merged passing gate does not establish its elimination"
+  ],
+  "additional_tests_after_remote_commit": 19,
+  "merged_remote_commit": "1fdb25d101b83f099c4d52b8e8576060b61a1cb6",
+  "preserved_remote_validation": "hardening-leases-2026-10-21.json",
+  "preserved_remote_validations": [
+    "hardening-leases-2026-10-21.json",
+    "lease-fencing.json"
+  ]
 }

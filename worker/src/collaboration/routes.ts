@@ -186,7 +186,7 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
     const held = await c.env.DB.prepare(`UPDATE cloud_agent_runs SET lease_until = ?
       WHERE ${OWNED_RUN_SQL} AND state = 'completed' AND reply_message_seq IS NULL`)
       .bind(Date.now() + LEASE_MS, run.id, leaseToken).run();
-    if (held.meta.changes !== 1) return (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
+    if (held.meta.changes < 1) return (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
     let sequence: number | null = null;
     try {
       const token = await openCredential(connection.agent_token_ciphertext, c.env.COLLABORATION_ENCRYPTION_KEY, connectionContext(connection, "token"));
@@ -225,7 +225,7 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`)
       .bind(update.state, update.remoteRunId, JSON.stringify(reference), result, update.note ?? null, Date.now(), run.id, leaseToken).run();
     const current = (await loadRun(c.env.DB, run.channel_slug, run.connection_id, run.id))!;
-    return saved.meta.changes === 1 ? publishResult(c, connection, current, leaseToken) : current;
+    return saved.meta.changes > 0 ? publishResult(c, connection, current, leaseToken) : current;
   }
 
   app.get("/api/channels/:slug/collaboration", route(async (c) => {
@@ -350,7 +350,7 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
         (id,channel_slug,connection_id,request_id,requested_by,state,prompt,lease_until,lease_token,created_at,updated_at)
         SELECT ?,?,?,?,?, 'starting',?,?,?,?,? FROM cloud_agent_connections WHERE channel_slug = ? AND id = ? AND revoked_at IS NULL`)
         .bind(id, granted.slug, connection.id, body.request_id, granted.identity.name, body.prompt, now + LEASE_MS, leaseToken, now, now, granted.slug, connection.id).run();
-      if (inserted.meta.changes !== 1) return fail(c, 409, "The connection was revoked.", "conflict");
+      if (inserted.meta.changes < 1) return fail(c, 409, "The connection was revoked.", "conflict");
     } catch (error) {
       if (uniqueViolation(error)) {
         const duplicate = await c.env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE channel_slug = ? AND connection_id = ? AND request_id = ?")
@@ -391,7 +391,7 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
         WHERE connection.channel_slug = cloud_agent_runs.channel_slug
           AND connection.id = cloud_agent_runs.connection_id AND connection.revoked_at IS NULL)`)
       .bind(now + LEASE_MS, leaseToken, initial.id, now).run();
-    if (lock.meta.changes !== 1) return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, initial.id))!), reused: true });
+    if (lock.meta.changes < 1) return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, initial.id))!), reused: true });
     try {
       // Another request may have completed between the first SELECT and acquiring
       // the lease. Decisions must use the post-acquisition row, not that snapshot.
@@ -408,7 +408,7 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       const config = await providerConfig(connection, c.env);
       const ready = await c.env.DB.prepare(`UPDATE cloud_agent_runs SET lease_until = ?
         WHERE ${OWNED_RUN_SQL} AND state IN (${ACTIVE_SQL})`).bind(Date.now() + LEASE_MS, run.id, leaseToken).run();
-      if (ready.meta.changes !== 1) return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, run.id))!), reused: true });
+      if (ready.meta.changes < 1) return c.json({ run: runView((await loadRun(c.env.DB, granted.slug, connection.id, run.id))!), reused: true });
       const reference = JSON.parse(run.reference_json) as ProviderRunReference;
       const update = action === "cancel" ? await cancelProviderRun(config, reference, options(c.env)) : await pollProviderRun(config, reference, options(c.env));
       return c.json({ run: runView(await persistUpdate(c, connection, run, update, leaseToken)) });

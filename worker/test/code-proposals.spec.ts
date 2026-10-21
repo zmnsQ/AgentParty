@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CodeProposalDetail, CodeProposalInput } from "@agentparty/shared/code-proposals";
 import type { ChannelRepository } from "@agentparty/shared/collaboration";
 import { fetchMock } from "./fetch-mock";
+import { requestGate } from "./request-gate";
+import { handlerApi, statementHook } from "./handler-api";
 import { concurrentApi } from "./concurrent-api";
 import { api, createChannel, seedToken, uniq } from "./helpers";
 
@@ -321,6 +323,145 @@ describe("reviewed GitHub code proposals", () => {
 });
 
 
+function publishForRace(context: Setup, proposal: CodeProposalDetail) {
+  return handlerApi(`${context.base}/proposals/${proposal.id}/publish`, context.owner.token, {
+    method: "POST", body: JSON.stringify({ expected_digest: proposal.digest, credential: WRITE_KEY }),
+  });
+}
+
+describe("proposal publication lease fencing", () => {
+  it("does not downgrade a recovered publication when an older request fails", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    // Suspend the old publisher before any GitHub write.
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const gate = requestGate();
+    fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+      .reply(403, async () => { await gate.wait(); return { message: "Old credential rejected" }; });
+    const stale = Promise.resolve(publishForRace(context, proposal));
+    try {
+      await gate.arrived;
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until = 0 WHERE id = ?").bind(proposal.id).run();
+      const recovery = await fixture(); recovery.publishing(proposal);
+      const current = await (await publishForRace(context, proposal)).json() as { proposal: CodeProposalDetail };
+      expect(current.proposal).toMatchObject({ state: "published", pull_request_number: 42 });
+      gate.release();
+      expect(await (await stale).json()).toMatchObject({ proposal: current.proposal });
+      expect(await env.DB.prepare("SELECT state,lease_token,lease_until FROM code_change_proposals WHERE id = ?").bind(proposal.id).first())
+        .toEqual({ state: "published", lease_token: null, lease_until: 0 });
+      const messages = await (await handlerApi(`/api/channels/${context.slug}/messages`, context.owner.token)).json() as { messages: Array<{ body: string }> };
+      expect(messages.messages.filter((message) => message.body?.includes("Code proposal published for review:"))).toHaveLength(1);
+      expect(recovery.state.writes).toEqual(["tree", "commit", "new-branch", "draft-pr"]);
+    } finally { gate.release(); await stale; }
+  });
+
+  it("does not release or overwrite an active successor after a stale publisher fails", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const firstGate = requestGate(); const nextGate = requestGate();
+    const github = fetchMock.get("https://api.github.com");
+    github.intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+      .reply(403, async () => { await firstGate.wait(); return { message: "Old credential denied" }; });
+    github.intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+      .reply(403, async () => { await nextGate.wait(); return { message: "Recovery denied" }; });
+    const stale = Promise.resolve(publishForRace(context, proposal)); let next: Promise<Response> | undefined;
+    try {
+      await firstGate.arrived;
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until = 0 WHERE id = ?").bind(proposal.id).run();
+      next = Promise.resolve(publishForRace(context, proposal)); await nextGate.arrived;
+      const lease = await env.DB.prepare("SELECT state,lease_token,lease_until,error FROM code_change_proposals WHERE id = ?").bind(proposal.id).first();
+      expect(lease).toMatchObject({ state: "publishing", lease_token: expect.any(String), error: null });
+      firstGate.release(); await (await stale).text();
+      expect(await env.DB.prepare("SELECT state,lease_token,lease_until,error FROM code_change_proposals WHERE id = ?").bind(proposal.id).first()).toEqual(lease);
+      expect((await publishForRace(context, proposal)).status).toBe(409);
+      expect((await handlerApi(context.base, context.owner.token, { method: "DELETE" })).status).toBe(409);
+      nextGate.release();
+      expect(await (await next).json()).toMatchObject({ proposal: { state: "unknown" } });
+    } finally { firstGate.release(); nextGate.release(); await stale; await next; }
+  });
+});
+
+
+describe("proposal pre-lock state validation", () => {
+  it("rejects an approval based on a stale proposed state after another request becomes uncertain", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    context.publishing(proposal, true);
+    const db = statementHook(env.DB, "SELECT * FROM code_change_proposals WHERE channel_slug = ? AND repository_id = ? AND id = ?", "first", async () => {
+      expect(await (await publishForRace(context, proposal)).json()).toMatchObject({ proposal: { state: "unknown" } });
+      // A subsequent read denial must not turn that uncertain write into 'failed'.
+      fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+      fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" })
+        .reply(403, { message: "Recovery credential denied" }).persist();
+    });
+    const response = await handlerApi(`${context.base}/proposals/${proposal.id}/publish`, context.owner.token, {
+      method: "POST", body: JSON.stringify({ expected_digest: proposal.digest, credential: WRITE_KEY }),
+    }, db);
+    expect(response.status).toBe(409);
+    expect(await env.DB.prepare("SELECT state,lease_token,lease_until FROM code_change_proposals WHERE id = ?").bind(proposal.id).first())
+      .toEqual({ state: "unknown", lease_token: null, lease_until: 0 });
+    expect((await api(context.base, context.owner.token, { method: "DELETE" })).status).toBe(409);
+    expect(context.state.writes).toEqual(["tree", "commit", "new-branch"]);
+  });
+});
+
+
+describe("publication fencing regressions", () => {
+  it("preserves a newer publisher's live lease when an older credential request fails", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const token = crypto.randomUUID(); const until = Date.now() + 90_000;
+    fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" }).reply(403, async () => {
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_token=?,lease_until=?,error='successor note' WHERE id=?")
+        .bind(token, until, proposal.id).run();
+      return { private_debug: WRITE_KEY };
+    });
+    const text = await (await publish(context, proposal)).text();
+    expect(text).not.toContain(token); expect(text).not.toContain(WRITE_KEY);
+    expect(JSON.parse(text)).toMatchObject({ proposal: { state: "publishing", error: "successor note" } });
+    expect(await env.DB.prepare("SELECT lease_token,lease_until,error FROM code_change_proposals WHERE id=?").bind(proposal.id).first())
+      .toEqual({ lease_token: token, lease_until: until, error: "successor note" });
+    expect((await publish(context, proposal)).status).toBe(409);
+    expect((await api(context.base, context.owner.token, { method: "DELETE" })).status).toBe(409);
+  });
+
+  it("does not announce or overwrite a successful publication recovered by a newer request", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    let saved: Record<string, unknown> | null = null; let recoveredStatus = 0;
+    context.publishing(proposal, false, async () => {
+      // GitHub created the PR before the old publisher received its receipt.
+      // A second request recovers that same PR, then the old response resumes.
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until=0 WHERE id=?").bind(proposal.id).run();
+      const recovered = await publish(context, proposal); recoveredStatus = recovered.status; await recovered.text();
+      saved = await env.DB.prepare("SELECT * FROM code_change_proposals WHERE id=?").bind(proposal.id).first();
+    });
+    const result = await (await publish(context, proposal)).json();
+    expect(recoveredStatus).toBe(200);
+    expect(result).toMatchObject({ proposal: { state: "published", pull_request_number: 42 } });
+    expect(await env.DB.prepare("SELECT * FROM code_change_proposals WHERE id=?").bind(proposal.id).first()).toEqual(saved);
+    expect(context.state.writes).toEqual(["tree", "commit", "new-branch", "draft-pr"]);
+    const messages = await (await api(`/api/channels/${context.slug}/messages`, context.owner.token)).json() as { messages: Array<{ body: string }> };
+    expect(messages.messages.filter((m) => m.body?.includes("Code proposal published for review:"))).toHaveLength(1);
+  });
+
+  it("checks current publication ownership before the first external write", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    const trigger = uniq("publish_takeover").replaceAll("-", "_"); const successor = crypto.randomUUID();
+    // Emulate takeover immediately after the old request acquires its lease.
+    await env.DB.prepare(`CREATE TRIGGER ${trigger} AFTER UPDATE OF lease_token ON code_change_proposals
+      WHEN NEW.id='${proposal.id}' AND NEW.lease_token IS NOT NULL AND OLD.lease_token IS NULL
+      BEGIN UPDATE code_change_proposals SET lease_token='${successor}' WHERE id=NEW.id; END`).run();
+    const github = fetchMock.get("https://api.github.com");
+    github.intercept({ path: `${ROOT}/git/ref/heads/agentparty/${proposal.id}`, method: "GET" }).reply(404, { message: "Not Found" });
+    github.intercept({ path: `${ROOT}/pulls?state=all&head=${encodeURIComponent(`acme:agentparty/${proposal.id}`)}&per_page=100`, method: "GET" }).reply(200, []);
+    try {
+      expect(await (await publish(context, proposal)).json()).toMatchObject({ proposal: { state: "publishing", error: null } });
+      expect(await env.DB.prepare("SELECT lease_token,state FROM code_change_proposals WHERE id=?").bind(proposal.id).first())
+        .toEqual({ lease_token: successor, state: "publishing" });
+      expect(context.state.writes).toEqual([]);
+    } finally { await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
+  });
+});
+
+
 describe("publication authority before external writes", () => {
   it.each(["taken-over", "expired"])("does not send a GitHub write after its lease is %s", async (mode) => {
     const context = await setup(); const proposal = await propose(context);
@@ -340,12 +481,12 @@ describe("publication authority before external writes", () => {
     try {
       const response = await publish(context, proposal);
       const result = await response.json() as { proposal: CodeProposalDetail };
-      expect(result.proposal.state).toBe(mode === "taken-over" ? "publishing" : "failed");
+      expect(result.proposal.state).toBe(mode === "taken-over" ? "publishing" : "unknown");
       if (mode === "taken-over") {
         expect(result.proposal.error).toBe("Successor owns publication");
         expect(await env.DB.prepare("SELECT lease_token,lease_until FROM code_change_proposals WHERE id=?").bind(proposal.id).first())
           .toEqual({ lease_token: successor, lease_until: until });
-      } else expect(result.proposal.error).toContain("Publication lease was lost");
+      } else expect(result.proposal.error).toContain("Publication authority");
       expect(context.state.writes).toEqual([]);
       expect(context.state.main).toBe(BASE);
       expect(await (await api(`/api/channels/${context.slug}/messages`, context.owner.token)).text()).not.toContain("Code proposal published for review");

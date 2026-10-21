@@ -319,3 +319,60 @@ describe("file upload follow-up isolation", () => {
     expect(posts).toBe(0);
   });
 });
+
+
+describe("collaboration session isolation", () => {
+  test.each(["group", "account"])("clears old data and credentials before a different %s finishes loading", async (change: string) => {
+    let complete!: (value: CollaborationSummary) => void;
+    const next = new Promise<CollaborationSummary>((resolve) => { complete = resolve; });
+    const service = client({ summary: async (token, slug) => token === "token" && slug === "demo" ? summary : next });
+    await mount(<CollaborationHub token="token" slug="demo" client={service} />);
+    expect(text(renderer!.root)).toContain("Research helper");
+    await click("Edit");
+    await act(async () => { renderer!.root.findByProps({ type: "password" }).props.onChange({ target: { value: "unsaved-private-key" } }); });
+    await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub token={change === "account" ? "other-token" : "token"}
+      slug={change === "group" ? "other-group" : "demo"} client={service} /></LocaleProvider>); });
+    expect(text(renderer!.root)).not.toContain("Research helper");
+    expect(renderer!.root.findAllByProps({ type: "password" })).toHaveLength(0);
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+    await act(async () => { complete({ ...summary, connections: [], repositories: [], permissions: { manage: false, run: false, upload: false } }); });
+    expect(text(renderer!.root)).not.toContain("Research helper");
+    expect(text(renderer!.root)).not.toContain("unsaved-private-key");
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+  });
+
+  test("ignores an old summary even when it resolves after the replacement group", async () => {
+    let complete!: (value: CollaborationSummary) => void;
+    const pending = new Promise<CollaborationSummary>((resolve) => { complete = resolve; });
+    const service = client({ summary: async (_token, slug) => slug === "demo" ? pending : { ...summary, connections: [], repositories: [] } });
+    await mount(<CollaborationHub token="token" slug="demo" client={service} />);
+    await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub token="token" slug="other-group" client={service} /></LocaleProvider>); });
+    await act(async () => { complete(summary); });
+    expect(text(renderer!.root)).toContain("#other-group");
+    expect(text(renderer!.root)).not.toContain("Research helper");
+  });
+
+  test("removes cached group content when a refresh reports revoked access", async () => {
+    let calls = 0;
+    await mount(<CollaborationHub token="token" slug="demo" client={client({ summary: async () => {
+      if (++calls > 1) throw new CollaborationApiError("Group access revoked", 403, "forbidden");
+      return summary;
+    } })} />);
+    expect(text(renderer!.root)).toContain("Research helper");
+    await act(async () => { renderer!.root.findByProps({ "aria-label": "Refresh" }).props.onClick(); });
+    expect(text(renderer!.root)).toContain("Group access revoked");
+    expect(text(renderer!.root)).not.toContain("Research helper");
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+  });
+
+  test("does not automatically post an upload after its file panel is unmounted", async () => {
+    let complete!: (value: ChannelFile) => void; let posts = 0;
+    const pending = new Promise<ChannelFile>((resolve) => { complete = resolve; });
+    await mount(<ChannelFiles token="token" slug="demo" canUpload client={client({ shareFile: async () => { posts++; return { seq: 1 }; } })}
+      upload={async () => pending} />);
+    await act(async () => { renderer!.root.findByProps({ type: "file" }).props.onChange({ currentTarget: { files: [new File(["private"], "notes.txt")], value: "" } }); });
+    await act(async () => { renderer!.unmount(); }); renderer = null;
+    await act(async () => { complete(file); });
+    expect(posts).toBe(0);
+  });
+});

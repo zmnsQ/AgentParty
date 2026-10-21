@@ -457,6 +457,70 @@ test("write timeout is an uncertain outcome and a later identical retry recovers
 });
 
 
+// Even before this request writes, a successor may have published. Keep its
+// outcome uncertain rather than reopening deletion or fresh publication.
+test("lost publication authority prevents the first write", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return false; } }), errorIs("conflict", true));
+  assert.equal(checks, 1);
+  assert.equal(posts().length, 0);
+});
+
+test("authority is checked before every write and a loss after a tree write stays uncertain", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => ++checks === 1 }), errorIs("conflict", true));
+  assert.equal(checks, 2);
+  assert.deepEqual(posts().map((request) => request.path), [`${ROOT}/git/trees`]);
+  assert.equal(state.refs.has("agentparty/proposal-001"), false);
+  assert.equal(state.pulls.length, 0);
+});
+
+test("authority-check failures are scrubbed and fail closed", async () => {
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error(TOKEN); } }), errorIs("transport_failed", true));
+  assert.equal(posts().length, 0);
+});
+
+test("operation deadline prevents a delayed authority check from starting a late write", async () => {
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  let arrived;
+  const entered = new Promise((resolve) => { arrived = resolve; });
+  const pending = publishChanges(proposal(), { ...options, timeoutMs: 250, beforeWrite: async () => { arrived(); await held; return true; } });
+  const rejection = assert.rejects(pending, errorIs("timeout", false));
+  try { await Promise.race([entered, pending]); await rejection; }
+  finally { release(); }
+  // Drain the continuation after its gate; it must observe the elapsed deadline.
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(posts().length, 0);
+});
+
+
+test("expired publication authority prevents the first GitHub write", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return false; } }),
+    (error) => error instanceof GitHubChangesError && error.code === "conflict" && error.outcomeUnknown === true);
+  assert.equal(checks, 1);
+  assert.equal(requests.filter((request) => request.method === "POST").length, 0);
+  assert.equal(state.refs.size, 1);
+});
+
+test("publication authority is checked again between external writes", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => ++checks < 2 }),
+    (error) => error instanceof GitHubChangesError && error.outcomeUnknown === true);
+  assert.equal(checks, 2);
+  assert.deepEqual(requests.filter((request) => request.method === "POST").map((request) => request.path), [`${ROOT}/git/trees`]);
+  assert.equal(state.refs.size, 1);
+  assert.equal(state.pulls.length, 0);
+});
+
+test("publication authority errors fail closed without disclosing database details", async () => {
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error("SECRET_DATABASE_DETAILS"); } }),
+    (error) => error instanceof GitHubChangesError && error.outcomeUnknown === true && !error.message.includes("SECRET_DATABASE_DETAILS"));
+  assert.equal(requests.filter((request) => request.method === "POST").length, 0);
+});
+
+
 test("rechecks publication authority before every GitHub write", async () => {
   let checks = 0;
   const result = await publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return true; } });
@@ -467,7 +531,7 @@ test("rechecks publication authority before every GitHub write", async () => {
 });
 
 test("fails closed before any GitHub mutation when publication authority is lost", async () => {
-  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => false }), errorIs("conflict", false));
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => false }), errorIs("conflict", true));
   assert.equal(posts().length, 0);
   assert.equal(state.refs.size, 1);
   assert.equal(state.pulls.length, 0);
@@ -482,6 +546,6 @@ test("stops after the last authorized write and keeps the remote outcome uncerta
 });
 
 test("does not leak an authority-check error or attempt a write when that check fails", async () => {
-  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error(TOKEN); } }), errorIs("transport_failed", false));
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error(TOKEN); } }), errorIs("transport_failed", true));
   assert.equal(posts().length, 0);
 });

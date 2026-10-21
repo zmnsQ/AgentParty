@@ -1,37 +1,57 @@
 # Commons development-preview validation
 
+
+## Latest merged validation: workspace isolation (2026-10-21)
+
+The final merged `bun run check:commons` exited **0**: **463 / 463 tests passed
+in 28 files**, no skipped cases. Counts: HTTP contracts **53**, local Worker /
+D1 / DO / R2 **130**, Web **175**, CLI **101**, fork configuration **4**.
+Shared / Worker / Web / CLI type checks, Vite production build and migration
+numbering passed. Original license, attribution, lockfile and manual-only
+workflows are unchanged. No native installer or live-provider certification.
+
+All parallel branch changes through `b215c4b` were retained; the earlier 429-test
+workspace pass was revalidated after integration, not substituted for it.
+[Workspace review](commons-workspace-isolation-2026-10-21.zh.md) and
+[machine-readable results](validation/workspace-isolation-2026-10-21.json)
+explain the scope, negative controls and remaining boundaries. All other totals
+below are **historical checkpoints**, not the latest test count.
+
+
+> **Latest merged gate: 442 / 442 tests passed, 27 files, exit 0.**
+> This retains the 423-test incoming branch and adds 19 further checks, including
+> client-session isolation. Intermediate 400/408/423-test records below are historical.
+
 Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
 
-## Latest follow-up: workspace and publication isolation (2026-10-21)
+## Historical intermediate hardening — 423 tests (2026-10-21)
 
-The latest complete `bun run check:commons` exited **0** on macOS ARM64
-(Node 24.11.1, Bun 1.4.3): **429 / 429 tests passed in 28 files**, no skipped
-cases. Counts: HTTP contracts 46, Worker 108, Web 170, CLI 101, fork config 4.
-TypeScript checks, production Vite build and migration numbering also passed.
-The original lockfile, license, attribution and manual-only workflows are unchanged.
+The follow-up [lease fencing and recovery audit](commons-hardening-2026-10-21.md)
+ran on macOS arm64 / Node 24.11.1 / Bun 1.4.3: **423 tests passed** in the full
+`check:commons` gate after preserving the eight parallel regression cases from
+`4d0ea5e`. An initial merged attempt had three existing 1-second loopback timeouts;
+the unchanged full command passed on rerun. Their root cause remains unresolved.
+Eleven new Worker regression cases failed against the
+pre-fix production code and passed with the fixes; four additional loopback
+contracts cover publication-authority loss and deadlines. Migration `0048`
+requires draining old requests before switching all writers to the new code.
+No native app build, live provider certification or deployment is implied.
 
-See [workspace isolation and pre-write authority review](commons-workspace-isolation-2026-10-21.zh.md)
-and its [machine-readable results](validation/workspace-isolation-2026-10-21.json).
-Negative controls against the preceding production code failed seven of eight
-selected UI tests and all four new HTTP authority contracts; the final fixed gate
-passed every case. Existing provider, native build, production deployment and
-10-minute final-message deduplication limitations still apply.
+The **400-test Linux run below is the earlier baseline**, not the follow-up's
+current test total. Its independent HTTP smoke was not rerun for this patch.
 
-The 408-test hardening run and original 400-test preview below are retained as
-historical checkpoints, not the latest totals.
+## Parallel hardening baseline (2026-10-21, commit 4d0ea5e)
 
-## Prior hardening checkpoint (2026-10-21)
-
-The subsequent concurrency/revocation review ran the entire gate at that checkpoint on
+The subsequent concurrency/revocation review ran the entire current gate on
 macOS ARM64 (Node 24.11.1, Bun 1.4.3): **408 / 408 tests passed in 27 files**,
 with no skipped tests and exit code 0. Worker coverage increased from 91 to 99;
 the other layer counts are unchanged. Eight new deterministic regressions also
 failed against the original implementation before the fixed code was restored.
 
-See the [follow-up review and migration notes](commons-hardening-2026-10-21.zh.md)
-and [machine-readable check summary](validation/hardening-2026-10-21.json).
+See the [historical review and migration notes](commons-lease-review-2026-10-21.zh.md)
+and [historical check summary](validation/hardening-leases-2026-10-21.json).
 Migration `0048_collaboration_lease_fencing.sql` must be applied before the new
 Worker is enabled; drain old handlers rather than mixing unfenced writers with
 new ones. This adds request-owner fencing and purges saved credentials for
@@ -186,3 +206,54 @@ See the [development guide](commons-development.zh.md),
 [provider contracts](provider-integration.md),
 [GitHub publication design](github-collaboration.md) and
 [roadmap](personal-agent-roadmap.zh.md) for setup and remaining milestones.
+
+
+## Follow-up hardening validation after branch reconciliation — 2026-10-21
+
+A second review ran on **macOS ARM64, Node 24.11.1, Bun 1.4.3**. The complete
+`bun run check:commons` gate exited **0**: **442 / 442 tests in 27 files**, with
+**42 new regression cases relative to the original 400-test preview**. This is a newly executed gate, not a reinterpretation
+of the original Linux result above. No dependency or lockfile upgrade was made.
+
+| Layer | Follow-up result |
+| --- | --- |
+| Provider / GitHub loopback HTTP contracts | 49 / 49 |
+| Worker integration and authorization | 121 / 121 |
+| Web / desktop-facing React UI | 167 / 167 |
+| CLI and process isolation | 101 / 101 |
+| Fork configuration | 4 / 4 |
+
+Shared, Worker, Web and CLI type checks, Vite production build, migration numbering
+and whitespace checks passed. The tests apply migration `0048_collaboration_lease_fencing.sql`.
+The original standalone 14-check HTTP smoke was **not** rerun in this follow-up.
+
+The new coverage exercises stale task outcomes, conditional lease release,
+revocation during a provider request, saved-result/receipt failures, post-lock
+state reload, superseded PR publishers, per-write publication authority, account
+and group UI isolation, revoked access, and post-upload side effects after unmount.
+An isolated old-baseline probe failed all three new publication-authority contract
+cases and four of five session-isolation UI cases; the repaired full gate passed.
+
+The existing large-bundle warning remains, alongside Node transform-types,
+react-test-renderer deprecation and an attachment test body-decoding warning.
+Native clients, real provider accounts and production deployment remain unverified;
+no GitHub Actions job, release or paid cloud deployment was initiated.
+The 10-minute message deduplication limitation above remains in effect.
+
+See the [review and upgrade notes](commons-hardening-2026-10-21.zh.md) and
+[machine-readable results](validation/hardening-2026-10-21.json).
+
+The final merged gate retains all eight concurrent regression cases from incoming
+commit `4d0ea5e2d340a0652b080e005a02e3d3d454f45a` and adds nineteen further cases.
+The previous 408-test review is preserved in
+[its historical report](commons-lease-review-2026-10-21.zh.md) and
+[JSON record](validation/hardening-leases-2026-10-21.json), including its observed
+intermittent loopback HTTP timeout. No force push or history rewrite was used.
+
+The last incoming commit, `1fdb25d101b83f099c4d52b8e8576060b61a1cb6`,
+was also merged without removing its test coverage. The combined totals are
+49 contract + 121 Worker + 167 Web + 101 CLI + 4 configuration checks = **442**.
+Authority loss or an unverified ownership lookup now conservatively retains
+uncertainty even before this request writes, because a successor may have acted.
+The incoming timeout/no-post tests remain present; two ownership-loss assertions
+were updated to reflect this explicit conservative outcome contract.

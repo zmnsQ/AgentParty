@@ -2,6 +2,8 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ChannelFile, ChannelRepository, CloudAgentConnection, CloudAgentRun } from "@agentparty/shared/collaboration";
 import { fetchMock } from "./fetch-mock";
+import { requestGate } from "./request-gate";
+import { handlerApi, statementHook } from "./handler-api";
 import { concurrentApi } from "./concurrent-api";
 import { api, createChannel, seedToken, uniq } from "./helpers";
 import { openCredential, sealCredential } from "../src/collaboration/vault";
@@ -416,6 +418,271 @@ describe("personal agent collaboration", () => {
     fetchMock.get("https://api.github.com").intercept({ path: "/repos/acme/public/pulls?state=open&sort=updated&direction=desc&per_page=30", method: "GET" })
       .reply(404, (request) => { expect(request.headers.authorization).toBeUndefined(); return { message: "Now private" }; });
     expect((await api(`/api/channels/${slug}/repositories/${repository.id}/pulls`, owner.token)).status).toBe(404);
+  });
+});
+
+
+function startForRace(slug: string, token: string, id: string, requestId = uniq("request")) {
+  return handlerApi(`/api/channels/${slug}/cloud-agents/${id}/runs`, token, { method: "POST",
+    body: JSON.stringify({ prompt: "Please review the group task", request_id: requestId }) });
+}
+
+async function runningForRace() {
+  const context = await group();
+  const connection = await connect(context.slug, context.owner.token);
+  let session = "";
+  fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => {
+    session = JSON.parse(request.body).session_id;
+    return { run_id: "race-run", session_id: session, status: "running" };
+  });
+  const response = await startForRace(context.slug, context.owner.token, connection.id);
+  expect(response.status).toBe(201);
+  const { run } = await response.json() as { run: CloudAgentRun };
+  return { ...context, connection, session, run,
+    sync: () => handlerApi(`/api/channels/${context.slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, context.owner.token, { method: "POST" }) };
+}
+
+describe("cloud run lease fencing", () => {
+  it.each(["running", "completed"])("ignores a superseded %s response after a newer terminal result", async (oldStatus) => {
+    const context = await runningForRace();
+    const gate = requestGate();
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/race-run", method: "GET" })
+      .reply(200, async () => {
+        await gate.wait();
+        return { run_id: "race-run", session_id: context.session, status: oldStatus, output: "STALE answer must not be imported" };
+      });
+    const stale = Promise.resolve(context.sync());
+    try {
+      await gate.arrived;
+      await env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0 WHERE id = ?").bind(context.run.id).run();
+      fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/race-run", method: "GET" })
+        .reply(200, { run_id: "race-run", session_id: context.session, status: "completed", output: "Current terminal answer" });
+      const latest = await (await context.sync()).json() as { run: CloudAgentRun };
+      expect(latest.run).toMatchObject({ state: "completed", result: "Current terminal answer", reply_message_seq: expect.any(Number) });
+      gate.release();
+      expect(await (await stale).json()).toMatchObject({ run: latest.run });
+      const messages = await (await handlerApi(`/api/channels/${context.slug}/messages`, context.owner.token)).text();
+      expect(messages).toContain("Current terminal answer");
+      expect(messages).not.toContain("STALE answer");
+      expect(await env.DB.prepare("SELECT state,lease_token,lease_until FROM cloud_agent_runs WHERE id = ?").bind(context.run.id).first())
+        .toMatchObject({ state: "completed", lease_token: null, lease_until: 0 });
+    } finally { gate.release(); await stale; }
+  });
+
+  it("does not let an older error clear a successor's active lease or error field", async () => {
+    const context = await runningForRace();
+    const firstGate = requestGate(); const nextGate = requestGate();
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/race-run", method: "GET" })
+      .reply(503, async () => { await firstGate.wait(); return { private_debug: CREDENTIAL }; });
+    const stale = Promise.resolve(context.sync());
+    let next: Promise<Response> | undefined;
+    try {
+      await firstGate.arrived;
+      await env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0 WHERE id = ?").bind(context.run.id).run();
+      fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/race-run", method: "GET" })
+        .reply(200, async () => { await nextGate.wait(); return { run_id: "race-run", session_id: context.session, status: "running" }; });
+      next = Promise.resolve(context.sync()); await nextGate.arrived;
+      const lease = await env.DB.prepare("SELECT lease_token,lease_until,error FROM cloud_agent_runs WHERE id = ?").bind(context.run.id).first();
+      expect(lease).toMatchObject({ lease_token: expect.any(String), error: null });
+      firstGate.release(); await (await stale).text();
+      expect(await env.DB.prepare("SELECT lease_token,lease_until,error FROM cloud_agent_runs WHERE id = ?").bind(context.run.id).first()).toEqual(lease);
+      // With the successor still suspended, no third provider request is allowed.
+      expect(await (await context.sync()).json()).toMatchObject({ reused: true, run: { state: "running", error: null } });
+    } finally { firstGate.release(); nextGate.release(); await stale; await next; }
+  });
+
+  it("does not restore a late start receipt after recovery supersedes its lease", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const gate = requestGate(); const requestId = uniq("late-start");
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" })
+      .reply(200, async (request) => {
+        await gate.wait();
+        return { run_id: "late-start", session_id: JSON.parse(request.body).session_id, status: "completed", output: "Unowned start result" };
+      });
+    const stale = Promise.resolve(startForRace(slug, owner.token, connection.id, requestId));
+    try {
+      await gate.arrived;
+      const row = await env.DB.prepare("SELECT id FROM cloud_agent_runs WHERE channel_slug = ? AND request_id = ?").bind(slug, requestId).first<{ id: string }>();
+      await env.DB.prepare("UPDATE cloud_agent_runs SET lease_until = 0 WHERE id = ?").bind(row!.id).run();
+      const recovered = await handlerApi(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${row!.id}/sync`, owner.token, { method: "POST" });
+      expect(await recovered.json()).toMatchObject({ run: { state: "unknown", result: null } });
+      gate.release();
+      expect(await (await stale).json()).toMatchObject({ run: { state: "unknown", result: null, reply_message_seq: null } });
+      expect((await startForRace(slug, owner.token, connection.id)).status).toBe(409);
+      expect(await (await handlerApi(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("Unowned start result");
+    } finally { gate.release(); await stale; }
+  });
+
+  it.each([200, 503])("revocation fences a pending provider response (%s) and erases encrypted secrets", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const gate = requestGate();
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" })
+      .reply(status, async (request) => {
+        await gate.wait();
+        return { run_id: "revoked-run", session_id: JSON.parse(request.body).session_id, status: "completed", output: "Private revoked result" };
+      });
+    const pending = Promise.resolve(startForRace(slug, owner.token, connection.id));
+    try {
+      await gate.arrived;
+      const revoked = await handlerApi(`/api/channels/${slug}/cloud-agents/${connection.id}`, owner.token, { method: "DELETE" });
+      expect(await revoked.json()).toMatchObject({ revoked: true, remote_work_cancelled: false });
+      gate.release();
+      const { run } = await (await pending).json() as { run: CloudAgentRun };
+      expect(run).toMatchObject({ state: "unknown", result: null, reply_message_seq: null });
+      expect(run.error).toContain("Connection revoked");
+      expect(await env.DB.prepare("SELECT credential_ciphertext,agent_token_ciphertext FROM cloud_agent_connections WHERE channel_slug = ? AND id = ?")
+        .bind(slug, connection.id).first()).toEqual({ credential_ciphertext: "", agent_token_ciphertext: "" });
+      expect(await env.DB.prepare("SELECT lease_token,lease_until FROM cloud_agent_runs WHERE id = ?").bind(run.id).first())
+        .toEqual({ lease_token: null, lease_until: 0 });
+      expect(await (await handlerApi(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("Private revoked result");
+    } finally { gate.release(); await pending; }
+  });
+});
+
+
+describe("cloud run storage interleavings", () => {
+  it("uses terminal state saved between the initial read and lock acquisition", async () => {
+    const context = await runningForRace();
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/race-run", method: "GET" })
+      .reply(200, { run_id: "race-run", session_id: context.session, status: "completed", output: "Saved between read and lock" });
+    let winner: { run: CloudAgentRun } | undefined;
+    const db = statementHook(env.DB, "SELECT * FROM cloud_agent_runs WHERE channel_slug = ? AND connection_id = ? AND id = ?", "first", async () => {
+      winner = await (await context.sync()).json() as { run: CloudAgentRun };
+    });
+    const response = await handlerApi(`/api/channels/${context.slug}/cloud-agents/${context.connection.id}/runs/${context.run.id}/sync`,
+      context.owner.token, { method: "POST" }, db);
+    expect(winner?.run.state).toBe("completed");
+    expect(await response.json()).toMatchObject(winner!);
+    expect(await env.DB.prepare("SELECT state,error,lease_token FROM cloud_agent_runs WHERE id = ?").bind(context.run.id).first())
+      .toEqual({ state: "completed", error: null, lease_token: null });
+  });
+
+  it("keeps a completed answer if saving its message receipt fails, then recovers without new paid work", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => ({
+      run_id: "saved-answer", session_id: JSON.parse(request.body).session_id, status: "completed", output: "Answer survives a receipt storage failure",
+    }));
+    const db = statementHook(env.DB, "UPDATE cloud_agent_runs SET reply_message_seq", "run", async () => {
+      throw new Error("Synthetic one-time receipt storage failure");
+    }, "before");
+    const response = await handlerApi(`/api/channels/${slug}/cloud-agents/${connection.id}/runs`, owner.token,
+      { method: "POST", body: JSON.stringify({ prompt: "Save the result", request_id: uniq("receipt-fault") }) }, db);
+    const { run } = await response.json() as { run: CloudAgentRun };
+    expect(run).toMatchObject({ state: "completed", result: "Answer survives a receipt storage failure", reply_message_seq: null });
+    // No extra provider response is registered: a retry must only deliver the saved answer.
+    const recovered = await handlerApi(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" });
+    expect(await recovered.json()).toMatchObject({ run: { state: "completed", reply_message_seq: expect.any(Number), error: null } });
+    const messages = await (await api(`/api/channels/${slug}/messages`, owner.token)).json() as { messages: Array<{ body: string }> };
+    expect(messages.messages.filter((message) => message.body?.includes("Answer survives a receipt storage failure"))).toHaveLength(1);
+  });
+});
+
+
+// Inject an intervening committed owner/state at the outbound HTTP boundary.
+// No fake clock or cross-request unresolved Promise is needed: real D1 and the
+// normal Worker routes execute the conditional writes and message publication.
+describe("cloud run fencing regressions", () => {
+  it.each([200, 503])("ignores a superseded initial response (%s) without unlocking its successor", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const requestId = uniq("superseded-start"); const successor = crypto.randomUUID();
+    let saved: Record<string, unknown> | null = null;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(status, async (request) => {
+      const row = (await env.DB.prepare("SELECT id FROM cloud_agent_runs WHERE channel_slug=? AND request_id=?")
+        .bind(slug, requestId).first<{ id: string }>())!;
+      await env.DB.prepare("UPDATE cloud_agent_runs SET state='running',lease_token=?,lease_until=?,remote_run_id='new-receipt',error='new owner note' WHERE id=?")
+        .bind(successor, Date.now()+90_000, row.id).run();
+      saved = await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(row.id).first();
+      return { run_id: "obsolete-start", session_id: JSON.parse(request.body).session_id, status: "completed", output: "STALE PRIVATE ANSWER" };
+    });
+    const response = await start(slug, owner.token, connection.id, requestId);
+    expect(response.status).toBe(201);
+    const text = await response.text(); expect(text).not.toContain(successor); expect(text).not.toContain(CREDENTIAL);
+    const { run } = JSON.parse(text) as { run: CloudAgentRun };
+    expect(run).toMatchObject({ state: "running", result: null, error: "new owner note", reply_message_seq: null });
+    expect(await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(run.id).first()).toEqual(saved);
+    expect(await (await api(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("STALE PRIVATE ANSWER");
+  });
+
+  it.each([200, 503])("preserves a successor's committed cancellation after an obsolete poll (%s)", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    let session = "";
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => {
+      session = JSON.parse(request.body).session_id;
+      return { run_id: "poll-race", session_id: session, status: "running" };
+    });
+    const { run } = await (await start(slug, owner.token, connection.id)).json() as { run: CloudAgentRun };
+    let saved: Record<string, unknown> | null = null;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/poll-race", method: "GET" }).reply(status, async () => {
+      await env.DB.prepare("UPDATE cloud_agent_runs SET state='cancelled',lease_token=NULL,lease_until=0,error=NULL WHERE id=?").bind(run.id).run();
+      saved = await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(run.id).first();
+      return { run_id: "poll-race", session_id: session, status: "completed", output: "OBSOLETE POLL RESULT" };
+    });
+    const response = await api(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" });
+    expect(await response.json()).toMatchObject({ run: { state: "cancelled", result: null, error: null, reply_message_seq: null } });
+    expect(await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(run.id).first()).toEqual(saved);
+    expect(await (await api(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("OBSOLETE POLL RESULT");
+  });
+
+  it.each([200, 503])("revocation blocks late result import (%s) and purges reusable secrets", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    let revokedStatus = 0;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(status, async (request) => {
+      const revoked = await api(`/api/channels/${slug}/cloud-agents/${connection.id}`, owner.token, { method: "DELETE" });
+      revokedStatus = revoked.status; await revoked.text();
+      return { run_id: "revoked-run", session_id: JSON.parse(request.body).session_id, status: "completed", output: "REVOKED PRIVATE ANSWER" };
+    });
+    const response = await start(slug, owner.token, connection.id);
+    expect(revokedStatus).toBe(200);
+    const { run } = await response.json() as { run: CloudAgentRun };
+    expect(run).toMatchObject({ state: "unknown", result: null, reply_message_seq: null });
+    expect(run.error).toContain("Connection revoked");
+    const row = (await env.DB.prepare("SELECT credential_ciphertext,agent_token_ciphertext,agent_token_hash FROM cloud_agent_connections WHERE channel_slug=? AND id=?")
+      .bind(slug, connection.id).first())!;
+    expect(row).toMatchObject({ credential_ciphertext: "", agent_token_ciphertext: "" });
+    expect(await env.DB.prepare("SELECT revoked_at FROM tokens WHERE hash=?").bind(row.agent_token_hash).first()).toMatchObject({ revoked_at: expect.any(Number) });
+    expect(await env.DB.prepare("SELECT lease_token,lease_until FROM cloud_agent_runs WHERE id=?").bind(run.id).first()).toEqual({ lease_token: null, lease_until: 0 });
+    expect(await (await api(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("REVOKED PRIVATE ANSWER");
+  });
+
+  it("retains a completed answer after receipt storage fails and retries delivery without paid work", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const requestId = uniq("receipt-failure"); const trigger = uniq("receipt_fault").replaceAll("-", "_");
+    let installed = false;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, async (request) => {
+      const row = (await env.DB.prepare("SELECT id FROM cloud_agent_runs WHERE channel_slug=? AND request_id=?")
+        .bind(slug, requestId).first<{ id: string }>())!;
+      await env.DB.prepare(`CREATE TRIGGER ${trigger} BEFORE UPDATE OF reply_message_seq ON cloud_agent_runs
+        WHEN NEW.id = '${row.id}' BEGIN SELECT RAISE(ABORT, 'synthetic receipt failure'); END`).run();
+      installed = true;
+      return { run_id: "receipt-run", session_id: JSON.parse(request.body).session_id, status: "completed", output: "Durably saved answer" };
+    });
+    try {
+      const { run } = await (await start(slug, owner.token, connection.id, requestId)).json() as { run: CloudAgentRun };
+      expect(installed).toBe(true);
+      expect(run).toMatchObject({ state: "completed", result: "Durably saved answer", reply_message_seq: null });
+      await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); installed = false;
+      expect(await (await api(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" })).json())
+        .toMatchObject({ run: { state: "completed", result: "Durably saved answer", reply_message_seq: expect.any(Number) } });
+      const messages = await (await api(`/api/channels/${slug}/messages`, owner.token)).json() as { messages: Array<{ body: string }> };
+      expect(messages.messages.filter((m) => m.body?.includes("Durably saved answer"))).toHaveLength(1);
+    } finally { if (installed) await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
+  });
+
+  it("re-reads task state after taking ownership rather than using the pre-lock snapshot", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => ({
+      run_id: "snapshot-run", session_id: JSON.parse(request.body).session_id, status: "running",
+    }));
+    const { run } = await (await start(slug, owner.token, connection.id)).json() as { run: CloudAgentRun };
+    const trigger = uniq("lock_snapshot").replaceAll("-", "_");
+    await env.DB.prepare(`CREATE TRIGGER ${trigger} AFTER UPDATE OF lease_token ON cloud_agent_runs
+      WHEN NEW.id = '${run.id}' AND NEW.lease_token IS NOT NULL AND OLD.lease_token IS NULL
+      BEGIN UPDATE cloud_agent_runs SET state='completed',result='Post-lock saved answer' WHERE id=NEW.id; END`).run();
+    try {
+      const response = await api(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" });
+      expect(await response.json()).toMatchObject({ run: { state: "completed", result: "Post-lock saved answer", reply_message_seq: expect.any(Number) } });
+      // No poll fixture exists: a correct recovery only posts the saved answer.
+    } finally { await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
   });
 });
 

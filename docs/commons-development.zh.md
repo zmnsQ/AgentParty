@@ -53,6 +53,14 @@ bun --env-file=worker/.dev.vars cli/src/index.ts token create --server http://12
 
 输出中的人类 token 用于本地网页登录。打开本地页面，粘贴 token，创建私有群组。正式多人部署应配置自己的 OIDC 登录；不要分发管理员 secret。生成的普通 Agent token 与管理员 secret、人类 token 是不同的凭证。
 
+### 从首轮预览升级：迁移 0048
+
+本轮为任务与代码提案增加请求所有权字段，并清理已撤销连接的凭据密文。
+先停止旧服务、备份数据，再执行 `bun run --cwd worker migrate:local`，最后启动新服务。
+生产环境需先停止新的协作写入并排空旧版本请求，再按自己的环境执行迁移和部署；
+不能让旧版（不检查所有权）与新版持续并行处理任务。
+详见 [第二轮审查与升级记录](commons-hardening-2026-10-21.zh.md)。本轮没有代用户执行生产迁移。
+
 ## 3. 在群组内使用协作空间
 
 打开群组中的“协作空间”，可切换“云端 Agent / GitHub 仓库 / 共享文件”。各项管理权限由服务端确认，界面隐藏按钮并不替代权限检查。
@@ -67,6 +75,10 @@ bun --env-file=worker/.dev.vars cli/src/index.ts token create --server http://12
 这复用个人 Hermes profile 的能力，但为群组建立独立 API session，不接管已经存在的 CLI/Desktop 私聊。停止按钮表示请求停止，只有供应商确认取消后才显示已取消。`needs_input` 表示需在供应商处处理交互；本版尚无远程审批/clarification UI。
 
 首版是 **manual-sync**：关闭客户端后不会由后台调度器持续轮询；重新打开后可以同步已经保存的任务。网络超时后的 `unknown` 不能被当成失败重新提交付费任务，应先在供应商处确认。
+
+撤销连接现在会同时使旧请求的保存权限失效、撤销专用群 token，并清除当前连接记录中的凭据密文。
+这不会取消已经开始的供应商任务，也不会撤销供应商 API key；需要时在供应商端处理。
+客户端切换群组或账号时会清空旧协作面板、草稿和未保存凭据；上传中离开面板不会再自动开始后续群聊投递。
 
 ### Manus / Cue
 
@@ -138,7 +150,15 @@ bunx wrangler r2 bucket create agentparty-commons-attachments
 
 将返回的数据库 ID 填入自己的配置，设置所需 secret（`wrangler secret put <NAME>`），配置 OIDC 和 Hermes allowlist，再应用远端迁移及部署。正式托管前还需要域名/TLS、备份恢复、文件保留、用量预算和平台账号联调。当前工作没有替用户创建云资源、付费服务、域名或平台授权。
 
+### 升级到任务与发布租约加固版本
+
+新迁移 `0048_collaboration_lease_fencing.sql` 为任务和代码提案添加请求所有权标识，并清空已撤销连接保存的凭据密文。升级已有实例前先暂停写入并排空旧 Worker 请求，再应用迁移、切换全部实例并恢复服务；旧代码不检查新字段，不应与新代码混跑。数据库字段清空不代表备份或供应商端凭据已销毁。
+
+详见 [2026-10-21 加固与验证记录](commons-hardening-2026-10-21.md)。本轮完整检查在 macOS arm64 上通过 423 项，但这不是 Tauri 原生安装包或平台账号验收。
+
 ## 6. 验证记录与剩余工作
+
+最新合并检查为 **463 / 463 项、28 个测试文件、退出码 0**。此前 408 / 423 / 429 / 442 项为历史记录；详见 [工作区隔离与最终验证](commons-workspace-isolation-2026-10-21.zh.md)。
 
 [开发路线](personal-agent-roadmap.zh.md) 是开发前提交的研究与决策记录；[实施记录](collaboration-implementation.md) 和 [验证记录](commons-validation.md) 区分已实现、已运行测试与待真实账户/操作系统验证的内容。
 

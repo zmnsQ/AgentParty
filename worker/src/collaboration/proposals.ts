@@ -208,7 +208,7 @@ export function registerProposalRoutes(app: Hono<AppContext>, deps: Dependencies
     if (["published", "publishing", "unknown"].includes(row.state)) return fail(c, 409, "This proposal may already exist on GitHub. Resolve its publication before rejecting it.", "conflict");
     const updated = await c.env.DB.prepare("UPDATE code_change_proposals SET state = 'rejected', updated_at = ? WHERE id = ? AND state IN ('proposed','failed','rejected')")
       .bind(Date.now(), row.id).run();
-    if (updated.meta.changes !== 1) return fail(c, 409, "Proposal state changed. Reload before deciding.", "conflict");
+    if (updated.meta.changes < 1) return fail(c, 409, "Proposal state changed. Reload before deciding.", "conflict");
     return c.json({ proposal: detail((await load(c.env.DB, granted.slug, granted.repository.id, row.id))!) });
   }));
   app.post(`${base}/proposals/:proposalId/publish`, route(async (c) => {
@@ -227,7 +227,7 @@ export function registerProposalRoutes(app: Hono<AppContext>, deps: Dependencies
       WHERE id = ? AND digest = ? AND state = ? AND lease_token IS ? AND lease_until = ? AND lease_until <= ?
         AND state IN ('proposed','failed','unknown','publishing')`)
       .bind(granted.identity.name, now, now + LEASE_MS, leaseToken, now, row.id, row.digest, row.state, row.lease_token, row.lease_until, now).run();
-    if (locked.meta.changes !== 1) return fail(c, 409, "This proposal is already being published. Reload its status before retrying.", "conflict");
+    if (locked.meta.changes < 1) return fail(c, 409, "This proposal is already being published. Reload its status before retrying.", "conflict");
     let savedPublication = false;
     try {
       const published = await publishChanges({
@@ -241,11 +241,11 @@ export function registerProposalRoutes(app: Hono<AppContext>, deps: Dependencies
         const held = await c.env.DB.prepare(`UPDATE code_change_proposals SET lease_until = ?
           WHERE id = ? AND lease_token = ? AND state = 'publishing' AND lease_until > ?`)
           .bind(checkedAt + LEASE_MS, row!.id, leaseToken, checkedAt).run();
-        return held.meta.changes === 1;
+        return held.meta.changes > 0;
       } });
       const saved = await c.env.DB.prepare("UPDATE code_change_proposals SET state = 'published', branch = ?, commit_sha = ?, pull_request_url = ?, pull_request_number = ?, error = NULL, updated_at = ? WHERE id = ? AND lease_token = ? AND state = 'publishing'")
         .bind(published.branch, published.commit_sha, published.html_url, published.number, Date.now(), row.id, leaseToken).run();
-      savedPublication = saved.meta.changes === 1;
+      savedPublication = saved.meta.changes > 0;
     } catch (error) {
       const uncertain = row.state === "unknown" || row.state === "publishing"
         || !(error instanceof GitHubChangesError) || error.outcomeUnknown;
