@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CodeProposalDetail, CodeProposalInput } from "@agentparty/shared/code-proposals";
 import type { ChannelRepository } from "@agentparty/shared/collaboration";
 import { fetchMock } from "./fetch-mock";
+import { concurrentApi } from "./concurrent-api";
 import { api, createChannel, seedToken, uniq } from "./helpers";
 
 const READ_KEY = "synthetic-github-read-credential";
@@ -44,7 +45,7 @@ async function fixture(options: { missingBlob?: boolean } = {}) {
   github.intercept({ path: `${ROOT}/git/blobs/${oldBlob}`, method: "GET" }).reply(options.missingBlob ? 404 : 200, {
     sha: oldBlob, encoding: "base64", size: new TextEncoder().encode(BEFORE).byteLength, content: btoa(BEFORE),
   }).persist();
-  function publishing(proposal: CodeProposalDetail, uncertainRef = false) {
+  function publishing(proposal: CodeProposalDetail, uncertainRef = false, beforePullResponse?: () => Promise<void>) {
     const branch = `agentparty/${proposal.id}`;
     const branchPath = `${ROOT}/git/ref/heads/${branch}`;
     github.intercept({ path: branchPath, method: "GET" }).reply(404, { message: "Not Found" });
@@ -75,7 +76,7 @@ async function fixture(options: { missingBlob?: boolean } = {}) {
     });
     github.intercept({ path: `${ROOT}/pulls?state=all&head=${encodeURIComponent(`acme:${branch}`)}&per_page=100`, method: "GET" })
       .reply(200, () => state.pull ? [state.pull] : []).persist();
-    github.intercept({ path: `${ROOT}/pulls`, method: "POST" }).reply(201, (request) => {
+    github.intercept({ path: `${ROOT}/pulls`, method: "POST" }).reply(201, async (request) => {
       const body = JSON.parse(request.body);
       expect(body).toMatchObject({ head: branch, base: "main", draft: true, maintainer_can_modify: false });
       expect(body.body).toContain(`agentparty-proposal:${proposal.id}`);
@@ -83,6 +84,7 @@ async function fixture(options: { missingBlob?: boolean } = {}) {
       state.pull = { number: 42, state: "open", draft: true, body: body.body,
         head: { ref: branch, sha: NEXT_COMMIT, repo: { full_name: REPOSITORY } },
         base: { ref: "main", repo: { full_name: REPOSITORY } } };
+      await beforePullResponse?.();
       return state.pull;
     });
   }
@@ -121,7 +123,68 @@ function publish(context: Setup, proposal: CodeProposalDetail, token = context.o
   });
 }
 
+function concurrentPublish(context: Setup, proposal: CodeProposalDetail) {
+  return concurrentApi(`${context.base}/proposals/${proposal.id}/publish`, context.owner.token, {
+    method: "POST", body: JSON.stringify({ expected_digest: proposal.digest, credential: WRITE_KEY }),
+  });
+}
+
+/** Explicit barriers make takeover tests deterministic; no wall-clock sleeps. */
+function barrier() {
+  let release!: () => void;
+  const promise = new Promise<void>((resolve) => { release = resolve; });
+  return { promise, release };
+}
+
 describe("reviewed GitHub code proposals", () => {
+  it("does not let a stale failed publisher release or overwrite its successor's lease", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const entered = barrier(); const resume = barrier(); const successorEntered = barrier(); const successorResume = barrier();
+    fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" }).reply(403, async () => {
+      entered.release(); await resume.promise; return { secret_debug: WRITE_KEY };
+    });
+    const recovery = await fixture();
+    recovery.publishing(proposal, false, async () => { successorEntered.release(); await successorResume.promise; });
+    const first = concurrentPublish(context, proposal); let second: Promise<Response> | undefined;
+    try {
+      await entered.promise;
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until=0 WHERE id=?").bind(proposal.id).run();
+      second = concurrentPublish(context, proposal); await successorEntered.promise;
+      const ownership = await env.DB.prepare("SELECT lease_token,lease_until,approved_at FROM code_change_proposals WHERE id=?").bind(proposal.id).first();
+      resume.release();
+      const oldText = await (await first).text(); expect(oldText).not.toContain(WRITE_KEY);
+      expect(JSON.parse(oldText)).toMatchObject({ proposal: { state: "publishing", error: null } });
+      expect(await env.DB.prepare("SELECT lease_token,lease_until,approved_at FROM code_change_proposals WHERE id=?").bind(proposal.id).first()).toEqual(ownership);
+      successorResume.release();
+      expect(await (await second).json()).toMatchObject({ proposal: { state: "published", pull_request_number: 42 } });
+      expect(recovery.state.writes).toEqual(["tree", "commit", "new-branch", "draft-pr"]);
+    } finally {
+      resume.release(); successorResume.release();
+      await Promise.all([first, ...(second ? [second] : [])]);
+    }
+  });
+
+  it("preserves the newer publication when an earlier successful PR response arrives late", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    const entered = barrier(); const resume = barrier();
+    context.publishing(proposal, false, async () => { entered.release(); await resume.promise; });
+    const first = concurrentPublish(context, proposal);
+    try {
+      await entered.promise;
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until=0 WHERE id=?").bind(proposal.id).run();
+      const recovered = await concurrentPublish(context, proposal);
+      expect(await recovered.json()).toMatchObject({ proposal: { state: "published", pull_request_number: 42 } });
+      const saved = await env.DB.prepare("SELECT * FROM code_change_proposals WHERE id=?").bind(proposal.id).first();
+      resume.release();
+      expect(await (await first).json()).toMatchObject({ proposal: { state: "published", pull_request_number: 42 } });
+      expect(await env.DB.prepare("SELECT * FROM code_change_proposals WHERE id=?").bind(proposal.id).first()).toEqual(saved);
+      expect(context.state.writes).toEqual(["tree", "commit", "new-branch", "draft-pr"]);
+      const messages = await (await concurrentApi(`/api/channels/${context.slug}/messages`, context.owner.token)).json() as { messages: Array<{ body: string }> };
+      expect(messages.messages.filter((m) => m.body?.includes("Code proposal published for review:"))).toHaveLength(1);
+    } finally { resume.release(); await first; }
+  });
+
   it("reads exact snapshots through group ACL and saves originals with an immutable idempotent proposal", async () => {
     const context = await setup(); const body = input();
     expect(await (await api(`${context.base}/snapshot`, context.agent.token)).json()).toEqual({ commit_sha: BASE, tree_sha: BASE_TREE });

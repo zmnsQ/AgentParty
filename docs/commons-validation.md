@@ -4,6 +4,26 @@ Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
 
+## Hardening follow-up (2026-10-21)
+
+The subsequent concurrency/revocation review ran the entire current gate on
+macOS ARM64 (Node 24.11.1, Bun 1.4.3): **408 / 408 tests passed in 27 files**,
+with no skipped tests and exit code 0. Worker coverage increased from 91 to 99;
+the other layer counts are unchanged. Eight new deterministic regressions also
+failed against the original implementation before the fixed code was restored.
+
+See the [follow-up review and migration notes](commons-hardening-2026-10-21.zh.md)
+and [machine-readable check summary](validation/hardening-2026-10-21.json).
+Migration `0048_collaboration_lease_fencing.sql` must be applied before the new
+Worker is enabled; drain old handlers rather than mixing unfenced writers with
+new ones. This adds request-owner fencing and purges saved credentials for
+revoked connections. It does not establish permanent exactly-once messaging or
+live-provider/native-desktop acceptance.
+
+The original 400-test Linux run below is retained as the **initial preview's
+historical validation**, not the latest gate count. Its independent HTTP smoke
+was not rerun for this hardening pass.
+
 ## Source and sequence
 
 - Upstream baseline: `leeguooooo/AgentParty@25384eca99b24ed823ab54b4e850a0c9079a3b24`.
