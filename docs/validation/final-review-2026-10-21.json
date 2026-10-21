@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-21",
+  "validated_base": "b215c4ba0522412cf2cfb70f4d844617519e6418",
+  "branch": "fix/commons-final-review-20261021",
+  "environment": {
+    "os": "macOS",
+    "arch": "arm64",
+    "node": "24.11.1",
+    "bun": "1.4.3"
+  },
+  "command": "bun run check:commons",
+  "exit_code": 0,
+  "tests": {
+    "passed": 447,
+    "failed": 0,
+    "skipped": 0,
+    "files": 27,
+    "added_since_base": 5,
+    "layers": {
+      "contracts": 51,
+      "worker": 124,
+      "web": 167,
+      "cli": 101,
+      "fork_config": 4
+    }
+  },
+  "checks": [
+    "Shared TypeScript",
+    "Worker TypeScript",
+    "Web TypeScript",
+    "CLI TypeScript",
+    "Vite production web build",
+    "migration numbering",
+    "git diff --check"
+  ],
+  "source_sha256": {
+    "worker/src/collaboration/routes.ts": "31196690e346d90691e7fbb871ecc9aba09e0a20da563848ef49b3100b9a1f7b",
+    "worker/src/collaboration/proposals.ts": "44b8da6e60628e801fe81966b0208c1f84cdf5b4a33d20338cf9d6f1138a1aef",
+    "worker/src/collaboration/github-changes.ts": "f26fe00792431ad537545ecfb09dc9ac4cc733079f51c0b89b58aa8be36b66ea",
+    "worker/test/collaboration.spec.ts": "9075692c48600efa86a11e5739a28f3665d229bbeda35f82d1bdd80326cfe86c",
+    "worker/test/github-changes.contract.mjs": "3fded2213e83daa7f3c2bb5074c96252045b5e77791b74c373c1ccc0f8ebc4f6",
+    "worker/test/concurrent-api.ts": "a05c531673718399dff1c863ce1a3b6b2e8acb57281ad87cb99b79af73e728d2"
+  },
+  "legacy_comment_workflows": {
+    "observed_completed_runs": [
+      39567343593,
+      39567343573
+    ],
+    "current_state": {
+      "pr-agent.yml": "disabled_manually",
+      "review-ack.yml": "disabled_manually"
+    }
+  },
+  "not_executed": [
+    "manual Actions dispatch",
+    "native desktop build",
+    "live provider certification",
+    "production deployment",
+    "remote database migration"
+  ],
+  "known_limitation": "Historical intermittent loopback timeouts remain unresolved; this passing run is not a stability fix."
+}

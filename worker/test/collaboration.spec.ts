@@ -4,7 +4,7 @@ import type { ChannelFile, ChannelRepository, CloudAgentConnection, CloudAgentRu
 import { fetchMock } from "./fetch-mock";
 import { requestGate } from "./request-gate";
 import { handlerApi, statementHook } from "./handler-api";
-import { concurrentApi } from "./concurrent-api";
+import { concurrentApi, reached as reviewReached } from "./concurrent-api";
 import { api, createChannel, seedToken, uniq } from "./helpers";
 import { openCredential, sealCredential } from "../src/collaboration/vault";
 
@@ -683,5 +683,84 @@ describe("cloud run fencing regressions", () => {
       expect(await response.json()).toMatchObject({ run: { state: "completed", result: "Post-lock saved answer", reply_message_seq: expect.any(Number) } });
       // No poll fixture exists: a correct recovery only posts the saved answer.
     } finally { await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
+  });
+});
+
+
+function reviewBarrier() {
+  let release!: () => void;
+  const promise = new Promise<void>((resolve) => { release = resolve; });
+  return { promise, release };
+}
+
+function reviewStart(slug: string, token: string, id: string, requestId = uniq("request")) {
+  return concurrentApi(`/api/channels/${slug}/cloud-agents/${id}/runs`, token,
+    { method: "POST", body: JSON.stringify({ prompt: "Please review the group task", request_id: requestId }) });
+}
+async function reviewStoredRun(id: string) {
+  return (await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(id)
+    .first<{ id: string; state: string; error: string | null; lease_token: string | null;
+      lease_until: number; result: string | null; reply_message_seq: number | null }>())!;
+}
+async function reviewRunningRun(slug: string, token: string, connectionId: string) {
+  let session = "";
+  const remoteId = uniq("remote");
+  fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => {
+    session = JSON.parse(request.body).session_id;
+    return { run_id: remoteId, session_id: session, status: "running" };
+  });
+  const { run } = await (await reviewStart(slug, token, connectionId)).json() as { run: CloudAgentRun };
+  return { run, session, remoteId, path: `/api/channels/${slug}/cloud-agents/${connectionId}/runs/${run.id}` };
+}
+
+
+describe("final cancellation and paid-start review", () => {
+  it.each([200, 503])("does not let an old sync (%s) undo or unlock a human cancellation", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const { run, session, remoteId, path } = await reviewRunningRun(slug, owner.token, connection.id);
+    const pollEntered = reviewBarrier(); const pollResume = reviewBarrier();
+    const stopEntered = reviewBarrier(); const stopResume = reviewBarrier();
+    fetchMock.get("https://hermes.test").intercept({ path: `/v1/runs/${remoteId}`, method: "GET" }).reply(status, async () => {
+      pollEntered.release(); await pollResume.promise;
+      return status === 200 ? { run_id: remoteId, session_id: session, status: "completed", output: "OBSOLETE POLL ANSWER" }
+        : { message: "obsolete poll failure" };
+    });
+    capabilities();
+    fetchMock.get("https://hermes.test").intercept({ path: `/v1/runs/${remoteId}/stop`, method: "POST" }).reply(200, async () => {
+      stopEntered.release(); await stopResume.promise; return { status: "cancelled" };
+    });
+    const polling = concurrentApi(`${path}/sync`, owner.token, { method: "POST" });
+    let stopping: Promise<Response> | undefined;
+    try {
+      await reviewReached(pollEntered.promise);
+      await env.DB.prepare("UPDATE cloud_agent_runs SET lease_until=0 WHERE id=?").bind(run.id).run();
+      stopping = concurrentApi(`${path}/cancel`, owner.token, { method: "POST" });
+      await reviewReached(stopEntered.promise);
+      const successor = await reviewStoredRun(run.id);
+      pollResume.release(); expect((await polling).status).toBe(200);
+      expect(await reviewStoredRun(run.id)).toMatchObject({ state: "running", result: null, error: null,
+        lease_token: successor.lease_token, lease_until: successor.lease_until });
+      stopResume.release();
+      expect(await (await stopping).json()).toMatchObject({ run: { state: "cancelled", result: null } });
+      expect(await reviewStoredRun(run.id)).toMatchObject({ state: "cancelled", lease_token: null, lease_until: 0 });
+      expect(await (await concurrentApi(`${path}/sync`, owner.token, { method: "POST" })).json()).toMatchObject({ run: { state: "cancelled" } });
+      expect(await (await concurrentApi(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("OBSOLETE POLL ANSWER");
+    } finally { pollResume.release(); stopResume.release(); await polling; if (stopping) await stopping; }
+  });
+
+  it("deduplicates simultaneous paid starts with the same request id", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const requestId = uniq("simultaneous"); const entered = reviewBarrier(); const resume = reviewBarrier(); let calls = 0;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, async (request) => {
+      calls++; entered.release(); await resume.promise;
+      return { run_id: "one-paid-start", session_id: JSON.parse(request.body).session_id, status: "running" };
+    });
+    const first = reviewStart(slug, owner.token, connection.id, requestId);
+    try {
+      await reviewReached(entered.promise);
+      const duplicate = await reviewStart(slug, owner.token, connection.id, requestId);
+      expect(await duplicate.json()).toMatchObject({ reused: true, run: { state: "starting" } });
+      resume.release(); expect((await first).status).toBe(201); expect(calls).toBe(1);
+    } finally { resume.release(); await first; }
   });
 });

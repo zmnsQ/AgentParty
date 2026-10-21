@@ -15,3 +15,13 @@ export async function concurrentApi(path: string, token: string, init: RequestIn
   await waitOnExecutionContext(ctx);
   return response;
 }
+
+/** Fail promptly if a fixture is not reached; never leave a suite hanging. */
+export async function reached(promise: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([promise, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Expected network barrier was not reached")), 5_000);
+    })]);
+  } finally { if (timer !== undefined) clearTimeout(timer); }
+}
