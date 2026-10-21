@@ -7,10 +7,12 @@ import { useT } from "../i18n/useT";
 import { CloudAgentConnections } from "./CloudAgentConnections";
 import { RepositoryConnections } from "./RepositoryConnections";
 import { ChannelFiles } from "./ChannelFiles";
+import { CloudBridges } from "./CloudBridges";
+import { OriginalProjectCredit } from "./OriginalProjectCredit";
 import "../i18n/strings/CollaborationHub";
 import "../styles/collaboration.css";
 
-const TABS = ["agents", "repositories", "files"] as const;
+const TABS = ["agents", "repositories", "files", "bridges"] as const;
 type Tab = typeof TABS[number];
 
 interface CollaborationHubProps {
@@ -68,8 +70,8 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
   };
   const current = summary === null ? null : { ...summary, permissions: { manage: !archived && summary.permissions.manage, run: !archived && summary.permissions.run, upload: !archived && summary.permissions.upload } };
   return <div className="commons-hub">
-    <header className="commons-hero"><div><span className="commons-kicker">AGENTPARTY COMMONS</span><p>{t("Collab.subtitle")}</p></div><span className="commons-group">#{slug}</span></header>
-    <div className="commons-nav"><div role="tablist" aria-label={t("Collab.title")}>{TABS.map((item) => <button className={`commons-tab ${tab === item ? "is-active" : ""}`} key={item} id={`commons-tab-${item}`} type="button" role="tab" aria-selected={tab === item} aria-controls={`commons-panel-${item}`} tabIndex={tab === item ? 0 : -1} onKeyDown={(event) => selectWithKeyboard(event, item)} onClick={() => setTab(item)}>{t(`Collab.${item}`)}{summary !== null && item !== "files" && <span>{item === "agents" ? summary.connections.length : summary.repositories.length}</span>}</button>)}</div><button className="d-btn" type="button" disabled={loading} onClick={() => void refresh()} aria-label={t("Collab.refresh")}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
+    <header className="commons-hero"><div><span className="commons-kicker">AGENT COMMONS</span><p>{t("Collab.subtitle")}</p><OriginalProjectCredit compact /></div><span className="commons-group">#{slug}</span></header>
+    <div className="commons-nav"><div role="tablist" aria-label={t("Collab.title")}>{TABS.map((item) => <button className={`commons-tab ${tab === item ? "is-active" : ""}`} key={item} id={`commons-tab-${item}`} type="button" role="tab" aria-selected={tab === item} aria-controls={`commons-panel-${item}`} tabIndex={tab === item ? 0 : -1} onKeyDown={(event) => selectWithKeyboard(event, item)} onClick={() => setTab(item)}>{t(`Collab.${item}`)}{summary !== null && (item === "agents" || item === "repositories") && <span>{item === "agents" ? summary.connections.length : summary.repositories.length}</span>}</button>)}</div><button className="d-btn" type="button" disabled={loading} onClick={() => void refresh()} aria-label={t("Collab.refresh")}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
     {error !== null && <p className="commons-error" role="alert">{error}</p>}
     {summary === null && loading && <p className="commons-empty" role="status">{t("Collab.loading")}</p>}
     {current !== null && <>
@@ -78,6 +80,7 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
         {tab === "agents" && <CloudAgentConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "repositories" && <RepositoryConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "files" && <ChannelFiles token={token} slug={slug} canUpload={current.permissions.upload} client={client} />}
+        {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} />}
       </div>
     </>}
     <footer className="commons-attribution"><p>{t("Collab.source")}</p><a href="https://github.com/leeguooooo/AgentParty" target="_blank" rel="noreferrer">AgentParty ↗</a><span> · </span><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("Collab.license")}</a></footer>

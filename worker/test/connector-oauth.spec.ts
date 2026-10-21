@@ -1,0 +1,155 @@
+import {env,SELF} from "cloudflare:test";
+import {describe,expect,it} from "vitest";
+import {createChannel,seedToken,uniq} from "./helpers";
+import {sha256Hex} from "../src/auth";
+const SITE="https://commons.test";
+const CALLBACK="https://chatgpt.com/connector_platform_oauth_redirect";
+async function req(path:string,init:RequestInit={}){
+  return SELF.fetch("http://commons.test"+path,{redirect:"manual",...init});
+}
+async function register(redirect=CALLBACK){
+  return req("/oauth/register",{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({client_name:"ChatGPT dot",redirect_uris:[redirect],token_endpoint_auth_method:"none"})});
+}
+async function setup(){
+  const ownerName=uniq("oauth-human"),account=uniq("oauth-account");
+  const human=await seedToken("human",ownerName,{owner:account});
+  const slug=await createChannel(human.token),cookie=crypto.randomUUID().replaceAll("-","").repeat(2),sessionId=crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO browser_account_security(account,github_id,login,enabled,version,last_step,updated_at) VALUES(?,?,?,0,0,-1,?)")
+    .bind(account,uniq("github-id"),"test-account",Date.now()).run();
+  await env.DB.prepare("INSERT INTO browser_sessions(id,cookie_hash,account,stage,auth_version,created_at,expires_at) VALUES(?,?,?,'ready',0,?,?)")
+    .bind(sessionId,await sha256Hex(cookie),account,Date.now(),Date.now()+86_400_000).run();
+  const r=await register();expect(r.status).toBe(201);
+  const clientId=(await r.json() as {client_id:string}).client_id;
+  const resource=`${SITE}/api/channels/${slug}/mcp`;
+  const verifier="v".repeat(48);
+  const hash=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier)));
+  const challenge=btoa(String.fromCharCode(...hash)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  return {account,human,slug,cookie:"__Host-ap_session="+cookie,clientId,resource,verifier,challenge};
+}
+function matchHidden(html:string,key:string){
+  const m=html.match(new RegExp('name="'+key+'" value="([^"]+)"'));expect(m).toBeTruthy();return m![1]!;
+}
+async function consent(c:Awaited<ReturnType<typeof setup>>,scope="group.read group.write group.events"){
+  const qs=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+    code_challenge:c.challenge,code_challenge_method:"S256",state:"oauth-test",scope,resource:c.resource});
+  const path="/oauth/authorize?"+qs;
+  const r=await req(path,{headers:{cookie:c.cookie}});
+  expect(r.status).toBe(200);
+  const html=await r.text();
+  const body=new URLSearchParams({request_id:matchHidden(html,"request_id"),nonce:matchHidden(html,"nonce"),decision:"approve"});
+  const approved=await req("/oauth/authorize",{method:"POST",headers:{origin:SITE,
+    "sec-fetch-site":"same-origin",cookie:c.cookie,"content-type":"application/x-www-form-urlencoded"},body:body.toString()});
+  expect(approved.status).toBe(302);
+  const location=new URL(approved.headers.get("location")!);
+  expect(location.origin).toBe("https://chatgpt.com");
+  expect(location.searchParams.get("iss")).toBe(SITE);
+  return {code:location.searchParams.get("code")!,html,body};
+}
+async function exchange(c:Awaited<ReturnType<typeof setup>>,code:string,verifier=c.verifier){
+  return req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({grant_type:"authorization_code",client_id:c.clientId,code,
+      redirect_uri:CALLBACK,code_verifier:verifier,resource:c.resource}).toString()});
+}
+describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
+  it("advertises discovery and rejects untrusted redirect clients",async()=>{
+    const c=await setup();
+    const doc=await(await req("/.well-known/oauth-authorization-server")).json() as any;
+    expect(doc).toMatchObject({issuer:SITE,registration_endpoint:SITE+"/oauth/register",
+      authorization_response_iss_parameter_supported:true,code_challenge_methods_supported:["S256"]});
+    const meta=await(await req("/.well-known/oauth-protected-resource/api/channels/"+c.slug+"/mcp")).json() as any;
+    expect(meta.resource).toBe(c.resource);
+    const anon=await req("/api/channels/"+c.slug+"/mcp",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/list"})});
+    expect(anon.status).toBe(401);
+    expect(anon.headers.get("www-authenticate")).toContain("oauth-protected-resource");
+    for(const redirect of ["https://evil.test/callback","https://chatgpt.com.evil/callback",
+      "http://chatgpt.com/connector_platform_oauth_redirect","https://chatgpt.com/wrong"])
+      expect((await register(redirect)).status).toBe(400);
+  });
+  it("requires login, explicit one-time consent and S256 PKCE before issuing any agent token",async()=>{
+    const c=await setup();
+    const qs=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"oauth-state",scope:"group.read",resource:c.resource});
+    const r=await req("/oauth/authorize?"+qs);
+    expect(r.status).toBe(302);
+    expect(r.headers.get("location")).toContain("/api/auth/github/start");
+    const authorized=await consent(c);
+    expect(authorized.html).toContain(c.slug);
+    expect(authorized.html).toContain("AgentParty");
+    expect((await req("/oauth/authorize",{method:"POST",
+      headers:{origin:SITE,cookie:c.cookie,"content-type":"application/x-www-form-urlencoded"},
+      body:authorized.body.toString()})).status).toBe(403);
+    expect((await exchange(c,authorized.code,"bad".repeat(15))).status).toBe(400);
+  });
+  it("issues and rotates one group token for official tools, with old credentials revoked",async()=>{
+    const c=await setup(),{code}=await consent(c);
+    const first=await exchange(c,code);expect(first.status).toBe(200);
+    const tokens=await first.json() as {access_token:string;refresh_token:string};
+    expect(tokens.access_token).toMatch(/^ap_/);
+    expect((await exchange(c,code)).status).toBe(400);
+    const profile=async(token:string)=>req("/api/channels/"+c.slug+"/mcp",{method:"POST",
+      headers:{"content-type":"application/json",authorization:"Bearer "+token,
+        "mcp-protocol-version":"2026-07-28"},
+      body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/list"})});
+    expect((await profile(tokens.access_token)).status).toBe(200);
+    const refresh=async(token:string)=>req("/oauth/token",{method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({grant_type:"refresh_token",client_id:c.clientId,
+        refresh_token:token,resource:c.resource}).toString()});
+    const second=await refresh(tokens.refresh_token);expect(second.status).toBe(200);
+    const newer=await second.json() as {access_token:string;refresh_token:string};
+    expect((await refresh(tokens.refresh_token)).status).toBe(400);
+    expect((await profile(tokens.access_token)).status).toBe(401);
+    expect((await profile(newer.access_token)).status).toBe(200);
+  });
+  it("enforces read-only vs write and events authorization at the MCP boundary",async()=>{
+    const c=await setup();
+    const {code}=await consent(c,"group.read");
+    const result=await exchange(c,code);expect(result.status).toBe(200);
+    const {access_token}=await result.json() as {access_token:string};
+    const call=(method:string,params:Record<string,unknown>)=>req("/api/channels/"+c.slug+"/mcp",{
+      method:"POST",headers:{"content-type":"application/json","mcp-protocol-version":"2026-07-28",
+        authorization:"Bearer "+access_token},
+      body:JSON.stringify({jsonrpc:"2.0",id:1,method,params}),
+    });
+    expect((await call("tools/list",{})).status).toBe(200);
+    expect((await call("tools/call",{name:"party_send_message",arguments:{body:"Unauthorized",idempotency_key:"test"}})).status).toBe(403);
+    expect((await call("events/subscribe",{name:"message.created"})).status).toBe(403);
+    const direct=await req("/api/channels/"+c.slug+"/bridges/grok-automation",{method:"POST",
+      headers:{authorization:"Bearer "+access_token,"content-type":"application/json"},
+      body:JSON.stringify({request_id:"test-direct",prompt:"Privileged action"})});
+    expect(direct.status).toBe(403);
+    // MCP OAuth credentials cannot call unrelated account-wide REST endpoints.
+    expect((await req("/api/me",{headers:{authorization:"Bearer "+access_token}})).status).toBe(403);
+  });
+  it("lists only an owner's connector grants and revokes both access and refresh credentials",async()=>{
+    const c=await setup(),{code}=await consent(c);
+    const result=await exchange(c,code);expect(result.status).toBe(200);
+    const tokens=await result.json() as {access_token:string;refresh_token:string};
+    const grants=await req("/oauth/grants",{headers:{cookie:c.cookie}});
+    expect(grants.status).toBe(200);
+    const data=await grants.json() as {connections:Array<{id:string;group:string;client_name:string}>};
+    expect(data.connections).toHaveLength(1);
+    expect(data.connections[0]!.group).toBe(c.slug);
+    expect(data.connections[0]!.client_name).toBe("ChatGPT dot");
+    const id=data.connections[0]!.id;
+    const revoke=await req("/oauth/grants/revoke",{method:"POST",headers:{
+      origin:SITE,cookie:c.cookie,"sec-fetch-site":"same-origin",
+      "content-type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({grant_id:id}).toString()});
+    expect(revoke.status).toBe(200);
+    expect((await revoke.json() as {revoked:boolean}).revoked).toBe(true);
+    const after=await req("/oauth/grants",{headers:{cookie:c.cookie}});
+    expect((await after.json() as any).connections).toHaveLength(0);
+    const again=await req("/oauth/token",{method:"POST",headers:{
+      "content-type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({grant_type:"refresh_token",client_id:c.clientId,
+        refresh_token:tokens.refresh_token,resource:c.resource}).toString()});
+    expect(again.status).toBe(400);
+    expect((await req("/api/channels/"+c.slug+"/mcp",{method:"POST",
+      headers:{authorization:"Bearer "+tokens.access_token,
+        "content-type":"application/json"},
+      body:JSON.stringify({jsonrpc:"2.0",id:5,method:"tools/list"})})).status).toBe(401);
+  });
+});

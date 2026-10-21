@@ -64,6 +64,9 @@ export default defineConfig(async () => {
             ATTACHMENT_SIGNING_SECRET: "test-attachment-signing-secret-at-least-32-bytes",
             COLLABORATION_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             COLLABORATION_HERMES_ALLOWED_ORIGINS: JSON.stringify(["https://hermes.test"]),
+            COLLABORATION_GROK_TRIGGER_ORIGINS: JSON.stringify(["https://hooks.grok.test"]),
+            COLLABORATION_EVENTS_ALLOWED_ORIGINS: JSON.stringify(["https://events.chatgpt.test"]),
+            AUTH_PUBLIC_ORIGIN: "https://commons.test",
             // #137：把每频道 WS 连接上限降到小值，测试才不用真开 200 条连接验证上限。
             // 值必须 > 任何单个 it 对同一频道的并发连接数（现存最多 <6），并与
             // account-channel-quota.spec.ts 的 TEST_CONN_CAP 保持一致。

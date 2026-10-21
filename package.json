@@ -16,11 +16,12 @@
     "release:verify": "bun run check:commons",
     "release:deploy": "bun run check:commons && cd worker && bun run migrate:remote && bun run deploy",
     "check:upstream": "bun run check:scripts && bun run check:cli && bun run check:shared && bun run check:web && bun run check:worker",
-    "check:commons": "bun run check:shared && bun run check:commons:contracts && bun run check:commons:worker && bun run check:commons:web && bun run check:commons:cli && bun run check:commons:config",
+    "check:commons": "bun run check:shared && bun run check:commons:contracts && bun run check:commons:worker && bun run check:commons:web && bun run check:commons:cli && bun run check:commons:config && bun run check:commons:muse",
     "check:commons:contracts": "node --experimental-transform-types --test --test-concurrency=1 worker/test/provider-transport.contract.mjs worker/test/github-changes.contract.mjs",
-    "check:commons:worker": "cd worker && bunx tsc --noEmit && bunx vitest run test/collaboration.spec.ts test/collaboration-lease-races.spec.ts test/collaboration-mcp.spec.ts test/code-proposals.spec.ts test/attachments.spec.ts test/acl.spec.ts test/public-watch.spec.ts test/collaboration-delivery.spec.ts test/collaboration-recovery.spec.ts test/browser-github-auth.spec.ts test/idempotency.spec.ts test/delivery-atomicity.spec.ts test/identity-erasure.spec.ts test/retention-policy.spec.ts test/do-storage-pruning.spec.ts test/broadcast-order.spec.ts",
+    "check:commons:worker": "cd worker && bunx tsc --noEmit && bunx vitest run test/collaboration.spec.ts test/collaboration-lease-races.spec.ts test/collaboration-mcp.spec.ts test/grok-automation.spec.ts test/manus-cue-discovery.spec.ts test/mcp-events.spec.ts test/connector-oauth.spec.ts test/code-proposals.spec.ts test/attachments.spec.ts test/acl.spec.ts test/public-watch.spec.ts test/collaboration-delivery.spec.ts test/collaboration-recovery.spec.ts test/browser-github-auth.spec.ts test/idempotency.spec.ts test/delivery-atomicity.spec.ts test/identity-erasure.spec.ts test/retention-policy.spec.ts test/do-storage-pruning.spec.ts test/broadcast-order.spec.ts",
     "check:commons:web": "cd web && bunx tsc --noEmit && bun test --isolate --max-concurrency 1 src/lib/collaborationApi.test.ts src/lib/desktopRuntime.test.ts src/lib/desktopPairing.test.ts src/lib/channelLink.test.ts src/lib/desktopUpdater.test.ts src/components/CollaborationHub.test.tsx src/components/RepositoryProposals.test.tsx src/components/DesktopInstall.test.tsx src/components/DesktopDownloadLink.test.tsx src/components/ServerProfiles.test.tsx src/lib/serverProfiles.test.ts src/lib/joinPack.test.ts src/components/AgentTokens.copypack.test.tsx && bunx vite build",
     "check:commons:cli": "cd cli && bunx tsc --noEmit && bun test test/auto-upgrade.test.ts test/config.test.ts test/upgrade.test.ts test/serve-selfbootout.test.ts test/serve-runner-isolation.test.ts test/gdpr.test.ts test/identity-export-pagination.test.ts",
+    "check:commons:muse": "cd bridges/muse-code && bun run check",
     "check:commons:config": "bun test scripts/commons-config.test.ts && bun scripts/check-migration-numbering.ts",
     "dev:commons": "cd worker && bun run dev",
     "setup:commons": "cd web && bun run build && cd ../worker && bun run migrate:local"
@@ -30,6 +31,7 @@
     "cli",
     "shared",
     "web",
-    "desktop"
+    "desktop",
+    "bridges/muse-code"
   ]
 }

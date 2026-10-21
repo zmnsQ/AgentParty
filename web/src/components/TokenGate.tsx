@@ -6,6 +6,7 @@ import type { AuthProviderConfig } from "../lib/oidc";
 import { useT } from "../i18n/useT";
 import { useLocale } from "../i18n/locale";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { OriginalProjectCredit } from "./OriginalProjectCredit";
 import "../i18n/strings/App";
 import "../i18n/strings/TokenGate";
 
@@ -25,9 +26,10 @@ export function TokenGate({ error, providers, onSso, onSubmit, github }: Props) 
   return (
     <main className="gate">
       <h1 className="d-title gate-title">
-        Agent<span className="d-hl">Party</span>
+        Agent<span className="d-hl"> Commons</span>
       </h1>
       <p className="d-hand gate-sub">{t("TokenGate.subtitle")}</p>
+      <OriginalProjectCredit />
       <div className="d-card gate-card">
         {github && <section className="browser-auth-stack">
           {github.configured ? <a className="d-btn d-btn--primary github-login-primary" href={githubLoginUrl()}>{locale === "zh" ? "使用 GitHub 登录" : "Continue with GitHub"}</a>

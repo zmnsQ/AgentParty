@@ -130,7 +130,8 @@ describe("cloud agent collaboration controls", () => {
     let saves = 0;
     const api = client({ saveConnection: async () => { saves++; throw new Error("Provider rejected credential"); } });
     await mount(<CloudAgentConnections token="token" slug="demo" summary={summary} client={api} onChanged={async () => {}} />);
-    expect(text(renderer!.root)).toContain("OAuth onboarding and MCP Events are not implemented");
+    expect(text(renderer!.root)).toContain("MCP OAuth 2.1");
+    expect(text(renderer!.root)).toContain("MCP Events");
     await click("Edit");
     const password = renderer!.root.findByProps({ type: "password" });
     expect(password.props.value).toBe(""); expect(password.props.required).toBe(false);

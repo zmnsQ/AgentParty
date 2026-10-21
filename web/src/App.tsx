@@ -960,7 +960,7 @@ export function App() {
       return (
         <>
           <main className="gate desktop-session-gate">
-            <h1 className="d-title gate-title">Agent<span className="d-hl">Party</span></h1>
+            <h1 className="d-title gate-title">Agent<span className="d-hl"> Commons</span></h1>
             <p className="banner" role="status" aria-live="polite">{t("App.desktop.restoring")}</p>
           </main>
           <DesktopRecoveryUpdater />
@@ -971,7 +971,7 @@ export function App() {
       return (
         <>
           <main className="gate desktop-session-gate">
-            <h1 className="d-title gate-title">Agent<span className="d-hl">Party</span></h1>
+            <h1 className="d-title gate-title">Agent<span className="d-hl"> Commons</span></h1>
             <section className="d-card gate-card">
               <p className="banner banner--red" role="alert">{t("App.desktop.restoreFailed")}</p>
               <ServerSwitcher
@@ -1081,7 +1081,7 @@ export function App() {
     return (
       <main className="gate">
         <h1 className="d-title gate-title">
-          Agent<span className="d-hl">Party</span>
+          Agent<span className="d-hl"> Commons</span>
         </h1>
         <p className="banner" role="status" aria-live="polite">
           {t("App.status.signingIn")}
@@ -1095,7 +1095,7 @@ export function App() {
     return (
       <main className="gate">
         <h1 className="d-title gate-title">
-          Agent<span className="d-hl">Party</span>
+          Agent<span className="d-hl"> Commons</span>
         </h1>
         {joinStatus?.phase === "error" ? (
           <>
@@ -1243,7 +1243,7 @@ export function App() {
             navigate("/");
           }}
         >
-          Agent<span className="d-hl">Party</span>
+          Agent<span className="d-hl"> Commons</span>
         </a>
         <span className="d-hand app-tag">{t("App.tagline")}</span>
         <a className="app-docs t-mono" href="/docs">

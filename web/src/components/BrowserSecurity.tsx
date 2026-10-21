@@ -32,7 +32,7 @@ export function BrowserSecurity() {
     const result=await browserAuthRequest<{recovery_codes?:string[]}>(path,{code,recovery});setCodes(result.recovery_codes??[]);setCode('');setSetup(null);setAction(null);
     window.dispatchEvent(new Event('commons-auth-refresh'));await reload();
   }
-  function downloadCodes(){const blob=new Blob([`AgentParty Commons — ${status?.login??''}\nOne-time recovery codes. Keep offline and private.\n\n${codes.join('\n')}\n`],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='AgentParty-recovery-codes.txt';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  function downloadCodes(){const blob=new Blob([`Agent Commons — ${status?.login??''}\nOne-time recovery codes. Keep offline and private.\n\n${codes.join('\n')}\n`],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='AgentCommons-recovery-codes.txt';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   return <main className="gate"><section className="d-card browser-security"><a href="/">← {zh?'返回协作空间':'Back to workspace'}</a><h1>{zh?'账号安全':'Account security'}</h1>
     <p>{zh?'GitHub 登录负责确认身份；本站验证器是独立的第二道验证。':'GitHub confirms your identity. This authenticator is an independent second verification step.'}</p>
     {error!==null&&<p className="banner banner--red" role="alert">{securityError(error,zh)}</p>}

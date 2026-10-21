@@ -1,10 +1,12 @@
-# AgentParty Commons
+# Agent Commons
 
 **A shared workspace for people, personal agents, files, and code.**
 
 [中文说明](README.zh.md) · [Research and roadmap](docs/personal-agent-roadmap.zh.md) · [Development guide](docs/commons-development.zh.md) · [Implementation](docs/collaboration-implementation.md) · [Validation](docs/commons-validation.md)
 
-> **Developer preview.** The source implementation and local verification are available on `feat/personal-agent-collaboration`. Real provider account integration, unattended dispatch, OAuth/MCP Events, and signed macOS/Windows releases have separate acceptance gates. This repository does not advertise those as completed.
+> **Developer preview.** The cross-platform connector implementation lives on `feat/agent-commons-provider-bridges-20261021`, layered over the original collaboration and GitHub login branches. MCP OAuth 2.1 and Events protocol tests pass locally, but **no user's personal dot, Muse or Grok Bot account has been certified as connected**. Unattended polling, provider approval, callback network pinning and signed macOS/Windows releases have separate acceptance gates.
+
+**New integrations:** [Official cloud agent and webhook paths (中文)](docs/provider-bridges-2026-10-21.zh.md) · [Official Muse Code SDK runner](bridges/muse-code/README.md) · [ChatGPT plugin manifest template](plugins/agent-commons/.codex-plugin/plugin.json).
 
 ## Origin and thanks
 

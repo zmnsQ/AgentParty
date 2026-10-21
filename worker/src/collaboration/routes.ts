@@ -10,6 +10,8 @@ import { isHumanChannelOwner } from "../acl";
 import { randomToken, sha256Hex, type TokenIdentity } from "../auth";
 import { handleChannelMcp } from "./mcp";
 import { registerProposalRoutes } from "./proposals";
+import { registerGrokAutomationRoutes } from "./grok-automation";
+import { deliverMcpEvents } from "./mcp-events";
 import { GitHubReadError, inspectRepository, listPullRequests, listRepositoryCommits, validCredential, validRepositoryName, validBranch } from "./github";
 import { openCredential, sealCredential, VaultError } from "./vault";
 import {
@@ -425,6 +427,21 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
   app.post("/api/channels/:slug/cloud-agents/:id/runs/:runId/sync", route((c) => controlRun(c, "sync")));
   app.post("/api/channels/:slug/cloud-agents/:id/runs/:runId/cancel", route((c) => controlRun(c, "cancel")));
 
+  // Official Manus/Cue agent.list discovery. Requires a human owner; the API key
+  // is used for this one request and is never persisted or returned.
+  app.post("/api/channels/:slug/bridges/manus/discover", route(async (c) => {
+    const granted = await access(c, "manage");
+    if (granted instanceof Response) return granted;
+    const input = await jsonObject(c);
+    if (!input || !validCredential(input.credential)) return fail(c, 400, "An API key is required.");
+    const { discover } = await import("./transport");
+    const agents = await discover({
+      provider: "manus", endpoint: "https://api.manus.ai", credential: input.credential as string,
+    }, options(c.env));
+    return c.json({ agents: agents.slice(0, 100).map(a => ({
+      id: a.id, name: a.name, conversation_id: a.remoteConversationId ?? null,
+    })), result_type: "official-manus-agent-list", requires_api_key: true });
+  }));
   app.get("/api/channels/:slug/files", route(async (c) => {
     const granted = await access(c); if (granted instanceof Response) return granted;
     const limit = Number(c.req.query("limit") ?? "50"); const cursor = c.req.query("cursor");
@@ -497,9 +514,22 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
 
   app.post("/api/channels/:slug/mcp", route(async (c) => {
     const granted = await access(c); if (granted instanceof Response) return granted;
-    return handleChannelMcp(c.req.raw, granted.slug, granted.identity, async (path, init) => forward(c, path, init));
+    return handleChannelMcp(c.req.raw, granted.slug, granted.identity, async (path, init) => forward(c, path, init), c.env);
   }));
   app.get("/api/channels/:slug/mcp", (c) => c.json({ error: "Use POST for this stateless MCP tools endpoint." }, 405));
   app.delete("/api/channels/:slug/mcp", (c) => c.json({ error: "This MCP endpoint has no server session to delete." }, 405));
   registerProposalRoutes(app, { access, forward, repositoryCredential, canParticipateInChannel: deps.canParticipateInChannel });
+  app.post("/api/channels/:slug/bridges/events/flush", route(async c => {
+    const granted=await access(c,"run"); if(granted instanceof Response) return granted;
+    return c.json(await deliverMcpEvents(c.env,granted.slug));
+  }));
+  app.get("/api/channels/:slug/bridges/events/status", route(async c => {
+    const granted=await access(c,"manage"); if(granted instanceof Response) return granted;
+    const active=await c.env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_subscriptions WHERE channel_slug=? AND revoked_at IS NULL AND expires_at>?")
+      .bind(granted.slug,Date.now()).first<{n:number}>();
+    const pending=await c.env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_outbox WHERE channel_slug=? AND state='pending'")
+      .bind(granted.slug).first<{n:number}>();
+    return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0});
+  }));
+  registerGrokAutomationRoutes(app, { access });
 }

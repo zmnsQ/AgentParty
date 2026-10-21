@@ -1,4 +1,6 @@
 import { lookupBrowserAccess } from "./browser-auth/session";
+import { enqueueMcpEvent, deliverMcpEvents } from "./collaboration/mcp-events";
+import type { AppEnv } from "./index";
 // channel durable object — seq 分配 / 广播 / presence / 补拉 / 各类熔断 / webhook 投递 / temp 归档
 import {
   parseSessionOutputClientFrame,
@@ -4790,6 +4792,15 @@ export class ChannelDO extends Server<Env> {
       msg.decision_resolution?.state === "pending"
     ) {
       await this.dispatchNextDirectedDelivery(msg.sender.name);
+    }
+    // Dot/MCP event wakeups must observe BOTH REST and WebSocket messages.
+    // The DO has already committed the message; enqueue and dispatch through
+    // a durable D1 outbox, never treating event callback failure as a failed
+    // group send. The event payload carries only a message reference.
+    if (msg.kind === "message" && msg.sender.name !== "system") {
+      this.ctx.waitUntil(enqueueMcpEvent(this.env as AppEnv,{
+        slug:this.name,seq:msg.seq,sender:msg.sender.name,mentions:msg.mentions,
+      }).then(()=>deliverMcpEvents(this.env as AppEnv,this.name)).catch(()=>undefined));
     }
     // #107：serve/watch 目标的 @ 广播即落 ledger（同步 SQL，不烧订阅、不发网络）——补齐它们缺失的服务端唤醒审计。
     this.recordServeWatchWakes(msg);

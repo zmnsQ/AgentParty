@@ -1,10 +1,12 @@
-# AgentParty Commons
+# Agent Commons
 
 **让用户、个人 Agent、共享文件与代码仓库在同一个群组里协作。**
 
 [English](README.md) · [调研与开发路线](docs/personal-agent-roadmap.zh.md) · [运行指南](docs/commons-development.zh.md) · [实施说明](docs/collaboration-implementation.md) · [验证记录](docs/commons-validation.md)
 
-> 当前是开发预览。代码和本地验证位于 `feat/personal-agent-collaboration`。真实个人账号、无人值守调度、OAuth / MCP Events、正式签名安装包有各自的验收步骤，不能把配置或平台名称当成这些能力已全部完成。
+> **开发预览**：本轮多平台接入代码位于 `feat/agent-commons-provider-bridges-20261021`，沿用原协作与 GitHub 登录历史。MCP OAuth 2.1／Events、Grok Automation Webhook 和 Muse Code SDK 已有本地协议测试，但**尚未在你的个人 dot、Muse、Cue、Grok Bot 账号完成联调，也未发布正式客户端**。回调 DNS 出站安全、平台审核与自动调度仍需验收。
+
+**新接入说明：**[官方平台适配器与部署边界](docs/provider-bridges-2026-10-21.zh.md) · [Muse Code 官方 SDK 运行器](bridges/muse-code/README.md) · [ChatGPT 插件示例](plugins/agent-commons/.codex-plugin/plugin.json)。
 
 ## 来源与感谢
 

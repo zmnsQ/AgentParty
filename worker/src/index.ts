@@ -126,6 +126,8 @@ import {
 } from "./integrations/lark";
 import { openapiDocument } from "./openapi";
 import { registerCollaborationRoutes } from "./collaboration/routes";
+import { registerConnectorOauth, oauthRestPermission } from "./collaboration/oauth";
+
 
 declare const __AGENTPARTY_BUILD_VERSION__: string | undefined;
 declare const __AGENTPARTY_BUILD_COMMIT__: string | undefined;
@@ -177,6 +179,9 @@ export type AppEnv = Env & {
   AGENTPARTY_SHUTDOWN_AT?: string;
   COLLABORATION_ENCRYPTION_KEY?: string;
   COLLABORATION_HERMES_ALLOWED_ORIGINS?: string;
+  COLLABORATION_GROK_TRIGGER_ORIGINS?: string;
+  COLLABORATION_EVENTS_ALLOWED_ORIGINS?: string;
+  COLLABORATION_OAUTH_REDIRECT_ORIGINS?: string;
 };
 
 export type AppContext = {
@@ -1795,6 +1800,11 @@ const requireBearer = createMiddleware<AppContext>(async (c, next) => {
       ? await lookupToken(c.env.DB, bearer.token, oidcConfigFromEnv(c.env, [CLI_CLIENT_ID]), c.env.DESKTOP_PAIRING_SECRET)
       : null;
     if (!identity) {
+      const match = /^\/api\/channels\/([a-z0-9][a-z0-9-]{0,63})\/mcp$/.exec(c.req.path);
+      if (match && c.env.AUTH_PUBLIC_ORIGIN?.startsWith("https://")) {
+        const metadata = `${c.env.AUTH_PUBLIC_ORIGIN}/.well-known/oauth-protected-resource/api/channels/${match[1]}/mcp`;
+        c.header("WWW-Authenticate", `Bearer resource_metadata="${metadata}", error="invalid_token"`);
+      }
       return c.json(errorBody("unauthorized", "invalid or revoked token"), 401);
     }
     if (c.env.AUTH_REQUIRE_GITHUB_LOGIN === "true" && identity.role === "human" && !identity.browserSessionId && !identity.desktopSessionId) {
@@ -1802,6 +1812,11 @@ const requireBearer = createMiddleware<AppContext>(async (c, next) => {
     }
     if (bearer?.source === "query" && identity.role !== "readonly") {
       return c.json(errorBody("unauthorized", "query-string websocket tokens must be readonly"), 403);
+    }
+    // An OAuth MCP credential is not a general-purpose AgentParty API key.
+    // Tool forwarding is constrained to a fixed group REST action allowlist.
+    if (!(await oauthRestPermission(identity,c.env,c.req.path,c.req.method))) {
+      return c.json(errorBody("forbidden", "Connector OAuth scope or endpoint not allowed"),403);
     }
     c.set("identity", identity);
   }
@@ -2856,6 +2871,7 @@ function isBlockedWebhookHost(rawHost: string): boolean {
 }
 
 const app = new Hono<AppContext>();
+registerConnectorOauth(app);
 const DESKTOP_CORS_ORIGINS = new Set([
   "tauri://localhost",
   "http://tauri.localhost",
@@ -2940,7 +2956,7 @@ registerBrowserAuth(app, { enroll: enrollInstanceMember });
 
 app.get("/api/health", (c) => {
   c.header("cache-control", "no-store");
-  return c.json({ ok: true, ...DEPLOYMENT_METADATA });
+  return c.json({ ok: true, ...DEPLOYMENT_METADATA, product: "Agent Commons", original_project: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" } });
 });
 
 // CLI↔worker 版本协商源点（#137）：服务端 version/commit/deployed_at + 声明的最低客户端版本 + 是否硬拒。
@@ -3004,6 +3020,8 @@ app.get("/api/config", (c) => {
       })),
     },
     cli_client_id: CLI_CLIENT_ID,
+    product_name: "Agent Commons",
+    based_on: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" },
   });
 });
 
