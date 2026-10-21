@@ -1,13 +1,29 @@
 # Commons development-preview validation
 
-## Client-scope supplement (2026-10-21)
+## Client-scope supplement integrated with the latest development branch
 
-Based on `b215c4b`, the isolated client-scope patch passed **453/453 tests**,
-27 files, no skips, exit code 0. It preserves all existing backend fixes and
-adds 11 UI regressions for server/account/group switching, access rejection
-and upload follow-up boundaries. See [review and limits](client-scope-review-2026-10-21.zh.md)
-and [machine-readable results](validation/client-scope-2026-10-21.json).
+This supplement preserves the target’s backend and regression tests. Its latest
+executed counts and limits are in [the client-scope review](client-scope-review-2026-10-21.zh.md)
+and [the validation record](validation/client-scope-2026-10-21.json).
 Earlier validation snapshots are retained below.
+
+
+## Latest merged validation: workspace isolation (2026-10-21)
+
+The final merged `bun run check:commons` exited **0**: **463 / 463 tests passed
+in 28 files**, no skipped cases. Counts: HTTP contracts **53**, local Worker /
+D1 / DO / R2 **130**, Web **175**, CLI **101**, fork configuration **4**.
+Shared / Worker / Web / CLI type checks, Vite production build and migration
+numbering passed. Original license, attribution, lockfile and manual-only
+workflows are unchanged. No native installer or live-provider certification.
+
+All parallel branch changes through `b215c4b` were retained; the earlier 429-test
+workspace pass was revalidated after integration, not substituted for it.
+[Workspace review](commons-workspace-isolation-2026-10-21.zh.md) and
+[machine-readable results](validation/workspace-isolation-2026-10-21.json)
+explain the scope, negative controls and remaining boundaries. All other totals
+below are **historical checkpoints**, not the latest test count.
+
 
 > **Latest merged gate: 442 / 442 tests passed, 27 files, exit 0.**
 > This retains the 423-test incoming branch and adds 19 further checks, including

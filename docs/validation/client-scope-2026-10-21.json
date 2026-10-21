@@ -1,6 +1,6 @@
 {
   "date": "2026-10-21",
-  "baseline_commit": "b215c4ba0522412cf2cfb70f4d844617519e6418",
+  "baseline_commit": "01866a7ac816506f52518ea6b19fff8a5130595c",
   "environment": {
     "os": "macOS",
     "architecture": "arm64",
@@ -10,17 +10,17 @@
   "command": "bun run check:commons",
   "exit_code": 0,
   "tests": {
-    "contracts": 49,
-    "worker": 121,
-    "web": 178,
+    "contracts": 53,
+    "worker": 130,
+    "web": 186,
     "cli": 101,
     "config": 4,
-    "total": 453,
+    "total": 474,
     "failed": 0,
     "skipped": 0,
-    "files": 27,
+    "files": 28,
     "new_in_this_patch": 11,
-    "new_since_initial_preview": 53
+    "new_since_initial_preview": 74
   },
   "typescript": [
     "shared",
@@ -41,12 +41,28 @@
   "real_product_github_publication_tested": false,
   "source_sha256": {
     "web/src/components/ChannelFiles.tsx": "b598a5e878fdd97ccc4d7ccc6c01b80d7fa47daf624ba99d0c090c7638d564c2",
-    "web/src/components/CollaborationHub.tsx": "6a0d3f1eaafac8a388ea8f0c097b51cfde9a920355c7ef16eed80c522b3c3a2b",
-    "web/src/components/CollaborationHub.test.tsx": "ce625c51868acd0c2d1895b462aca675f228c1e25bf39bed65a8b0bf4b8acd73"
+    "web/src/components/CollaborationHub.tsx": "9cfacd7eccb8b27cb2649223fc03b6240163c31dd5e35452620d8918a22039bb",
+    "web/src/components/CollaborationHub.test.tsx": "aeb4f08f0fc0fb9528b8f3e3f9527678a72a92fa6318a496c8ead7fef0290b8e"
   },
   "known_limits": [
     "Prior reviews recorded intermittent existing 1000ms loopback fixture timeouts; root cause remains unconfirmed.",
     "In-flight HTTP requests cannot be recalled.",
     "Provider OAuth/Events, durable background dispatch and native distribution remain unfinished."
-  ]
+  ],
+  "earlier_patch_validation": {
+    "baseline": "b215c4ba0522412cf2cfb70f4d844617519e6418",
+    "passed": 453,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "merge_validation_incident": {
+    "initial_attempt": "Stopped at existing loopback contract timeouts (50/53).",
+    "merge_helper_conflict": "Duplicate test helper/import and documentation conflict markers were resolved before the final complete gate.",
+    "latest_full_gate": {
+      "passed": 474,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "production_transport_timeouts_changed": false
+  }
 }

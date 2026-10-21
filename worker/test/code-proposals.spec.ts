@@ -36,11 +36,11 @@ async function blobSha(content: string) {
 async function fixture(options: { missingBlob?: boolean } = {}) {
   const oldBlob = await blobSha(BEFORE); const newBlob = await blobSha(AFTER);
   const github = fetchMock.get("https://api.github.com");
-  const state = { main: BASE, writes: [] as string[], message: "", branchExists: false, pull: null as Record<string, unknown> | null };
+  const state = { main: BASE, writes: [] as string[], message: "", branchExists: false, pull: null as Record<string, unknown> | null, beforeBaseRead: null as (() => Promise<void>) | null };
   const ref = (branch: string, sha: string) => ({ ref: `refs/heads/${branch}`, object: { type: "commit", sha } });
   const oldCommit = (sha: string) => ({ sha, tree: { sha: BASE_TREE }, message: "Reviewed base", parents: [] });
   github.intercept({ path: `${ROOT}/git/ref/heads/main`, method: "GET" }).reply(200, () => ref("main", state.main)).persist();
-  for (const sha of [BASE, MOVED_BASE]) github.intercept({ path: `${ROOT}/git/commits/${sha}`, method: "GET" }).reply(200, oldCommit(sha)).persist();
+  for (const sha of [BASE, MOVED_BASE]) github.intercept({ path: `${ROOT}/git/commits/${sha}`, method: "GET" }).reply(200, async () => { await state.beforeBaseRead?.(); return oldCommit(sha); }).persist();
   github.intercept({ path: `${ROOT}/git/trees/${BASE_TREE}`, method: "GET" }).reply(200, {
     sha: BASE_TREE, truncated: false, tree: [{ path: FILE, type: "blob", mode: "100644", sha: oldBlob }],
   }).persist();
@@ -458,5 +458,38 @@ describe("publication fencing regressions", () => {
         .toEqual({ lease_token: successor, state: "publishing" });
       expect(context.state.writes).toEqual([]);
     } finally { await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
+  });
+});
+
+
+describe("publication authority before external writes", () => {
+  it.each(["taken-over", "expired"])("does not send a GitHub write after its lease is %s", async (mode) => {
+    const context = await setup(); const proposal = await propose(context);
+    const successor = crypto.randomUUID(); const until = Date.now() + 90_000;
+    // A real D1 takeover/expiry during preflight. The callback immediately
+    // before the first remote POST must detect it before any GitHub mutation.
+    context.state.beforeBaseRead = async () => {
+      context.state.beforeBaseRead = null;
+      if (mode === "taken-over") {
+        await env.DB.prepare("UPDATE code_change_proposals SET lease_token=?,lease_until=?,error='Successor owns publication' WHERE id=?")
+          .bind(successor, until, proposal.id).run();
+      } else await env.DB.prepare("UPDATE code_change_proposals SET lease_until=0 WHERE id=?").bind(proposal.id).run();
+    };
+    const github = fetchMock.get("https://api.github.com");
+    github.intercept({ path: `${ROOT}/git/ref/heads/agentparty/${proposal.id}`, method: "GET" }).reply(404, { message: "Not Found" });
+    github.intercept({ path: `${ROOT}/pulls?state=all&head=${encodeURIComponent(`acme:agentparty/${proposal.id}`)}&per_page=100`, method: "GET" }).reply(200, []);
+    try {
+      const response = await publish(context, proposal);
+      const result = await response.json() as { proposal: CodeProposalDetail };
+      expect(result.proposal.state).toBe(mode === "taken-over" ? "publishing" : "unknown");
+      if (mode === "taken-over") {
+        expect(result.proposal.error).toBe("Successor owns publication");
+        expect(await env.DB.prepare("SELECT lease_token,lease_until FROM code_change_proposals WHERE id=?").bind(proposal.id).first())
+          .toEqual({ lease_token: successor, lease_until: until });
+      } else expect(result.proposal.error).toContain("Publication authority");
+      expect(context.state.writes).toEqual([]);
+      expect(context.state.main).toBe(BASE);
+      expect(await (await api(`/api/channels/${context.slug}/messages`, context.owner.token)).text()).not.toContain("Code proposal published for review");
+    } finally { context.state.beforeBaseRead = null; }
   });
 });

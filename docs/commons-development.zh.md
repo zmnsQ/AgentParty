@@ -158,6 +158,8 @@ bunx wrangler r2 bucket create agentparty-commons-attachments
 
 ## 6. 验证记录与剩余工作
 
+最新合并检查为 **463 / 463 项、28 个测试文件、退出码 0**。此前 408 / 423 / 429 / 442 项为历史记录；详见 [工作区隔离与最终验证](commons-workspace-isolation-2026-10-21.zh.md)。
+
 [开发路线](personal-agent-roadmap.zh.md) 是开发前提交的研究与决策记录；[实施记录](collaboration-implementation.md) 和 [验证记录](commons-validation.md) 区分已实现、已运行测试与待真实账户/操作系统验证的内容。
 
 本 fork 基于郭立 / leeguooooo 与贡献者开发的 AgentParty。原项目的 Git 历史及 BUSL-1.1 [LICENSE](../LICENSE) 保留，来源与感谢见 [NOTICE](../NOTICE.md)。

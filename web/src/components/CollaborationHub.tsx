@@ -49,7 +49,7 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
       if (alive.current && !signal?.aborted && apiBase() === server && current === generation.current) setSummary(result);
     } catch (cause) {
       if (!alive.current || signal?.aborted || apiBase() !== server || current !== generation.current) return;
-      if (cause instanceof AuthError || cause instanceof ForbiddenError || (cause instanceof CollaborationApiError && [401, 403].includes(cause.status))) setSummary(null);
+      if (cause instanceof AuthError || cause instanceof ForbiddenError || (cause instanceof CollaborationApiError && [401, 403, 404, 410].includes(cause.status))) setSummary(null);
       if (cause instanceof AuthError) authFailure.current?.(cause.message);
       setError(cause instanceof CollaborationApiError && cause.status === 404 ? t("Collab.offline") : collaborationError(cause));
     } finally { if (alive.current && apiBase() === server && current === generation.current) setLoading(false); }
