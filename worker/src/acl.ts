@@ -37,21 +37,22 @@ function legacyAdminAppliesTo(identity: AclIdentity, channel: ChannelAcl): boole
 }
 
 // 是否允许「进入/读」该频道（spec §5.4/§5.5 访问矩阵），判定顺序：
-//   ① public → 任何通过鉴权的身份放行（public 先于 scope，scoped token 也能进公开频道）
-//   ② channel_scope 非空 → 仅 slug 命中才放行，否则一律 forbidden（对所有 role 含 readonly 硬上限，
+//   ① channel_scope 非空 → 仅 slug 命中才放行，否则一律 forbidden（对所有 role 含 readonly 硬上限，
 //      即使 owner_account === account 也不行；scope 不匹配连读都拒）
+//   ② public / public_watch → 无 scope 限制的已认证身份放行
 //   ③ legacy ap_ token（owner=null）→ 过渡期放行
 //   ④ 无 scope 的 readonly（分享 token 本应带 scope，不该再签发无 scope 的）→ 私有一律拒（spec §5.5）
 //   ⑤ 账号规则 → principal.account === channel.owner_account（都非空才命中）
 //   ⑥ 成员规则 → principal.account ∈ channel_members(slug)
 // 写权限在此之上再叠加现有规则（readonly 不能发），不在本函数内判断。
 export function canAccessChannel(identity: AclIdentity, channel: ChannelAcl, isMember: boolean): boolean {
-  // #381：public 与 public_watch 的**读门**一致——任何通过鉴权的身份都可进入/观看。
+  // A channel scope is a hard credential boundary even when another group is public.
+  if (identity.channel_scope != null) return channel.slug === identity.channel_scope;
+  // #381：public 与 public_watch 的读门一致——在上述 scope 范围内的已认证身份可进入/观看。
   // 二者只在**写门**分野：public 任何非只读都可发；public_watch 的发送需成员/被邀请，
   // 由 worker 的 canParticipateInChannel + DO handleSend 叠加强制，不在本函数内判断。
   // [范围说明] 「任何人」= 任何通过鉴权的 token；真正的匿名/无 token 读是更大的安全面，本次不做。
   if (channel.visibility === "public" || channel.visibility === "public_watch") return true;
-  if (identity.channel_scope != null) return channel.slug === identity.channel_scope;
   if (legacyAdminAppliesTo(identity, channel)) return true;
   if (identity.role === "readonly") return false;
   if (identity.account != null && identity.account === channel.owner_account) return true;

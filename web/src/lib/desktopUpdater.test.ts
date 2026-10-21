@@ -95,7 +95,7 @@ describe("desktop runtime detection", () => {
     expect(createBrowserDesktopUpdaterClient({ windowRef: {} })).toBe(null);
   });
 
-  test("keeps the desktop client usable when localStorage access throws", () => {
+  test("keeps the independent fork updater disabled when storage access throws", () => {
     const windowRef = { __TAURI_INTERNALS__: {} };
     Object.defineProperty(windowRef, "localStorage", {
       get() {
@@ -104,10 +104,10 @@ describe("desktop runtime detection", () => {
     });
 
     expect(() => createBrowserDesktopUpdaterClient({ windowRef })).not.toThrow();
-    expect(createBrowserDesktopUpdaterClient({ windowRef })).not.toBe(null);
+    expect(createBrowserDesktopUpdaterClient({ windowRef })).toBe(null);
   });
 
-  test("passes the native app version through the browser-to-Tauri bridge", async () => {
+  test("does not invoke upstream update plugins even with a pending legacy receipt", async () => {
     const storage = memoryStorage({
       [LAST_UPDATER_DIAGNOSTIC_KEY]: JSON.stringify({
         status: "pending",
@@ -119,15 +119,13 @@ describe("desktop runtime detection", () => {
         targetVersion: "0.2.83",
       }),
     });
+    const imports: string[] = [];
     const client = createBrowserDesktopUpdaterClient({
       windowRef: { __TAURI_INTERNALS__: {} },
       clock: { now: () => 200 },
       storage,
       importer: async (specifier) => {
-        if (specifier === "@tauri-apps/plugin-updater") return { check: async () => null };
-        if (specifier === "@tauri-apps/plugin-process") return { relaunch: async () => {} };
-        if (specifier === "@tauri-apps/api/app") return { getVersion: async () => "0.2.83" };
-        if (specifier === "@tauri-apps/api/core") return { invoke: async () => {} };
+        imports.push(specifier);
         throw new Error(`unexpected import ${specifier}`);
       },
     });
@@ -135,10 +133,12 @@ describe("desktop runtime detection", () => {
     client?.start();
     for (let attempt = 0; attempt < 10; attempt += 1) await Promise.resolve();
 
+    expect(client).toBe(null);
+    expect(imports).toEqual([]);
     expect(JSON.parse(storage.values.get(LAST_UPDATER_DIAGNOSTIC_KEY) ?? "null")).toMatchObject({
-      status: "success",
+      status: "pending",
       stage: "relaunch",
-      appVersion: "0.2.83",
+      appVersion: "0.2.82",
       targetVersion: "0.2.83",
     });
   });

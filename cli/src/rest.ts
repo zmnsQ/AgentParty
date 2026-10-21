@@ -1870,7 +1870,7 @@ export function handleRestError(e: unknown): number {
       // #2：旧版 CLI 会把「需升级」误报成 unauthorized，看着像 token 失效。附版本 + 升级指引降低误诊。
       console.error(
         `hint: 若确认 token 未撤销，多半是 CLI 过旧（当前 party v${pkg.version}）——旧版曾把「需升级」误报成本条。\n` +
-          `      升级后重试：curl -fsSL https://raw.githubusercontent.com/leeguooooo/agentparty/main/install.sh | sh`,
+          `      升级后重试：curl -fsSL https://raw.githubusercontent.com/zmnsQ/AgentParty/feat/personal-agent-collaboration/install.sh | sh`,
       );
       return EXIT_AUTH;
     }

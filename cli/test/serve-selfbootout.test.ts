@@ -34,7 +34,7 @@ import {
   resetServiceShutdownForTest,
 } from "../src/service-shutdown";
 
-const LABEL = "com.agentparty.duty.abc.dev";
+const LABEL = "com.zmns.agentpartycommons.duty.abc.dev";
 
 function recorder() {
   const calls: Array<{ cmd: string; args: string[] }> = [];
@@ -191,13 +191,13 @@ describe("selfBootoutTerminalDuty (#744)", () => {
 
   test("终局标记路径与 desktop 约定一致", () => {
     expect(dutyBlockedMarkerPath(LABEL, "/Users/leo")).toBe(
-      `/Users/leo/.agentparty/desktop/duty-blocked/${LABEL}.json`,
+      `/Users/leo/.agentparty-commons/desktop/duty-blocked/${LABEL}.json`,
     );
     expect(dutyQuarantinedPlistPath(LABEL, "/Users/leo")).toBe(
       `/Users/leo/Library/LaunchAgents/${LABEL}.plist.terminal-disabled`,
     );
     expect(dutyLockPath(LABEL, "/Users/leo")).toBe(
-      `/Users/leo/.agentparty/desktop/duty-locks/${LABEL}.lock`,
+      `/Users/leo/.agentparty-commons/desktop/duty-locks/${LABEL}.lock`,
     );
   });
 
@@ -368,7 +368,7 @@ describe("selfBootoutTerminalDuty (#744)", () => {
   });
 
   test("label 非法(非 duty 前缀 / 含非法字符)→ 拒绝,绝不 bootout(@macmini 评审)", () => {
-    for (const bad of ["com.other.job", "com.agentparty.duty.x dev", "com.agentparty.duty.x;rm", "system/"]) {
+    for (const bad of ["com.other.job", "com.zmns.agentpartycommons.duty.x dev", "com.zmns.agentpartycommons.duty.x;rm", "system/"]) {
       const r = recorder();
       const did = selfBootoutTerminalDuty(EXIT_WAKE_ABANDON_CIRCUIT, r.out, { ...base({ label: bad }), spawn: r.spawn } as never);
       expect(did).toBe(false);

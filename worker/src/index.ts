@@ -124,6 +124,7 @@ import {
   type LarkWebhookPayload,
 } from "./integrations/lark";
 import { openapiDocument } from "./openapi";
+import { registerCollaborationRoutes } from "./collaboration/routes";
 
 declare const __AGENTPARTY_BUILD_VERSION__: string | undefined;
 declare const __AGENTPARTY_BUILD_COMMIT__: string | undefined;
@@ -141,7 +142,7 @@ const DEPLOYMENT_METADATA = Object.freeze({
 
 // OIDC_ISSUER + OIDC_CLIENT_ID 为可选 vars/secrets：都配齐才启用人类网页 OIDC 登录（spec §10）。
 // AUTH_PROVIDERS 是新版可扩展 OAuth 配置，Lark/Feishu 走 worker 服务端换码，secret 不下发给浏览器。
-type AppEnv = Env & {
+export type AppEnv = Env & {
   ASSETS: Fetcher;
   ADMIN_SECRET?: string;
   OIDC_ISSUER?: string;
@@ -164,9 +165,11 @@ type AppEnv = Env & {
   // 托管服务关停时刻（ISO 8601 或 "now"，见 src/shutdown.ts / docs/release-pipeline.md「Shutdown」）。
   // 空或解析不了 = 永不关停（fail open）。
   AGENTPARTY_SHUTDOWN_AT?: string;
+  COLLABORATION_ENCRYPTION_KEY?: string;
+  COLLABORATION_HERMES_ALLOWED_ORIGINS?: string;
 };
 
-type AppContext = {
+export type AppContext = {
   Bindings: AppEnv;
   Variables: { identity: TokenIdentity; attachmentSignatureVerified: boolean };
 };
@@ -1850,7 +1853,7 @@ async function loadChannel(db: D1Database, slug: string) {
     }>();
 }
 
-type LoadedChannel = NonNullable<Awaited<ReturnType<typeof loadChannel>>>;
+export type LoadedChannel = NonNullable<Awaited<ReturnType<typeof loadChannel>>>;
 
 async function isChannelMember(db: D1Database, slug: string, account: string | null | undefined): Promise<boolean> {
   if (account == null) return false;
@@ -2053,6 +2056,7 @@ function optionalBoundedText(value: unknown, maxBytes: number): string | null | 
 }
 
 async function canAccessLoadedChannel(db: D1Database, identity: TokenIdentity, channel: LoadedChannel): Promise<boolean> {
+  if (identity.channel_scope != null && identity.channel_scope !== channel.slug) return false;
   if (await isChannelParticipantRemoved(db, channel.slug, identity)) return false;
   if (await isChannelAccountBanned(db, channel.slug, identity.account)) return false;
   if (canAccessChannel(identity, channel, await isChannelMember(db, channel.slug, identity.account))) return true;
@@ -3631,6 +3635,13 @@ app.use("/api/channels/:slug/*", requireBearer);
 app.use("/api/channels/:slug", requireActiveChannelParticipant);
 app.use("/api/channels/:slug/*", requireActiveChannelParticipant);
 
+registerCollaborationRoutes(app, {
+  loadChannel,
+  canAccessLoadedChannel,
+  canParticipateInChannel,
+  forward: (request, env, context) => app.fetch(request, env, context),
+});
+
 app.post("/api/channels/:slug/project-agents/runtime-token", async (c) => {
   const identity = c.get("identity");
   const slug = c.req.param("slug");
@@ -4520,6 +4531,7 @@ app.get("/api/channels", async (c) => {
          OR (principal_type = 'account' AND ? IS NOT NULL AND principal = ?)`,
   ).bind(identity.name, identity.account ?? null, identity.account ?? null).all<{ channel_slug: string }>()).results.map((row) => row.channel_slug));
   const visible = results.filter((row) =>
+    (identity.channel_scope == null || identity.channel_scope === row.slug) &&
     !bannedSlugs.has(row.slug) &&
     !removedSlugs.has(row.slug) &&
     (canAccessChannel(identity, row, memberSlugs.has(row.slug)) || projectAgentInviteSlugs.has(row.slug)),
@@ -6485,6 +6497,9 @@ app.put("/api/channels/:slug/visibility", async (c) => {
   }
   if (visibility === channel.visibility) {
     return c.json({ visibility, changed: false });
+  }
+  if (visibility !== "private" && await c.env.DB.prepare("SELECT 1 FROM channel_repositories WHERE channel_slug = ? AND is_private = 1 LIMIT 1").bind(slug).first()) {
+    return c.json(errorBody("conflict", "Unbind private repositories before making this group public."), 409);
   }
   // #381：private→(public | public_watch) 都会把私有历史暴露给任意观看者，故同样要二段确认。
   if (channel.visibility === "private" && (visibility === "public" || visibility === "public_watch") && body?.confirm !== true) {
@@ -8869,6 +8884,9 @@ app.post("/api/channels/:slug/attachments", async (c) => {
   }
   if (identity.role === "readonly") {
     return c.json(errorBody("forbidden", "readonly token cannot upload attachments"), 403);
+  }
+  if (channel.visibility === "public_watch" && !(await canParticipateInChannel(c.env.DB, identity, channel))) {
+    return c.json(errorBody("forbidden", "only group participants can upload attachments"), 403);
   }
   if (channel.archived_at !== null) {
     return c.json(errorBody("archived", "channel is archived"), 410);

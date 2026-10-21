@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import pkg from "../package.json" with { type: "json" };
 
 export const RUNNING_VERSION = pkg.version;
-export const OWNER_REPO = "leeguooooo/agentparty";
-export const INSTALL_LINE = `curl -fsSL https://raw.githubusercontent.com/${OWNER_REPO}/main/install.sh | sh`;
+export const OWNER_REPO = "zmnsQ/AgentParty";
+export const INSTALL_LINE = `curl -fsSL https://raw.githubusercontent.com/${OWNER_REPO}/feat/personal-agent-collaboration/install.sh | sh`;
 
 // semver 比较：a>b→1, a<b→-1, ==→0。只认 X.Y.Z 数字段，非法段当 0。
 export function compareVersions(a: string, b: string): number {

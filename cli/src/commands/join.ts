@@ -524,7 +524,7 @@ function claudePluginRemedy(shell: ClaudePluginShellInspection, rerun: string = 
           do: `claude plugin uninstall ${CLAUDE_PLUGIN} && claude plugin install ${CLAUDE_PLUGIN} && claude plugin enable ${CLAUDE_PLUGIN}`,
           notes: [
             `${detail}；插件 ${RUNNING_VERSION} 已经和 CLI 同版，再更新一次只会回 already latest——所以要重装`,
-            "重装后还是这条，就是我们的 bug：https://github.com/leeguooooo/AgentParty/issues",
+            "重装后还是这条，就是我们的 bug：https://github.com/zmnsQ/AgentParty/issues",
             restart,
           ],
         };

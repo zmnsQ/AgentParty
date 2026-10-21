@@ -39,10 +39,10 @@ use tauri_plugin_autostart::ManagerExt as AutostartManagerExt;
 use tauri_plugin_deep_link::DeepLinkExt;
 
 #[cfg(not(target_os = "macos"))]
-const CREDENTIAL_SERVICE: &str = "com.agentparty.desktop";
+const CREDENTIAL_SERVICE: &str = "com.zmns.agentpartycommons";
 const CREDENTIAL_ACCOUNT: &str = "desktop-session";
 #[cfg(target_os = "macos")]
-const MACOS_CREDENTIAL_SERVICE: &str = "com.agentparty.desktop.credentials.v2";
+const MACOS_CREDENTIAL_SERVICE: &str = "com.zmns.agentpartycommons.credentials.v2";
 #[cfg(target_os = "macos")]
 const KEYCHAIN_AUTHORIZATION_REQUIRED: &str = "desktop_keychain_authorization_required";
 #[cfg(target_os = "macos")]
@@ -886,6 +886,9 @@ fn start_ui_ready_watchdog(app: tauri::AppHandle, build_id: String) {
 
 #[cfg(desktop)]
 fn perform_ui_check(app: &tauri::AppHandle) {
+    if !ui_update::UPDATES_ENABLED {
+        return;
+    }
     let manager = app.state::<UiRuntimeManager>();
     if manager.checking.swap(true, Ordering::AcqRel) {
         return;
@@ -937,6 +940,10 @@ fn perform_ui_check(app: &tauri::AppHandle) {
 
 #[cfg(desktop)]
 fn ensure_ui_runtime_started(app: &tauri::AppHandle) {
+    // Never load or download upstream UI in this independently distributed fork.
+    if !ui_update::UPDATES_ENABLED {
+        return;
+    }
     let manager = app.state::<UiRuntimeManager>();
     if manager.started.swap(true, Ordering::AcqRel) {
         return;
@@ -1082,19 +1089,19 @@ fn desktop_ui_storage_snapshot(
 
 #[cfg(desktop)]
 fn install_tray(app: &tauri::App) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show AgentParty", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show AgentParty Commons", true, None::<&str>)?;
     let check_updates = MenuItem::with_id(
         app,
         "check-updates",
-        "Check for Updates...",
-        true,
+        "Updates disabled (Commons preview)",
+        false,
         None::<&str>,
     )?;
-    let quit = MenuItem::with_id(app, "quit", "Quit AgentParty", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit AgentParty Commons", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &check_updates, &quit])?;
 
     let mut tray = TrayIconBuilder::new()
-        .tooltip("AgentParty")
+        .tooltip("AgentParty Commons")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match tray_action(event.id.as_ref()) {
@@ -1158,7 +1165,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Commons releases use packaged UI; no native updater is registered.
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--hidden"]),
@@ -1259,8 +1266,6 @@ pub fn run() {
 mod tests {
     use std::{cell::RefCell, collections::HashMap};
 
-    use base64::{engine::general_purpose::STANDARD, Engine};
-    use minisign_verify::{PublicKey, Signature};
     use tempfile::TempDir;
 
     use super::{
@@ -1590,40 +1595,17 @@ mod tests {
     fn macos_credentials_do_not_reopen_the_legacy_keychain_service() {
         assert_eq!(
             super::MACOS_CREDENTIAL_SERVICE,
-            "com.agentparty.desktop.credentials.v2"
+            "com.zmns.agentpartycommons.credentials.v2"
         );
-        assert_ne!(super::MACOS_CREDENTIAL_SERVICE, "com.agentparty.desktop");
+        assert_ne!(super::MACOS_CREDENTIAL_SERVICE, "com.zmns.agentpartycommons");
     }
 
     #[test]
-    fn configured_updater_key_verifies_the_v2_probe() {
-        const PROBE: &[u8] = b"AgentParty updater v2 key probe\n";
-        const PROBE_SIGNATURE_B64: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTaFhBUlJFam9nMURVUGRiTDRXRTVTUU44amViWVhJUGQvNVRxN09ZK01reFc3aldyZzNNeTk4WmZ3Z2J6Wkp1RmxyZUtKOG5BdHo4cmxXaWRYYzhpOGpKNTVDN3RNZ1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzNjk5NTgwCWZpbGU6dG1wLjNpNHNNUHZQZU4KVSt6YnFHSk1pUEs3cnFCSUZ3MW53cDkrNVBGTHMxMWU4Z3hXM1dqVjE5Y3lrWCt5OE1MMWhzVlk0WVdZbjZUYXBqRk9vdlJSTTBwSHdpQkJWNWlzRFE9PQo=";
-
-        let config: serde_json::Value =
-            serde_json::from_str(include_str!("../tauri.conf.json")).expect("valid Tauri config");
-        let encoded_public_key = config["plugins"]["updater"]["pubkey"]
-            .as_str()
-            .expect("configured updater public key");
-        let public_key_text = String::from_utf8(
-            STANDARD
-                .decode(encoded_public_key)
-                .expect("base64-encoded updater public key"),
-        )
-        .expect("UTF-8 minisign public key");
-        let public_key = PublicKey::decode(&public_key_text).expect("parseable updater public key");
-
-        let signature_text = String::from_utf8(
-            STANDARD
-                .decode(PROBE_SIGNATURE_B64)
-                .expect("base64-encoded updater signature"),
-        )
-        .expect("UTF-8 minisign signature");
-        let signature = Signature::decode(&signature_text).expect("parseable updater signature");
-
-        public_key
-            .verify(PROBE, &signature, false)
-            .expect("v2 updater key verifies its probe signature");
+    fn commons_does_not_trust_an_upstream_update_channel() {
+        let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert!(!crate::ui_update::UPDATES_ENABLED);
+        assert!(config["plugins"].get("updater").is_none());
+        assert_eq!(config["identifier"], "com.zmns.agentpartycommons");
     }
 
     #[test]

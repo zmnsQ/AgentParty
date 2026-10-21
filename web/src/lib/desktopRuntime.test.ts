@@ -361,8 +361,8 @@ describe("desktop window", () => {
       isTauri: () => true,
       loadDeepLink: async () => ({
         getCurrent: async () => [
-          "agentparty://pair/AB12C-DE34F?server=https%3A%2F%2Fagentparty.leeguoo.com",
-          "agentparty://pair/AB12C-DE34F?token=must-not-pass",
+          "agentparty-commons://pair/AB12C-DE34F?server=https%3A%2F%2Fagentparty.leeguoo.com",
+          "agentparty-commons://pair/AB12C-DE34F?token=must-not-pass",
         ],
         onOpenUrl: async (handler) => {
           liveHandler = handler;
@@ -376,8 +376,8 @@ describe("desktop window", () => {
       (link) => links.push(`${link.userCode}:${link.serverOrigin}`),
     );
     liveHandler?.([
-      "agentparty://pair/ZX90Y-WV87U",
-      "agentparty://pair/ZX90Y-WV87U?server=https%3A%2F%2Fevil.example",
+      "agentparty-commons://pair/ZX90Y-WV87U",
+      "agentparty-commons://pair/ZX90Y-WV87U?server=https%3A%2F%2Fevil.example",
     ]);
     unlisten();
 
@@ -396,8 +396,8 @@ describe("desktop window", () => {
       loadDeepLink: async () => ({
         // 冷启动：混着一条 channel 链接和一条配对链接——只有 channel 那条应被投递。
         getCurrent: async () => [
-          "agentparty://channel/guessadmin?server=https%3A%2F%2Fparty.example.net",
-          "agentparty://pair/AB12C-DE34F",
+          "agentparty-commons://channel/guessadmin?server=https%3A%2F%2Fparty.example.net",
+          "agentparty-commons://pair/AB12C-DE34F",
         ],
         onOpenUrl: async (handler) => {
           liveHandler = handler;
@@ -411,8 +411,8 @@ describe("desktop window", () => {
     );
     // live：一条无 server 的 channel 链接 + 一条配对链接（后者被 hostname 分流丢弃）。
     liveHandler?.([
-      "agentparty://channel/general",
-      "agentparty://pair/ZX90Y-WV87U",
+      "agentparty-commons://channel/general",
+      "agentparty-commons://pair/ZX90Y-WV87U",
     ]);
     unlisten();
 

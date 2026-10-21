@@ -16,7 +16,7 @@ export const CLIENT_TOO_OLD_HEADER = "x-ap-client-too-old";
 export const DEFAULT_MIN_CLIENT_VERSION = "0.2.0";
 
 export const CLI_INSTALL_COMMAND =
-  "curl -fsSL https://raw.githubusercontent.com/leeguooooo/agentparty/main/install.sh | sh";
+  "curl -fsSL https://raw.githubusercontent.com/zmnsQ/AgentParty/feat/personal-agent-collaboration/install.sh | sh";
 
 // 与 do.ts 的 presence client_version 同一套字符集约束：首字符字母/数字，总长 ≤64。
 const CLIENT_VERSION_RE = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/;

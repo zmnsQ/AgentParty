@@ -17,6 +17,8 @@ import { shouldProbeUpgrade } from "./upgrade-hint-cache";
 
 export const NO_AUTO_UPGRADE_FLAG = "--no-auto-upgrade";
 export const NO_AUTO_UPGRADE_ENV = "AGENTPARTY_NO_AUTO_UPGRADE";
+// The independent fork has no signed update channel yet. Explicit opt-in is required.
+export const AUTO_UPGRADE_OPT_IN_ENV = "AGENTPARTY_COMMONS_AUTO_UPGRADE";
 
 export interface AutoUpgradeDeps {
   /** 服务端认为的最新 CLI 版本；读不到返回 null（当作「没结论」，不动手）。 */
@@ -65,7 +67,7 @@ export function stripNoAutoUpgradeFlag(argv: readonly string[]): { argv: string[
 }
 
 export function autoUpgradeDisabled(env: NodeJS.ProcessEnv, flagDisabled: boolean): boolean {
-  return flagDisabled || env[NO_AUTO_UPGRADE_ENV] === "1";
+  return flagDisabled || env[NO_AUTO_UPGRADE_ENV] === "1" || env[AUTO_UPGRADE_OPT_IN_ENV] !== "1";
 }
 
 /**

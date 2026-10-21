@@ -1,11 +1,11 @@
-// 桌面版「从外部工具直达频道」的 deep link：agentparty://channel/<slug>?server=<url-encoded-origin>。
+// 桌面版「从外部工具直达频道」的 deep link：agentparty-commons://channel/<slug>?server=<url-encoded-origin>。
 // 来源是 claude-statusbar 的 `cs hud` 浮窗——列出 AgentParty channel，点某条 → "Open in AgentParty"
-// 会 `open "agentparty://channel/<slug>?server=<server>"`。桌面壳（Tauri）已注册 agentparty scheme，
+// 会 `open "agentparty-commons://channel/<slug>?server=<server>"`。桌面壳（Tauri）已注册 agentparty scheme，
 // onOpenUrl 收到后要跳到对应频道页。协议格式在 claude-statusbar 侧定死，这边只解析 + 分发。
 //
 // 三条 deep/邀请入口靠 scheme + hostname 天然分流、互不干扰：
-//   · agentparty://pair/<code>     → 配对邀请（parsePairDeepLink，hostname=pair）
-//   · agentparty://channel/<slug>  → 本文件，直达频道（hostname=channel）
+//   · agentparty-commons://pair/<code>     → 配对邀请（parsePairDeepLink，hostname=pair）
+//   · agentparty-commons://channel/<slug>  → 本文件，直达频道（hostname=channel）
 //   · https://…/c|/join|/invite    → 网页邀请链接（inviteLink，http(s)）
 // channel host 的链接 parsePairDeepLink 必回 null；pair host 的链接这里也必回 null——不会串。
 //
@@ -36,7 +36,7 @@ export function parseChannelDeepLink(input: string): ChannelDeepLink | null {
   } catch {
     return null;
   }
-  if (url.protocol !== "agentparty:" || url.hostname !== "channel" || url.username || url.password || url.hash) {
+  if (url.protocol !== "agentparty-commons:" || url.hostname !== "channel" || url.username || url.password || url.hash) {
     return null;
   }
   const segments = url.pathname.split("/").filter(Boolean);

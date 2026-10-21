@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default desktop capability for the AgentParty web shell.",
-  "windows": ["main"],
+  "description": "Desktop capabilities for AgentParty Commons. Automatic updates are disabled until an independent signed release channel is configured.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-set-badge-count",
@@ -22,13 +24,20 @@
     {
       "identifier": "opener:allow-open-url",
       "allow": [
-        { "url": "https://*/*" },
-        { "url": "http://127.0.0.1:*/*" },
-        { "url": "http://[::1]:*/*" },
-        { "url": "http://localhost:*/*" }
+        {
+          "url": "https://*/*"
+        },
+        {
+          "url": "http://127.0.0.1:*/*"
+        },
+        {
+          "url": "http://[::1]:*/*"
+        },
+        {
+          "url": "http://localhost:*/*"
+        }
       ]
     },
-    "updater:default",
     "process:allow-restart",
     "dialog:allow-open",
     "clipboard-manager:allow-read-text"

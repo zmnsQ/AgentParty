@@ -336,7 +336,7 @@ export async function listenForDesktopPairLinks(
   }
 }
 
-// 桌面版：接住外部工具打来的「直达频道」deep link（agentparty://channel/<slug>?server=<origin>）。
+// 桌面版：接住外部工具打来的「直达频道」deep link（agentparty-commons://channel/<slug>?server=<origin>）。
 // 结构与 listenForDesktopPairLinks 对称——onOpenUrl 收 live 链接、getCurrent 收冷启动链接，逐条解析后
 // 分发给宿主导航。channel host 与 pair host 靠 hostname 分流，两个 listener 各取所需、互不误吞。
 export async function listenForDesktopChannelLinks(

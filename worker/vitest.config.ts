@@ -62,6 +62,8 @@ export default defineConfig(async () => {
             LARK_CLIENT_SECRET: "test-lark-secret",
             DESKTOP_PAIRING_SECRET: "test-desktop-pairing-secret-at-least-32-bytes",
             ATTACHMENT_SIGNING_SECRET: "test-attachment-signing-secret-at-least-32-bytes",
+            COLLABORATION_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            COLLABORATION_HERMES_ALLOWED_ORIGINS: JSON.stringify(["https://hermes.test"]),
             // #137：把每频道 WS 连接上限降到小值，测试才不用真开 200 条连接验证上限。
             // 值必须 > 任何单个 it 对同一频道的并发连接数（现存最多 <6），并与
             // account-channel-quota.spec.ts 的 TEST_CONN_CAP 保持一致。

@@ -117,7 +117,7 @@ export function parsePairDeepLink(input: string, allowedOrigins: readonly string
   } catch {
     return null;
   }
-  if (url.protocol !== "agentparty:" || url.hostname !== "pair" || url.username || url.password || url.hash) {
+  if (url.protocol !== "agentparty-commons:" || url.hostname !== "pair" || url.username || url.password || url.hash) {
     return null;
   }
   const segments = url.pathname.split("/").filter(Boolean);

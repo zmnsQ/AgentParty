@@ -8,6 +8,8 @@
     ".": "./src/protocol.ts",
     "./identity": "./src/identity.ts",
     "./mentions": "./src/mentions.ts",
-    "./onboarding": "./src/onboarding.ts"
+    "./onboarding": "./src/onboarding.ts",
+    "./collaboration": "./src/collaboration.ts",
+    "./code-proposals": "./src/code-proposals.ts"
   }
 }

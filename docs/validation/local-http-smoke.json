@@ -1,0 +1,140 @@
+{
+  "origin": "http://127.0.0.1:8791",
+  "runtime": "v24.19.0",
+  "started_at": "2026-10-21T07:22:24.940Z",
+  "local_only": true,
+  "checks": [
+    {
+      "name": "health",
+      "status": 200
+    },
+    {
+      "name": "built_web_assets",
+      "status": 200,
+      "title": "AgentParty Commons"
+    },
+    {
+      "name": "admin_secret_required",
+      "status": 401
+    },
+    {
+      "name": "admin_creates_human_token",
+      "status": 201,
+      "secret_output": false
+    },
+    {
+      "name": "human_authentication",
+      "status": 200,
+      "role": "human"
+    },
+    {
+      "name": "create_two_private_groups",
+      "status": 201,
+      "groups": [
+        "smoke-team",
+        "smoke-other"
+      ]
+    },
+    {
+      "name": "collaboration_summary",
+      "status": 200,
+      "providers": 5,
+      "connections": 0,
+      "execution": "manual-sync",
+      "permissions": {
+        "manage": true,
+        "run": true,
+        "upload": true
+      }
+    },
+    {
+      "name": "upload_and_list_r2_file",
+      "upload_status": 201,
+      "list_status": 200,
+      "bytes": 68,
+      "files": 1
+    },
+    {
+      "name": "post_file_to_group_idempotently",
+      "status": 200,
+      "message_seq": 1,
+      "duplicate_same_seq": true
+    },
+    {
+      "name": "authorized_and_signed_download",
+      "authenticated_status": 200,
+      "signed_status": 200,
+      "unauthorized_status": 401,
+      "exact_bytes": true
+    },
+    {
+      "name": "mcp_initialize_and_tool_discovery",
+      "status": 200,
+      "protocol": "2025-06-18",
+      "tools": 16,
+      "names": [
+        "party_profile",
+        "party_read_messages",
+        "party_send_message",
+        "party_list_files",
+        "party_get_file",
+        "party_upload_file",
+        "party_list_tasks",
+        "party_list_repositories",
+        "party_list_pull_requests",
+        "party_list_commits",
+        "party_repository_snapshot",
+        "party_read_repository_file",
+        "party_list_repository_files",
+        "party_propose_changes",
+        "party_list_proposals",
+        "party_get_proposal"
+      ]
+    },
+    {
+      "name": "mcp_reads_real_group_message_and_attachment",
+      "status": 200,
+      "matched_seq": 1
+    },
+    {
+      "name": "scope_and_identity_enforced",
+      "non_group_routes": [
+        "collaboration",
+        "files",
+        "messages",
+        "mcp"
+      ],
+      "all_non_group_status": 403,
+      "human_mcp_status": 403,
+      "outsider_status": 403
+    },
+    {
+      "name": "documented_bun_env_file_cli_bootstrap",
+      "exit_code": 0,
+      "role": "human",
+      "human_token_authenticates": true,
+      "secret_output": false
+    },
+    {
+      "name": "public_github_read_only",
+      "verified": false,
+      "reason": "workerd DNS lookup failed for api.github.com (getaddrinfo: Temporary failure in name resolution); public repository bind returned 502.",
+      "write_attempted": false
+    }
+  ],
+  "result": "core_passed_external_read_blocked",
+  "finished_at": "2026-10-21T07:22:26.070Z",
+  "migrations": {
+    "applied": 49,
+    "new": [
+      "0046_collaboration.sql",
+      "0047_code_proposals.sql"
+    ]
+  },
+  "scope": {
+    "real_provider_accounts": false,
+    "real_github_write": false,
+    "browser_sessions_used": false,
+    "repo_code_modified": false
+  }
+}

@@ -7,6 +7,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  AUTO_UPGRADE_OPT_IN_ENV,
   NO_AUTO_UPGRADE_ENV,
   NO_AUTO_UPGRADE_FLAG,
   autoUpgradeDisabled,
@@ -46,7 +47,7 @@ function deps(over: Partial<AutoUpgradeDeps> = {}): AutoUpgradeDeps & { logs: st
 describe("交互式入口的自动升级（#1030）", () => {
   test("有新版 ⇒ 升级并用新版本重跑本次命令", async () => {
     const d = deps();
-    const out = await maybeAutoUpgrade(d, {}, false);
+    const out = await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false);
     expect(out).toMatchObject({ kind: "upgraded", from: "0.1.0", to: "9.9.9", reexecCode: 0 });
     expect(d.calls).toEqual(["probe", "upgrade", "reexec"]);
     expect(d.logs.join("\n")).toContain("正在自动升级");
@@ -54,7 +55,7 @@ describe("交互式入口的自动升级（#1030）", () => {
 
   test("已是最新 ⇒ 一步不动", async () => {
     const d = deps({ latestVersion: async () => "0.1.0" });
-    expect(await maybeAutoUpgrade(d, {}, false)).toEqual({ kind: "current" });
+    expect(await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false)).toEqual({ kind: "current" });
     expect(d.calls).not.toContain("upgrade");
     expect(d.calls).not.toContain("reexec");
   });
@@ -66,19 +67,19 @@ describe("交互式入口的自动升级（#1030）", () => {
     const byEnv = deps();
     expect(await maybeAutoUpgrade(byEnv, { [NO_AUTO_UPGRADE_ENV]: "1" }, false)).toEqual({ kind: "disabled" });
     expect(byEnv.calls).toEqual([]);
-    expect(autoUpgradeDisabled({ [NO_AUTO_UPGRADE_ENV]: "0" }, false)).toBe(false);
+    expect(autoUpgradeDisabled({ [NO_AUTO_UPGRADE_ENV]: "0", [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false)).toBe(false);
   });
 
   test("还在 TTL 窗口内 ⇒ 不打网络（每条命令都探会把延迟压回热路径）", async () => {
     const d = deps({ shouldProbe: () => false });
-    expect(await maybeAutoUpgrade(d, {}, false)).toEqual({ kind: "throttled" });
+    expect(await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false)).toEqual({ kind: "throttled" });
     expect(d.calls).toEqual([]);
   });
 
   test("探不到版本 / 探测抛异常 ⇒ 当作没结论，绝不动手", async () => {
     for (const latest of [async () => null, async () => "", async () => { throw new Error("net"); }]) {
       const d = deps({ latestVersion: latest as AutoUpgradeDeps["latestVersion"] });
-      expect(await maybeAutoUpgrade(d, {}, false)).toEqual({ kind: "unknown" });
+      expect(await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false)).toEqual({ kind: "unknown" });
       expect(d.calls).not.toContain("upgrade");
       expect(d.calls).not.toContain("reexec");
     }
@@ -87,7 +88,7 @@ describe("交互式入口的自动升级（#1030）", () => {
   test("升级失败 ⇒ 说清楚并继续用当前版本跑，绝不挡住本次命令", async () => {
     for (const upgrade of [async () => 1, async () => { throw new Error("boom"); }]) {
       const d = deps({ upgrade: upgrade as AutoUpgradeDeps["upgrade"] });
-      expect(await maybeAutoUpgrade(d, {}, false)).toEqual({ kind: "failed", installed: null });
+      expect(await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false)).toEqual({ kind: "failed", installed: null });
       expect(d.calls).not.toContain("reexec");
       expect(d.logs.join("\n")).toContain("自动升级没成功");
     }
@@ -95,7 +96,7 @@ describe("交互式入口的自动升级（#1030）", () => {
 
   test("重跑不了 ⇒ 本次仍用旧进程跑完，并说明下次生效", async () => {
     const d = deps({ reexec: () => null });
-    const out = await maybeAutoUpgrade(d, {}, false);
+    const out = await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false);
     expect(out).toMatchObject({ kind: "upgraded", reexecCode: null });
     expect(d.logs.join("\n")).toContain("下次起就是新版");
   });
@@ -139,7 +140,7 @@ test("`--` 之后的同名参数原样保留，也不算开关", () => {
 describe("升没升上去只能由读回来的版本回答", () => {
   test("命令 exit 0 但盘上版本没变 ⇒ 判失败，不重跑、也不谎报升级", async () => {
     const d = deps({ installedVersion: () => "0.1.0" });
-    const out = await maybeAutoUpgrade(d, {}, false);
+    const out = await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false);
     expect(out).toEqual({ kind: "failed", installed: "0.1.0" });
     expect(d.calls).not.toContain("reexec");
     expect(d.logs.join("\n")).toContain("没升上去");
@@ -147,15 +148,23 @@ describe("升没升上去只能由读回来的版本回答", () => {
 
   test("读不出盘上版本 ⇒ 同样当失败（读不出不是成功）", async () => {
     const d = deps({ installedVersion: () => null });
-    expect(await maybeAutoUpgrade(d, {}, false)).toEqual({ kind: "failed", installed: null });
+    expect(await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false)).toEqual({ kind: "failed", installed: null });
     expect(d.calls).not.toContain("reexec");
   });
 
   test("装上的版本与期望的 latest 不同 ⇒ 按读回来的报数，不复述期望值", async () => {
     const d = deps({ latestVersion: async () => "9.9.9", installedVersion: () => "9.9.8" });
-    const out = await maybeAutoUpgrade(d, {}, false);
+    const out = await maybeAutoUpgrade(d, { [AUTO_UPGRADE_OPT_IN_ENV]: "1" }, false);
     expect(out).toMatchObject({ kind: "upgraded", to: "9.9.8" });
     expect(d.logs.join("\n")).toContain("9.9.8");
     expect(d.logs.join("\n")).not.toContain("已升级到 9.9.9");
   });
+});
+
+// A fork preview must never silently replace itself with an upstream binary.
+test("Commons default never probes or installs until explicitly opted in", async () => {
+  const d = deps();
+  expect(await maybeAutoUpgrade(d, {}, false)).toEqual({ kind: "disabled" });
+  expect(d.calls).toEqual([]);
+  expect(autoUpgradeDisabled({ [AUTO_UPGRADE_OPT_IN_ENV]: "1", [NO_AUTO_UPGRADE_ENV]: "1" }, false)).toBe(true);
 });
