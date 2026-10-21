@@ -1840,24 +1840,41 @@ export async function exportIdentityData(
 ): Promise<IdentityExportData> {
   const merged: IdentityExportData = {
     name, exported_at: Date.now(), messages: [], audit: [], wake_deliveries: [],
-    read_cursor: null, presence: [], next: { messages: 0, audit: 0, wake_deliveries: 0 },
+    read_cursor: null, presence: [], next: { messages: 0, audit: 0, wake_deliveries: 0, collaboration_receipts: 0 },
   };
-  while (merged.next.messages !== null || merged.next.audit !== null || merged.next.wake_deliveries !== null) {
+  const streams = ["messages", "audit", "wake_deliveries", "collaboration_receipts"] as const;
+  while (streams.some((stream) => merged.next[stream] != null)) {
+    const cursors = merged.next;
+    // The server normalizes negative cursors to zero. An exhausted stream must
+    // not restart at its first page while another stream still has more rows.
     const query = new URLSearchParams({
-      message_after: String(merged.next.messages ?? -1),
-      audit_after: String(merged.next.audit ?? -1),
-      wake_after: String(merged.next.wake_deliveries ?? -1),
+      message_after: String(cursors.messages ?? Number.MAX_SAFE_INTEGER),
+      audit_after: String(cursors.audit ?? Number.MAX_SAFE_INTEGER),
+      wake_after: String(cursors.wake_deliveries ?? Number.MAX_SAFE_INTEGER),
+      receipt_after: String(cursors.collaboration_receipts ?? Number.MAX_SAFE_INTEGER),
     });
     const page = (await req(server,
       `/api/channels/${encodeURIComponent(slug)}/identity/${encodeURIComponent(name)}/data?${query}`,
       { headers: bearerJson(token) })) as IdentityExportData;
     merged.exported_at = page.exported_at;
-    merged.messages.push(...page.messages);
-    merged.audit.push(...page.audit);
-    merged.wake_deliveries.push(...page.wake_deliveries);
+    if (cursors.messages !== null) merged.messages.push(...page.messages);
+    if (cursors.audit !== null) merged.audit.push(...page.audit);
+    if (cursors.wake_deliveries !== null) merged.wake_deliveries.push(...page.wake_deliveries);
+    if (cursors.collaboration_receipts != null && page.collaboration_receipts !== undefined) {
+      (merged.collaboration_receipts ??= []).push(...page.collaboration_receipts);
+    }
     merged.read_cursor ??= page.read_cursor;
     if (merged.presence.length === 0) merged.presence = page.presence;
-    merged.next = page.next;
+    const next = { ...cursors };
+    for (const stream of streams) {
+      const previous = cursors[stream];
+      const following = previous == null ? null : page.next[stream] ?? null;
+      if (following !== null && (!Number.isSafeInteger(following) || following <= previous!)) {
+        throw new Error("Identity export returned a non-advancing page cursor; stopping to avoid duplicate data.");
+      }
+      next[stream] = following;
+    }
+    merged.next = next;
   }
   return merged;
 }

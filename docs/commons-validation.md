@@ -1,7 +1,20 @@
 # Commons development-preview validation
 
+## Current review branch: durable receipts and identity export (2026-10-21)
 
-## Latest merged validation: workspace isolation (2026-10-21)
+Based on `01866a7`, branch `fix/durable-receipts-export-20261021` preserves all
+existing collaboration/security changes and adds the reliability work described
+in [the review](commons-reliability.zh.md). The combined `check:commons` gate
+exited **0**: **522 / 522 tests in 38 files**, no skipped cases (HTTP 53,
+Worker 179, Web 175, CLI 111, configuration 4). Type checks, Vite production
+build and migration numbering passed. A separate full Worker run also exited
+**0**, with **1086 / 1086 tests in 131 files** and no skipped cases. Its cases
+include the 179 Worker cases above. See the [machine-readable summary](validation/durable-receipts-2026-10-21.json).
+The older totals below are historical.
+
+
+
+## Historical merged validation: workspace isolation (2026-10-21)
 
 The final merged `bun run check:commons` exited **0**: **463 / 463 tests passed
 in 28 files**, no skipped cases. Counts: HTTP contracts **53**, local Worker /
@@ -15,16 +28,27 @@ workspace pass was revalidated after integration, not substituted for it.
 [Workspace review](commons-workspace-isolation-2026-10-21.zh.md) and
 [machine-readable results](validation/workspace-isolation-2026-10-21.json)
 explain the scope, negative controls and remaining boundaries. All other totals
-below are **historical checkpoints**, not the latest test count.
+below that section are **historical checkpoints**, not the latest test count.
 
 
-> **Latest merged gate: 442 / 442 tests passed, 27 files, exit 0.**
+> **Historical merged gate: 442 / 442 tests passed, 27 files, exit 0.**
 > This retains the 423-test incoming branch and adds 19 further checks, including
 > client-session isolation. Intermediate 400/408/423-test records below are historical.
 
 Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
+
+## Follow-up reliability review
+
+The original **400-test** result below is the first-preview baseline, not the
+current expanded gate. That same baseline was independently rerun on macOS
+ARM64 (Node 24.11.1 / Bun 1.4.3) before this follow-up's changes. The follow-up
+adds durable collaboration receipts, transactional concurrent-send checks,
+and paginated identity-export recovery while retaining the concurrent branch's
+cloud/GitHub lease fencing. Its exact
+results, upgrade requirements and limits are recorded in
+[the reliability review](commons-reliability.zh.md).
 
 ## Historical intermediate hardening — 423 tests (2026-10-21)
 
@@ -194,13 +218,15 @@ The sanitized machine-readable results are saved in
 | Production cloud deployment | No paid cloud resources, domain, production secrets or remote database migrations were created |
 | GitHub Actions | New workflows are dispatch-only and bounded; no remote workflow was dispatched for these results |
 
-Provider-request idempotency is durable in D1. Final group-message delivery
-still uses the upstream DO's **10-minute deduplication window**: a crash after
-posting but before saving the receipt, followed by a retry after that window,
-can duplicate the final post. This release does not claim permanent
-exactly-once group delivery. GitHub's separate REST operations also cannot
-atomically lock the target branch; commits retain the exact approved parent
-and never update the base branch.
+At the first-preview commit, provider-request identity was durable in D1 but
+final group-message deduplication was limited to **10 minutes**. The follow-up
+replaces that limit for immutable collaboration operation UUIDs with a
+principal-scoped durable receipt written in the message transaction. Ordinary
+chat keys retain their original window. Identity/group erasure and already-pruned
+pre-upgrade rows are explicit exclusions. This still does not claim permanent
+end-to-end exactly-once provider execution or external notification delivery.
+GitHub's separate REST operations also cannot atomically lock the target branch;
+commits retain the exact approved parent and never update the base branch.
 
 See the [development guide](commons-development.zh.md),
 [provider contracts](provider-integration.md),
