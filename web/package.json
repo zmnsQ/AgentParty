@@ -25,7 +25,8 @@
     "marked": "^18.0.14",
     "pinyin-pro": "^3.29.4",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "qrcode": "1.5.4"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

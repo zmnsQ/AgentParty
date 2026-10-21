@@ -1,3 +1,4 @@
+import { isTauriEnvironment } from "../lib/desktopUpdater";
 // 全局设置只承载个人与设备设置。跨频道的本机 Agent 监控、启停、常驻和日志
 // 已移到独立 LocalAgentCenter，避免打开偏好设置就启动多套本机 IPC/轮询。
 import { useCallback, useState, type ReactNode } from "react";
@@ -151,6 +152,7 @@ export function SettingsPanel({
                 />
               </div>
             )}
+            {!isTauriEnvironment() && me.provider === "github" && <p><a className="d-btn" href="/auth/security">{t("App.settings.section.account")} · GitHub / 2FA</a></p>}
             {onLogout !== null && (
               <button type="button" className="settings-logout" onClick={onLogout}>
                 {t("App.settings.logout")}

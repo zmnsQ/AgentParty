@@ -2,7 +2,7 @@
 // 规则（spec §10 / M2 契约）：URL 带 ?t= 时优先用它，并立即从地址栏移除；
 // share token 只放 sessionStorage，本次标签页可刷新，避免长期落 localStorage。
 import type { Attachment, ChannelDecisionRecord, ChannelRoleAssignment, ChannelSquad, CollaborationRole, MsgFrame, ParticipantRemovedFrame, PresenceEntry, SearchHit, TaskAssigneeKind, TaskRecord, TaskState, TaskSummary, WakeDelivery } from "@agentparty/shared";
-import { apiUrl } from "./base";
+import { apiUrl, apiOrigin } from "./base";
 import { isTauriEnvironment } from "./desktopUpdater";
 import type { WebSession } from "./oidc";
 
@@ -10,6 +10,11 @@ const TOKEN_KEY = "ap_token";
 const SHARE_TOKEN_KEY = "ap_share_token";
 const SESSION_KEY = "ap_oidc_session";
 let activeShareToken: string | null = null;
+let browserAccess: { token: string; origin: string } | null = null;
+/** Browser bearer is memory-only and bound to the server where its HttpOnly session lives. */
+export function setBrowserToken(token: string | null): void {
+  browserAccess = token === null ? null : { token, origin: apiOrigin() };
+}
 
 export class AuthError extends Error {}
 // 私有频道 ACL 拒入（spec §3 访问规则矩阵）：worker 回 403 forbidden / WS 1008 forbidden。
@@ -184,6 +189,7 @@ export function urlToken(): string | null {
 }
 
 export function storedToken(): string | null {
+  if (browserAccess !== null && browserAccess.origin === apiOrigin()) return browserAccess.token;
   return localStorage.getItem(TOKEN_KEY);
 }
 
@@ -217,6 +223,7 @@ export function getToken(): string | null {
 }
 
 export function saveToken(token: string) {
+  if (token.startsWith("apb_")) { setBrowserToken(token); return; }
   // 桌面端绝不把「粘贴的 party token」落进持久化存储（#248）：桌面登录只经设备码配对
   // （refresh 存系统钥匙串）或 OIDC 浏览器登录换来的会话，粘贴的 token 至多驱动本次内存会话。
   // 这与 App 渲染层（桌面永不渲染粘贴登录闸）互为兜底——即便渲染层回归误挂粘贴闸，
@@ -226,6 +233,7 @@ export function saveToken(token: string) {
 }
 
 export function clearToken() {
+  browserAccess = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(SESSION_KEY);
 }
@@ -233,6 +241,7 @@ export function clearToken() {
 // OIDC 网页会话（access + refresh + 过期），用于静默续期。access_token 镜像到 ap_token，
 // 故 getToken() 取到的仍是当前 access_token；续期后覆盖二者。
 export function saveSession(sess: WebSession) {
+  if (sess.accessToken.startsWith("apb_")) { setBrowserToken(sess.accessToken); return; }
   localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
   localStorage.setItem(TOKEN_KEY, sess.accessToken);
 }

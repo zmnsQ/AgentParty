@@ -1,3 +1,4 @@
+import { lookupBrowserAccess } from "./browser-auth/session";
 // channel durable object — seq 分配 / 广播 / presence / 补拉 / 各类熔断 / webhook 投递 / temp 归档
 import {
   parseSessionOutputClientFrame,
@@ -10488,6 +10489,7 @@ export class ChannelDO extends Server<Env> {
     if (!hash) return false;
     if (hash.startsWith("oidc:")) return true;
     try {
+      if (hash.startsWith("browser:")) return (await lookupBrowserAccess(this.env.DB, hash.slice(8))) !== null;
       const row = await this.env.DB.prepare(
         `SELECT id FROM tokens
           WHERE hash = ?
@@ -10519,6 +10521,7 @@ export class ChannelDO extends Server<Env> {
     // OIDC 人类 token 不落 D1，无法被吊销扫描；生命周期由 JWT exp 在 worker 边界管辖（spec §10）
     if (hash.startsWith("oidc:")) return true;
     try {
+      if (hash.startsWith("browser:")) return (await lookupBrowserAccess(this.env.DB, hash.slice(8))) !== null;
       if (hash.startsWith("desktop:")) {
         const row = await this.env.DB.prepare(
           `SELECT id FROM desktop_sessions

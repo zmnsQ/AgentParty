@@ -1,3 +1,5 @@
+import { useBrowserAuth } from "./lib/useBrowserAuth";
+import { BrowserSecurity, GithubAuthSetup, SecondFactorGate } from "./components/BrowserSecurity";
 // 应用骨架：登录闸 → 头部 + 左侧频道列表 + 右侧（首页 | 频道页）
 import { isMember } from "@agentparty/shared";
 import { agentNameOwnerLabel } from "./lib/agentNameOwner";
@@ -177,6 +179,13 @@ export function App() {
   const identityRef = useRef<string | null>(null);
   identityRef.current = jwtSub(token);
   const [authError, setAuthError] = useState<string | null>(null);
+  const browserAccount = useRef<string | null>(null);
+  const browserAuth = useBrowserAuth(!desktop && !isShareMode(), (next, account) => {
+    if (browserAccount.current !== account) { setChannels(null); setMe(null); setListError(null); }
+    browserAccount.current = account;
+    setToken(next);
+    setAuthError(null);
+  });
   const [desktopBoot, setDesktopBoot] = useState<"loading" | "ready" | "error">(desktop ? "loading" : "ready");
   const [desktopRestoreFailure, setDesktopRestoreFailure] = useState<DesktopRestoreFailure>("retryable");
   const [desktopNotice, setDesktopNotice] = useState<string | null>(null);
@@ -682,6 +691,13 @@ export function App() {
           .catch(() => hardLogout(message));
         return;
       }
+      if (browserAuth.status === "authenticated") {
+        browserAuth.refresh().then(next => {
+          if (next.status !== "authenticated") hardLogout(message);
+          else setListError(null);
+        }).catch(() => hardLogout(message));
+        return;
+      }
       const sess = readSession();
       if (!isShareMode() && sess?.refreshToken != null && oidcRef.current !== null) {
         doRefresh()
@@ -694,7 +710,7 @@ export function App() {
       }
       hardLogout(message);
     },
-    [desktop, doRefresh, hardLogout, restoreDesktop],
+    [desktop, doRefresh, hardLogout, restoreDesktop, browserAuth.status, browserAuth.refresh],
   );
 
   // 启动时拉一次公开配置决定是否显示 SSO；若正落在 OAuth/OIDC 回调则就地换 token
@@ -917,6 +933,10 @@ export function App() {
       setDesktopNotice(result.removedOnly ? t("App.desktop.logoutRemovedOnly") : null);
       setDesktopBoot("ready");
     } else {
+      if (browserAuth.status === "authenticated") {
+        try { await browserAuth.logout(); }
+        catch { setAuthError("Sign out could not be confirmed. Please retry."); return; }
+      }
       clearToken();
     }
     setAuthError(null);
@@ -927,6 +947,13 @@ export function App() {
     setHandleBannerDismissed(false);
     setToken(null);
   };
+
+  if (!desktop && path === "/auth/setup") return <GithubAuthSetup />;
+  if (!desktop && browserAuth.status === "mfa_required") {
+    return <SecondFactorGate onVerified={browserAuth.refresh} onCancel={browserAuth.logout} />;
+  }
+  if (!desktop && path === "/auth/security" && token !== null) return <BrowserSecurity />;
+  if (!desktop && browserAuth.loading && token === null) return <main className="gate"><p role="status">{t("App.status.signingIn")}</p></main>;
 
   if (desktop && token === null) {
     if (desktopBoot === "loading") {
@@ -1125,6 +1152,7 @@ export function App() {
   if (token === null) {
     return (
       <TokenGate
+        github={!desktop ? browserAuth : undefined}
         error={
           !desktop && matchPair(path) && authProvidersResolved && authProviders.length === 0
             ? t("Pair.providerMissing")
