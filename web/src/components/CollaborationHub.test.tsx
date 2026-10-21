@@ -8,6 +8,7 @@ import { LocaleProvider } from "../i18n/locale";
 import { CollaborationStrings } from "../i18n/strings/CollaborationHub";
 import { clearApiBase, setApiBase } from "../lib/base";
 import { CollaborationApiError, type CollaborationClient } from "../lib/collaborationApi";
+import { ForbiddenError } from "../lib/api";
 import { codeProposalApi } from "../lib/codeProposalApi";
 import { CloudAgentConnections, CloudAgentRuns } from "./CloudAgentConnections";
 import { RepositoryConnections } from "./RepositoryConnections";
@@ -209,5 +210,112 @@ describe("collaboration hub and access", () => {
       expect(html).toContain("OAuth"); expect(html).toContain("MCP Events");
       expect(html).not.toContain("Collab.");
     }
+  });
+});
+
+
+function pending<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+const emptySummary: CollaborationSummary = {
+  ...summary, connections: [], repositories: [], permissions: { manage: false, run: false, upload: false },
+};
+async function updateHub(token: string, slug: string, api: CollaborationClient) {
+  await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub token={token} slug={slug} client={api} /></LocaleProvider>); });
+}
+
+describe("collaboration workspace scope isolation", () => {
+  test("immediately unmounts old group controls and drafts while loading another group", async () => {
+    const next = pending<CollaborationSummary>();
+    const api = client({ summary: async (_token, slug) => slug === "demo" ? summary : next.promise });
+    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    await act(async () => { renderer!.root.findByType("textarea").props.onChange({ target: { value: "Private group A draft" } }); });
+    const oldRefresh = renderer!.root.findByType(CloudAgentConnections).props.onChanged;
+    await updateHub("token", "other-group", api);
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+    expect(renderer!.root.findAllByProps({ type: "password" })).toHaveLength(0);
+    await act(async () => { next.resolve(emptySummary); });
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    // Late callbacks cannot reload the old workspace after the switch.
+    let staleCalls = 0;
+    api.summary = async () => { staleCalls++; return summary; };
+    await act(async () => { await oldRefresh(); });
+    expect(staleCalls).toBe(0);
+    expect(text(renderer!.root)).not.toContain(connection.name);
+  });
+
+  test("hides private cached data when the account changes, including a denied replacement request", async () => {
+    const next = pending<CollaborationSummary>();
+    const api = client({ summary: async (token) => token === "first-account" ? summary : next.promise });
+    await mount(<CollaborationHub token="first-account" slug="demo" client={api} />);
+    expect(text(renderer!.root)).toContain(connection.name);
+    await updateHub("second-account", "demo", api);
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    await act(async () => { next.reject(new CollaborationApiError("Not a member", 403, "forbidden")); });
+    expect(text(renderer!.root)).toContain("Not a member");
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+  });
+
+  test("ignores a late response from an old group even when its request ignores abort", async () => {
+    const old = pending<CollaborationSummary>();
+    const api = client({ summary: async (_token, slug) => slug === "demo" ? old.promise : emptySummary });
+    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    await updateHub("token", "other-group", api);
+    await act(async () => { old.resolve(summary); });
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+  });
+
+  test("resets workspace data and rejects old callbacks when the server changes", async () => {
+    let reads = 0; const next = pending<CollaborationSummary>();
+    const api = client({ summary: async () => ++reads === 1 ? summary : next.promise });
+    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    const oldRefresh = renderer!.root.findByType(CloudAgentConnections).props.onChanged;
+    setApiBase("https://another-commons.example");
+    // Even before the parent renders, old callbacks cannot send to the new host.
+    await act(async () => { await oldRefresh(); });
+    expect(reads).toBe(1);
+    await updateHub("token", "demo", api);
+    expect(reads).toBe(2);
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    await act(async () => { next.resolve(emptySummary); });
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+  });
+
+  test("clears retained private data and mutation controls after access is revoked", async () => {
+    let reads = 0;
+    const api = client({ summary: async () => {
+      if (++reads > 1) throw new ForbiddenError("Group access revoked", "forbidden", "Group access revoked");
+      return summary;
+    } });
+    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    const refresh = renderer!.root.findByType(CloudAgentConnections).props.onChanged;
+    await act(async () => { await refresh(); });
+    expect(text(renderer!.root)).toContain("Group access revoked");
+    expect(text(renderer!.root)).not.toContain(connection.name);
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+  });
+});
+
+
+describe("file upload follow-up isolation", () => {
+  test.each(["unmount", "server-change", "permission-loss"])("does not auto-post an upload after %s", async (change: string) => {
+    const uploading = pending<Awaited<ReturnType<typeof import("../lib/api").uploadAttachment>>>();
+    let posts = 0; let uploads = 0;
+    const api = client({ shareFile: async () => { posts++; return { seq: 42 }; } });
+    const upload = async () => { uploads++; return uploading.promise; };
+    await mount(<ChannelFiles token="token" slug="demo" canUpload client={api} upload={upload} />);
+    await act(async () => { renderer!.root.findByProps({ type: "file" }).props.onChange({ currentTarget: { files: [new File(["private"], "private.txt")], value: "" } }); });
+    expect(uploads).toBe(1);
+    if (change === "unmount") await act(async () => { renderer!.unmount(); });
+    else if (change === "server-change") setApiBase("https://unrelated-commons.example");
+    else await act(async () => { renderer!.update(<LocaleProvider><ChannelFiles token="token" slug="demo" canUpload={false} client={api} upload={upload} /></LocaleProvider>); });
+    await act(async () => { uploading.resolve(file); });
+    expect(posts).toBe(0);
   });
 });

@@ -4,9 +4,27 @@ Validation date: **2026-10-21 UTC**. This record separates executed checks from
 implemented code and from release work that needs external accounts or native
 operating systems. It is not a production-readiness or all-provider certification.
 
-## Hardening follow-up (2026-10-21)
+## Latest follow-up: workspace and publication isolation (2026-10-21)
 
-The subsequent concurrency/revocation review ran the entire current gate on
+The latest complete `bun run check:commons` exited **0** on macOS ARM64
+(Node 24.11.1, Bun 1.4.3): **429 / 429 tests passed in 28 files**, no skipped
+cases. Counts: HTTP contracts 46, Worker 108, Web 170, CLI 101, fork config 4.
+TypeScript checks, production Vite build and migration numbering also passed.
+The original lockfile, license, attribution and manual-only workflows are unchanged.
+
+See [workspace isolation and pre-write authority review](commons-workspace-isolation-2026-10-21.zh.md)
+and its [machine-readable results](validation/workspace-isolation-2026-10-21.json).
+Negative controls against the preceding production code failed seven of eight
+selected UI tests and all four new HTTP authority contracts; the final fixed gate
+passed every case. Existing provider, native build, production deployment and
+10-minute final-message deduplication limitations still apply.
+
+The 408-test hardening run and original 400-test preview below are retained as
+historical checkpoints, not the latest totals.
+
+## Prior hardening checkpoint (2026-10-21)
+
+The subsequent concurrency/revocation review ran the entire gate at that checkpoint on
 macOS ARM64 (Node 24.11.1, Bun 1.4.3): **408 / 408 tests passed in 27 files**,
 with no skipped tests and exit code 0. Worker coverage increased from 91 to 99;
 the other layer counts are unchanged. Eight new deterministic regressions also

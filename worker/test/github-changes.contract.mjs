@@ -455,3 +455,33 @@ test("write timeout is an uncertain outcome and a later identical retry recovers
   assert.equal(result.number, 1);
   assert.equal(posts().filter((request) => request.path.endsWith("/git/refs")).length, 1);
 });
+
+
+test("rechecks publication authority before every GitHub write", async () => {
+  let checks = 0;
+  const result = await publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return true; } });
+  assert.equal(checks, 4);
+  assert.equal(posts().length, 4);
+  assert.equal(result.number, 1);
+  assert.equal(state.refs.get("main"), state.baseSha);
+});
+
+test("fails closed before any GitHub mutation when publication authority is lost", async () => {
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => false }), errorIs("conflict", false));
+  assert.equal(posts().length, 0);
+  assert.equal(state.refs.size, 1);
+  assert.equal(state.pulls.length, 0);
+});
+
+test("stops after the last authorized write and keeps the remote outcome uncertain", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => ++checks < 3 }), errorIs("conflict", true));
+  assert.deepEqual(posts().map((request) => request.path), [ROOT + "/git/trees", ROOT + "/git/commits"]);
+  assert.equal(state.refs.size, 1);
+  assert.equal(state.pulls.length, 0);
+});
+
+test("does not leak an authority-check error or attempt a write when that check fails", async () => {
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error(TOKEN); } }), errorIs("transport_failed", false));
+  assert.equal(posts().length, 0);
+});

@@ -418,3 +418,48 @@ describe("personal agent collaboration", () => {
     expect((await api(`/api/channels/${slug}/repositories/${repository.id}/pulls`, owner.token)).status).toBe(404);
   });
 });
+
+
+async function runningRun(slug: string, token: string, connectionId: string) {
+  let session = "";
+  const remoteId = uniq("remote");
+  fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => {
+    session = JSON.parse(request.body).session_id;
+    return { run_id: remoteId, session_id: session, status: "running" };
+  });
+  const { run } = await (await start(slug, token, connectionId)).json() as { run: CloudAgentRun };
+  return { run, session, remoteId, path: `/api/channels/${slug}/cloud-agents/${connectionId}/runs/${run.id}` };
+}
+
+describe("cloud run acquisition and duplicate starts", () => {
+  it("rereads terminal state after acquiring the run lease", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const { run, path } = await runningRun(slug, owner.token, connection.id);
+    const trigger = `test_lease_${crypto.randomUUID().replaceAll("-", "")}`;
+    // A real SQLite trigger deterministically inserts a concurrent terminal state
+    // at acquisition. No provider call should follow the stale initial SELECT.
+    await env.DB.prepare(`CREATE TRIGGER ${trigger} AFTER UPDATE OF lease_until ON cloud_agent_runs
+      WHEN NEW.id='${run.id}' AND OLD.lease_until=0 AND NEW.lease_until>0
+      BEGIN UPDATE cloud_agent_runs SET state='cancelled',error='Already cancelled' WHERE id=NEW.id; END;`).run();
+    try {
+      const response = await api(`${path}/sync`, owner.token, { method: "POST" });
+      expect(await response.json()).toMatchObject({ run: { state: "cancelled", error: "Already cancelled" } });
+    } finally { await env.DB.exec(`DROP TRIGGER IF EXISTS ${trigger};`); }
+  });
+
+  it("deduplicates simultaneous paid starts with the same request id", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const requestId = uniq("simultaneous"); const entered = barrier(); const resume = barrier(); let calls = 0;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, async (request) => {
+      calls++; entered.release(); await resume.promise;
+      return { run_id: "one-paid-start", session_id: JSON.parse(request.body).session_id, status: "running" };
+    });
+    const first = start(slug, owner.token, connection.id, requestId);
+    try {
+      await entered.promise;
+      const duplicate = await start(slug, owner.token, connection.id, requestId);
+      expect(await duplicate.json()).toMatchObject({ reused: true, run: { state: "starting" } });
+      resume.release(); expect((await first).status).toBe(201); expect(calls).toBe(1);
+    } finally { resume.release(); await first; }
+  });
+});

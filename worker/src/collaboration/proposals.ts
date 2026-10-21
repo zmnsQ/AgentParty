@@ -234,7 +234,15 @@ export function registerProposalRoutes(app: Hono<AppContext>, deps: Dependencies
         fullName: granted.repository.full_name, baseBranch: row.base_branch, baseSha: row.base_sha,
         proposalId: row.id, title: row.title, description: row.description,
         files: JSON.parse(row.files_json), credential: body.credential as string,
-      }, { timeoutMs: 30_000 });
+      }, { timeoutMs: 30_000, beforeWrite: async () => {
+        // A paused worker must stop issuing GitHub writes after its lease expires
+        // or is taken over. Already in-flight HTTP writes remain uncertain.
+        const checkedAt = Date.now();
+        const held = await c.env.DB.prepare(`UPDATE code_change_proposals SET lease_until = ?
+          WHERE id = ? AND lease_token = ? AND state = 'publishing' AND lease_until > ?`)
+          .bind(checkedAt + LEASE_MS, row!.id, leaseToken, checkedAt).run();
+        return held.meta.changes === 1;
+      } });
       const saved = await c.env.DB.prepare("UPDATE code_change_proposals SET state = 'published', branch = ?, commit_sha = ?, pull_request_url = ?, pull_request_number = ?, error = NULL, updated_at = ? WHERE id = ? AND lease_token = ? AND state = 'publishing'")
         .bind(published.branch, published.commit_sha, published.html_url, published.number, Date.now(), row.id, leaseToken).run();
       savedPublication = saved.meta.changes === 1;

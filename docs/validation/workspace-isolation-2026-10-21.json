@@ -1,0 +1,64 @@
+{
+  "date_utc": "2026-10-21",
+  "baseline_commit": "4d0ea5e2d340a0652b080e005a02e3d3d454f45a",
+  "scope": "Workspace isolation, upload follow-up boundaries and pre-write GitHub authority checks; development preview only",
+  "environment": {
+    "os": "macOS",
+    "architecture": "arm64",
+    "node": "24.11.1",
+    "bun": "1.4.3",
+    "lockfile_unchanged": true
+  },
+  "command": "bun run check:commons",
+  "exit_code": 0,
+  "tests": {
+    "passed": 429,
+    "failed": 0,
+    "skipped": 0,
+    "files": 28,
+    "added_since_baseline": 21
+  },
+  "layers": {
+    "provider_github_http_contracts": 46,
+    "worker_local_routes_d1_do_r2": 108,
+    "web": 170,
+    "cli": 101,
+    "fork_configuration": 4
+  },
+  "checks": {
+    "shared_types": true,
+    "worker_types": true,
+    "web_types": true,
+    "cli_types": true,
+    "vite_production_build": true,
+    "migration_numbering": true,
+    "migration_files": 50,
+    "known_upstream_duplicate_number_exceptions": 2
+  },
+  "negative_controls": {
+    "baseline_ui": {
+      "selected": 8,
+      "passed": 1,
+      "failed": 7,
+      "exit_code": 1
+    },
+    "baseline_github_contracts": {
+      "selected": 4,
+      "passed": 0,
+      "failed": 4,
+      "exit_code": 1
+    },
+    "method": "Selected new tests against baseline production files in a separate temporary worktree; original working files restored afterward."
+  },
+  "validation_boundaries": [
+    "HTTP contract tests use loopback synthetic credentials, not live provider accounts.",
+    "Concurrent handlers run in the test I/O context against real local D1/DO/R2; sequential integration tests retain SELF.fetch.",
+    "No live provider task, production migration, paid cloud resource, GitHub Actions dispatch, native installer build or release.",
+    "GitHub source publication is not acceptance of the product-internal GitHub publication flow."
+  ],
+  "local_log_sha256": {
+    "check-commons-verified.log": "c45c29412913162212e008bbef36b7ac13e172f3d7c650e1ecc6efad23fad213",
+    "negative-ui.log": "92a26741956bcdbf136302ccae82d95202bcd927f7c881764ce24ecbe041c8ba",
+    "negative-contracts.log": "6284cdf893ab30d1d7f0df3bffb2a11191931aae5995c9e3e7c156acefdd4304"
+  }
+}

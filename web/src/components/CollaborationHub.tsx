@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CollaborationSummary } from "@agentparty/shared/collaboration";
-import { AuthError } from "../lib/api";
+import { AuthError, ForbiddenError } from "../lib/api";
+import { apiBase } from "../lib/base";
 import { collaborationApi, CollaborationApiError, collaborationError, type CollaborationClient } from "../lib/collaborationApi";
 import { useT } from "../i18n/useT";
 import { CloudAgentConnections } from "./CloudAgentConnections";
@@ -21,30 +22,47 @@ export function CollaborationHub({ token, slug, archived = false, onAuthFailed, 
 }) {
   const t = useT();
   const [tab, setTab] = useState<Tab>("agents");
-  const [summary, setSummary] = useState<CollaborationSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Never hand a new group/token/server the previous workspace's data or
+  // capabilities, even for the render before its replacement request begins.
+  const server = apiBase();
+  const scope = useMemo(() => ({}), [token, slug, client, server]);
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
+  const [loaded, setLoaded] = useState<{
+    scope: object; summary: CollaborationSummary | null; loading: boolean; error: string | null;
+  } | null>(null);
+  const summary = loaded?.scope === scope ? loaded.summary : null;
+  const loading = loaded?.scope === scope ? loaded.loading : true;
+  const error = loaded?.scope === scope ? loaded.error : null;
   const generation = useRef(0);
   const alive = useRef(true);
   const authFailure = useRef(onAuthFailed);
   authFailure.current = onAuthFailed;
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
+    const active = () => alive.current && activeScope.current === scope && apiBase() === server && !signal?.aborted;
+    // A mutation finishing in an unmounted child must not refresh its old group
+    // using the new server selected by the global API client.
+    if (!active()) return;
     const current = ++generation.current;
-    setLoading(true); setError(null);
+    setLoaded((previous) => ({ scope, summary: previous?.scope === scope ? previous.summary : null, loading: true, error: null }));
     try {
       const result = await client.summary(token, slug, signal);
-      if (alive.current && current === generation.current) setSummary(result);
+      if (active() && current === generation.current) setLoaded({ scope, summary: result, loading: false, error: null });
     } catch (cause) {
-      if (!alive.current || signal?.aborted || current !== generation.current) return;
+      if (!active() || current !== generation.current) return;
+      const accessLost = cause instanceof AuthError || cause instanceof ForbiddenError || (cause instanceof CollaborationApiError && [401, 403, 404, 410].includes(cause.status));
+      const message = cause instanceof CollaborationApiError && cause.status === 404 ? t("Collab.offline") : collaborationError(cause);
+      setLoaded((previous) => ({ scope, summary: !accessLost && previous?.scope === scope ? previous.summary : null, loading: false, error: message }));
       if (cause instanceof AuthError) authFailure.current?.(cause.message);
-      setError(cause instanceof CollaborationApiError && cause.status === 404 ? t("Collab.offline") : collaborationError(cause));
-    } finally { if (alive.current && current === generation.current) setLoading(false); }
-  }, [client, slug, t, token]);
+    } finally {
+      if (active() && current === generation.current) setLoaded((previous) => previous?.scope === scope ? { ...previous, loading: false } : previous);
+    }
+  }, [client, scope, server, slug, t, token]);
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController(); void refresh(controller.signal);
-    return () => { alive.current = false; controller.abort(); };
+    return () => { alive.current = false; generation.current++; controller.abort(); };
   }, [refresh]);
   const selectWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>, active: Tab) => {
     const index = TABS.indexOf(active);
