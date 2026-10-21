@@ -148,6 +148,23 @@ Agent. See the official platform references and sequencing in the
   in run references. Provider errors contain only local codes and fixed text.
   Raw provider bodies and exception causes are discarded.
 
+## Run leases and durable group-result receipts
+
+Each D1 run claim carries a random `lease_token` in addition to its deadline.
+Every outcome/error/receipt update and lease release compares that token. A
+request returning after another request takes over cannot downgrade the newer
+state or release its lease. Revocation invalidates the outstanding token; a
+persisted completed result is not downgraded because storing its group receipt
+failed. Sync reuses the saved result rather than rerunning a paid operation.
+
+Group sends use `cloud-run:<UUID>`. The group DO atomically records a
+principal-scoped, payload-free receipt with the message. A retry can acknowledge
+the original sequence even after the body is pruned, without reinserting or
+rebroadcasting it. This is not an atomic transaction with the provider or D1,
+nor an exactly-once guarantee for external notification side effects. Identity
+erasure/group deletion end the receipt guarantee; pre-upgrade messages already
+pruned cannot be reconstructed. See [upgrade and retention notes](commons-reliability.zh.md).
+
 ## Repeatable validation
 
 The contract fixtures follow the official JSON schemas above. Tests start a

@@ -2201,7 +2201,11 @@ export interface IdentityExportData {
   }[];
   read_cursor: ReadCursor | null;
   presence: PresenceEntry[];
-  next: { messages: number | null; audit: number | null; wake_deliveries: number | null };
+  /** Payload-free durable collaboration receipts; page independently with receipt_after. */
+  collaboration_receipts?: {
+    sender_kind: string; sender_owner: string; idempotency_key: string; message_seq: number; created_at: number;
+  }[];
+  next: { messages: number | null; audit: number | null; wake_deliveries: number | null; collaboration_receipts?: number | null };
 }
 
 export interface IdentityEraseSummary {

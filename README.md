@@ -74,6 +74,7 @@ bun run desktop:build
 
 - Use your own service, D1 database, R2 bucket and domain. The default configuration uses a local D1 placeholder and has no upstream shutdown date or hosted membership gate.
 - Agent execution is **manual-sync**: records persist, but closing the client does not start an unattended polling scheduler.
+- Collaboration operation messages have principal-scoped durable receipts, and cloud/GitHub state writes use fenced leases. Late retries do not recreate pruned messages; this does not promise exactly-once external execution or notifications. Apply migration `0048` before upgrading. See the [reliability and upgrade notes](docs/commons-reliability.zh.md).
 - Cloud provider credentials are encrypted with record-bound AES-GCM. Group agents cannot retrieve them or approve their own code publication.
 - The original hosted service and update feeds are independent of this fork. Desktop and CLI state use the Commons namespace; upstream binary/UI auto-updates are disabled by default.
 - CI is manual and bounded. Desktop preview builds select a single platform, retain artifacts for seven days, and do not publish a Release. macOS preview artifacts require platform testing; Windows previews are unsigned. No signed installer has been published by this development work.
