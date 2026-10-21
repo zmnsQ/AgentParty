@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-21",
+  "baseline_commit": "5e74a599309e2afb1ebbcd2eaf46f6a38f6f49d1",
+  "environment": {
+    "os": "macOS",
+    "architecture": "arm64",
+    "node": "24.11.1",
+    "bun": "1.4.3"
+  },
+  "command": "bun run check:commons",
+  "exit_code": 0,
+  "test_files": 27,
+  "tests_passed": 419,
+  "tests_failed": 0,
+  "new_tests": 19,
+  "layers": {
+    "contracts": 45,
+    "worker": 102,
+    "web": 167,
+    "cli": 101,
+    "configuration": 4
+  },
+  "typescript": [
+    "shared",
+    "worker",
+    "web",
+    "cli"
+  ],
+  "vite_build": "passed",
+  "migration_numbering": "passed",
+  "diff_check": "passed",
+  "migration": "0048_collaboration_lease_fencing.sql",
+  "migration_files": 50,
+  "baseline_regression_probe": {
+    "contracts": {
+      "passed": 0,
+      "failed": 3
+    },
+    "ui": {
+      "passed": 1,
+      "failed": 4
+    },
+    "purpose": "Confirm new tests detect old behavior; these are intentionally failing old-baseline probes, not the repaired gate."
+  },
+  "dependency_updates": false,
+  "license_changed": false,
+  "real_provider_accounts_tested": false,
+  "real_product_github_publication_tested": false,
+  "native_client_built": false,
+  "production_deployed": false,
+  "github_actions_dispatched": false,
+  "known_limits": [
+    "10-minute group-message deduplication window remains",
+    "In-flight external HTTP requests cannot be recalled",
+    "Provider authorization and native platform acceptance remain unfinished"
+  ]
+}

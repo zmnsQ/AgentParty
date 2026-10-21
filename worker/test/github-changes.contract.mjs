@@ -455,3 +455,29 @@ test("write timeout is an uncertain outcome and a later identical retry recovers
   assert.equal(result.number, 1);
   assert.equal(posts().filter((request) => request.path.endsWith("/git/refs")).length, 1);
 });
+
+
+test("expired publication authority prevents the first GitHub write", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { checks++; return false; } }),
+    (error) => error instanceof GitHubChangesError && error.code === "conflict" && error.outcomeUnknown === true);
+  assert.equal(checks, 1);
+  assert.equal(requests.filter((request) => request.method === "POST").length, 0);
+  assert.equal(state.refs.size, 1);
+});
+
+test("publication authority is checked again between external writes", async () => {
+  let checks = 0;
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => ++checks < 2 }),
+    (error) => error instanceof GitHubChangesError && error.outcomeUnknown === true);
+  assert.equal(checks, 2);
+  assert.deepEqual(requests.filter((request) => request.method === "POST").map((request) => request.path), [`${ROOT}/git/trees`]);
+  assert.equal(state.refs.size, 1);
+  assert.equal(state.pulls.length, 0);
+});
+
+test("publication authority errors fail closed without disclosing database details", async () => {
+  await assert.rejects(publishChanges(proposal(), { ...options, beforeWrite: async () => { throw new Error("SECRET_DATABASE_DETAILS"); } }),
+    (error) => error instanceof GitHubChangesError && error.outcomeUnknown === true && !error.message.includes("SECRET_DATABASE_DETAILS"));
+  assert.equal(requests.filter((request) => request.method === "POST").length, 0);
+});

@@ -22,7 +22,7 @@ interface ProposalRow {
   base_sha: string; base_branch: string; digest: string; files_json: string; originals_json: string;
   state: CodeProposalState; approved_by: string | null; approved_at: number | null;
   branch: string | null; commit_sha: string | null; pull_request_url: string | null;
-  pull_request_number: number | null; error: string | null; lease_until: number;
+  pull_request_number: number | null; error: string | null; lease_until: number; lease_token: string | null;
   created_at: number; updated_at: number;
 }
 const SHA = /^[a-f0-9]{40}$/;
@@ -208,7 +208,7 @@ export function registerProposalRoutes(app: Hono<AppContext>, deps: Dependencies
     if (["published", "publishing", "unknown"].includes(row.state)) return fail(c, 409, "This proposal may already exist on GitHub. Resolve its publication before rejecting it.", "conflict");
     const updated = await c.env.DB.prepare("UPDATE code_change_proposals SET state = 'rejected', updated_at = ? WHERE id = ? AND state IN ('proposed','failed','rejected')")
       .bind(Date.now(), row.id).run();
-    if (updated.meta.changes !== 1) return fail(c, 409, "Proposal state changed. Reload before deciding.", "conflict");
+    if (updated.meta.changes < 1) return fail(c, 409, "Proposal state changed. Reload before deciding.", "conflict");
     return c.json({ proposal: detail((await load(c.env.DB, granted.slug, granted.repository.id, row.id))!) });
   }));
   app.post(`${base}/proposals/:proposalId/publish`, route(async (c) => {
@@ -220,32 +220,45 @@ export function registerProposalRoutes(app: Hono<AppContext>, deps: Dependencies
     if (row.digest !== body.expected_digest) return fail(c, 409, "Reload and review this proposal before approving it.", "conflict");
     if (row.state === "rejected") return fail(c, 409, "A rejected proposal cannot be published.", "conflict");
     if (row.state === "published") return c.json({ proposal: detail(row), reused: true });
-    const now = Date.now();
-    const locked = await c.env.DB.prepare(`UPDATE code_change_proposals SET state = 'publishing', approved_by = ?, approved_at = ?, lease_until = ?, error = NULL, updated_at = ?
-      WHERE id = ? AND lease_until < ? AND state IN ('proposed','failed','unknown','publishing')`)
-      .bind(granted.identity.name, now, now + LEASE_MS, now, row.id, now).run();
-    if (locked.meta.changes !== 1) return fail(c, 409, "This proposal is already being published. Reload its status before retrying.", "conflict");
+    const now = Date.now(); const leaseToken = crypto.randomUUID();
+    // Compare the exact pre-lock state as well as lease ownership. Otherwise a
+    // stale 'proposed' read could erase a newer 'unknown' outcome on a failed retry.
+    const locked = await c.env.DB.prepare(`UPDATE code_change_proposals SET state = 'publishing', approved_by = ?, approved_at = ?, lease_until = ?, lease_token = ?, error = NULL, updated_at = ?
+      WHERE id = ? AND digest = ? AND state = ? AND lease_token IS ? AND lease_until = ? AND lease_until <= ?
+        AND state IN ('proposed','failed','unknown','publishing')`)
+      .bind(granted.identity.name, now, now + LEASE_MS, leaseToken, now, row.id, row.digest, row.state, row.lease_token, row.lease_until, now).run();
+    if (locked.meta.changes < 1) return fail(c, 409, "This proposal is already being published. Reload its status before retrying.", "conflict");
+    let savedPublication = false;
     try {
       const published = await publishChanges({
         fullName: granted.repository.full_name, baseBranch: row.base_branch, baseSha: row.base_sha,
         proposalId: row.id, title: row.title, description: row.description,
         files: JSON.parse(row.files_json), credential: body.credential as string,
-      }, { timeoutMs: 30_000 });
-      await c.env.DB.prepare("UPDATE code_change_proposals SET state = 'published', branch = ?, commit_sha = ?, pull_request_url = ?, pull_request_number = ?, error = NULL, updated_at = ? WHERE id = ?")
-        .bind(published.branch, published.commit_sha, published.html_url, published.number, Date.now(), row.id).run();
+      }, { timeoutMs: 30_000, beforeWrite: async () => {
+        // A paused worker must stop issuing GitHub writes after its lease expires
+        // or is taken over. Already in-flight HTTP writes remain uncertain.
+        const checkedAt = Date.now();
+        const held = await c.env.DB.prepare(`UPDATE code_change_proposals SET lease_until = ?
+          WHERE id = ? AND lease_token = ? AND state = 'publishing' AND lease_until > ?`)
+          .bind(checkedAt + LEASE_MS, row!.id, leaseToken, checkedAt).run();
+        return held.meta.changes > 0;
+      } });
+      const saved = await c.env.DB.prepare("UPDATE code_change_proposals SET state = 'published', branch = ?, commit_sha = ?, pull_request_url = ?, pull_request_number = ?, error = NULL, updated_at = ? WHERE id = ? AND lease_token = ? AND state = 'publishing'")
+        .bind(published.branch, published.commit_sha, published.html_url, published.number, Date.now(), row.id, leaseToken).run();
+      savedPublication = saved.meta.changes > 0;
     } catch (error) {
       const uncertain = row.state === "unknown" || row.state === "publishing"
         || !(error instanceof GitHubChangesError) || error.outcomeUnknown;
       const message = error instanceof GitHubChangesError ? error.message : "Publication outcome is unknown. Retry this same proposal to check its dedicated branch and pull request.";
-      await c.env.DB.prepare("UPDATE code_change_proposals SET state = ?, error = ?, updated_at = ? WHERE id = ?")
-        .bind(uncertain ? "unknown" : "failed", message, Date.now(), row.id).run();
+      await c.env.DB.prepare("UPDATE code_change_proposals SET state = ?, error = ?, updated_at = ? WHERE id = ? AND lease_token = ? AND state = 'publishing'")
+        .bind(uncertain ? "unknown" : "failed", message, Date.now(), row.id, leaseToken).run();
     } finally {
       // The approval credential exists only in this request; never store, forward to agents, or echo it.
       body.credential = undefined;
-      await c.env.DB.prepare("UPDATE code_change_proposals SET lease_until = 0 WHERE id = ?").bind(row.id).run();
+      await c.env.DB.prepare("UPDATE code_change_proposals SET lease_until = 0, lease_token = NULL WHERE id = ? AND lease_token = ?").bind(row.id, leaseToken).run();
     }
     row = (await load(c.env.DB, granted.slug, granted.repository.id, row.id))!;
-    if (row.state === "published") {
+    if (savedPublication && row.state === "published") {
       await Promise.resolve(deps.forward(c, `/api/channels/${encodeURIComponent(granted.slug)}/messages`, {
         method: "POST", body: JSON.stringify({ kind: "message", body: `Code proposal published for review: ${row.title}\n${row.pull_request_url}\nBranch: ${row.branch}. The base branch has not been modified.`, mentions: [], reply_to: null, idempotency_key: `code-published:${row.id}` }),
       })).catch(() => undefined);

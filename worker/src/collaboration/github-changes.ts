@@ -3,6 +3,8 @@ export interface GitHubChangesOptions {
   fetch?: typeof fetch;
   /** One deadline for the entire operation, including response bodies. Default: 30 seconds. */
   timeoutMs?: number;
+  /** Revalidate publication authority immediately before each external write. */
+  beforeWrite?: () => Promise<boolean>;
 }
 export interface GitHubChangeFile { path: string; content: string | null }
 export interface RepositorySnapshot { commit_sha: string; tree_sha: string }
@@ -157,6 +159,16 @@ class GitHubOperation {
     const url = new URL(ORIGIN + this.repo + path);
     if (url.origin !== ORIGIN || !url.pathname.startsWith(this.repo + "/") || url.username || url.password || url.hash) invalid();
     const isWrite = body !== undefined;
+    if (isWrite && this.options.beforeWrite) {
+      let ownsPublication = false;
+      try { ownsPublication = await this.options.beforeWrite(); } catch { /* Fail closed; never expose database errors. */ }
+      this.checkDeadline();
+      if (!ownsPublication) {
+        // Another publisher may already be writing. Preserve uncertainty even if
+        // this request has not written yet; do not unlock deletion or re-creation.
+        throw new GitHubChangesError("conflict", "Publication authority expired or changed. Reload and recover this same proposal before retrying.", 409, true);
+      }
+    }
     // Setting this before fetch covers a connection failure after GitHub accepted a write.
     if (isWrite) this.wrote = true;
     let response: Response;

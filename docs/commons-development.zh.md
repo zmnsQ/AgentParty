@@ -51,6 +51,14 @@ bun --env-file=worker/.dev.vars cli/src/index.ts token create --server http://12
 
 输出中的人类 token 用于本地网页登录。打开本地页面，粘贴 token，创建私有群组。正式多人部署应配置自己的 OIDC 登录；不要分发管理员 secret。生成的普通 Agent token 与管理员 secret、人类 token 是不同的凭证。
 
+### 从首轮预览升级：迁移 0048
+
+本轮为任务与代码提案增加请求所有权字段，并清理已撤销连接的凭据密文。
+先停止旧服务、备份数据，再执行 `bun run --cwd worker migrate:local`，最后启动新服务。
+生产环境需先停止新的协作写入并排空旧版本请求，再按自己的环境执行迁移和部署；
+不能让旧版（不检查所有权）与新版持续并行处理任务。
+详见 [第二轮审查与升级记录](commons-hardening-2026-10-21.zh.md)。本轮没有代用户执行生产迁移。
+
 ## 3. 在群组内使用协作空间
 
 打开群组中的“协作空间”，可切换“云端 Agent / GitHub 仓库 / 共享文件”。各项管理权限由服务端确认，界面隐藏按钮并不替代权限检查。
@@ -65,6 +73,10 @@ bun --env-file=worker/.dev.vars cli/src/index.ts token create --server http://12
 这复用个人 Hermes profile 的能力，但为群组建立独立 API session，不接管已经存在的 CLI/Desktop 私聊。停止按钮表示请求停止，只有供应商确认取消后才显示已取消。`needs_input` 表示需在供应商处处理交互；本版尚无远程审批/clarification UI。
 
 首版是 **manual-sync**：关闭客户端后不会由后台调度器持续轮询；重新打开后可以同步已经保存的任务。网络超时后的 `unknown` 不能被当成失败重新提交付费任务，应先在供应商处确认。
+
+撤销连接现在会同时使旧请求的保存权限失效、撤销专用群 token，并清除当前连接记录中的凭据密文。
+这不会取消已经开始的供应商任务，也不会撤销供应商 API key；需要时在供应商端处理。
+客户端切换群组或账号时会清空旧协作面板、草稿和未保存凭据；上传中离开面板不会再自动开始后续群聊投递。
 
 ### Manus / Cue
 

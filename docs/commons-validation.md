@@ -148,3 +148,39 @@ See the [development guide](commons-development.zh.md),
 [provider contracts](provider-integration.md),
 [GitHub publication design](github-collaboration.md) and
 [roadmap](personal-agent-roadmap.zh.md) for setup and remaining milestones.
+
+
+## Follow-up hardening validation — 2026-10-21
+
+A second review ran on **macOS ARM64, Node 24.11.1, Bun 1.4.3**. The complete
+`bun run check:commons` gate exited **0**: **419 / 419 tests in 27 files**, with
+**19 new regression cases**. This is a newly executed gate, not a reinterpretation
+of the original Linux result above. No dependency or lockfile upgrade was made.
+
+| Layer | Follow-up result |
+| --- | --- |
+| Provider / GitHub loopback HTTP contracts | 45 / 45 |
+| Worker integration and authorization | 102 / 102 |
+| Web / desktop-facing React UI | 167 / 167 |
+| CLI and process isolation | 101 / 101 |
+| Fork configuration | 4 / 4 |
+
+Shared, Worker, Web and CLI type checks, Vite production build, migration numbering
+and whitespace checks passed. The tests apply migration `0048_collaboration_lease_fencing.sql`.
+The original standalone 14-check HTTP smoke was **not** rerun in this follow-up.
+
+The new coverage exercises stale task outcomes, conditional lease release,
+revocation during a provider request, saved-result/receipt failures, post-lock
+state reload, superseded PR publishers, per-write publication authority, account
+and group UI isolation, revoked access, and post-upload side effects after unmount.
+An isolated old-baseline probe failed all three new publication-authority contract
+cases and four of five session-isolation UI cases; the repaired full gate passed.
+
+The existing large-bundle warning remains, alongside Node transform-types,
+react-test-renderer deprecation and an attachment test body-decoding warning.
+Native clients, real provider accounts and production deployment remain unverified;
+no GitHub Actions job, release or paid cloud deployment was initiated.
+The 10-minute message deduplication limitation above remains in effect.
+
+See the [review and upgrade notes](commons-hardening-2026-10-21.zh.md) and
+[machine-readable results](validation/hardening-2026-10-21.json).

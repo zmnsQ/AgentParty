@@ -285,3 +285,112 @@ describe("personal agent collaboration", () => {
     expect((await api(`/api/channels/${slug}/repositories/${repository.id}/pulls`, owner.token)).status).toBe(404);
   });
 });
+
+
+// Inject an intervening committed owner/state at the outbound HTTP boundary.
+// No fake clock or cross-request unresolved Promise is needed: real D1 and the
+// normal Worker routes execute the conditional writes and message publication.
+describe("cloud run fencing regressions", () => {
+  it.each([200, 503])("ignores a superseded initial response (%s) without unlocking its successor", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const requestId = uniq("superseded-start"); const successor = crypto.randomUUID();
+    let saved: Record<string, unknown> | null = null;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(status, async (request) => {
+      const row = (await env.DB.prepare("SELECT id FROM cloud_agent_runs WHERE channel_slug=? AND request_id=?")
+        .bind(slug, requestId).first<{ id: string }>())!;
+      await env.DB.prepare("UPDATE cloud_agent_runs SET state='running',lease_token=?,lease_until=?,remote_run_id='new-receipt',error='new owner note' WHERE id=?")
+        .bind(successor, Date.now()+90_000, row.id).run();
+      saved = await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(row.id).first();
+      return { run_id: "obsolete-start", session_id: JSON.parse(request.body).session_id, status: "completed", output: "STALE PRIVATE ANSWER" };
+    });
+    const response = await start(slug, owner.token, connection.id, requestId);
+    expect(response.status).toBe(201);
+    const text = await response.text(); expect(text).not.toContain(successor); expect(text).not.toContain(CREDENTIAL);
+    const { run } = JSON.parse(text) as { run: CloudAgentRun };
+    expect(run).toMatchObject({ state: "running", result: null, error: "new owner note", reply_message_seq: null });
+    expect(await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(run.id).first()).toEqual(saved);
+    expect(await (await api(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("STALE PRIVATE ANSWER");
+  });
+
+  it.each([200, 503])("preserves a successor's committed cancellation after an obsolete poll (%s)", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    let session = "";
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => {
+      session = JSON.parse(request.body).session_id;
+      return { run_id: "poll-race", session_id: session, status: "running" };
+    });
+    const { run } = await (await start(slug, owner.token, connection.id)).json() as { run: CloudAgentRun };
+    let saved: Record<string, unknown> | null = null;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs/poll-race", method: "GET" }).reply(status, async () => {
+      await env.DB.prepare("UPDATE cloud_agent_runs SET state='cancelled',lease_token=NULL,lease_until=0,error=NULL WHERE id=?").bind(run.id).run();
+      saved = await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(run.id).first();
+      return { run_id: "poll-race", session_id: session, status: "completed", output: "OBSOLETE POLL RESULT" };
+    });
+    const response = await api(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" });
+    expect(await response.json()).toMatchObject({ run: { state: "cancelled", result: null, error: null, reply_message_seq: null } });
+    expect(await env.DB.prepare("SELECT * FROM cloud_agent_runs WHERE id=?").bind(run.id).first()).toEqual(saved);
+    expect(await (await api(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("OBSOLETE POLL RESULT");
+  });
+
+  it.each([200, 503])("revocation blocks late result import (%s) and purges reusable secrets", async (status) => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    let revokedStatus = 0;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(status, async (request) => {
+      const revoked = await api(`/api/channels/${slug}/cloud-agents/${connection.id}`, owner.token, { method: "DELETE" });
+      revokedStatus = revoked.status; await revoked.text();
+      return { run_id: "revoked-run", session_id: JSON.parse(request.body).session_id, status: "completed", output: "REVOKED PRIVATE ANSWER" };
+    });
+    const response = await start(slug, owner.token, connection.id);
+    expect(revokedStatus).toBe(200);
+    const { run } = await response.json() as { run: CloudAgentRun };
+    expect(run).toMatchObject({ state: "unknown", result: null, reply_message_seq: null });
+    expect(run.error).toContain("Connection revoked");
+    const row = (await env.DB.prepare("SELECT credential_ciphertext,agent_token_ciphertext,agent_token_hash FROM cloud_agent_connections WHERE channel_slug=? AND id=?")
+      .bind(slug, connection.id).first())!;
+    expect(row).toMatchObject({ credential_ciphertext: "", agent_token_ciphertext: "" });
+    expect(await env.DB.prepare("SELECT revoked_at FROM tokens WHERE hash=?").bind(row.agent_token_hash).first()).toMatchObject({ revoked_at: expect.any(Number) });
+    expect(await env.DB.prepare("SELECT lease_token,lease_until FROM cloud_agent_runs WHERE id=?").bind(run.id).first()).toEqual({ lease_token: null, lease_until: 0 });
+    expect(await (await api(`/api/channels/${slug}/messages`, owner.token)).text()).not.toContain("REVOKED PRIVATE ANSWER");
+  });
+
+  it("retains a completed answer after receipt storage fails and retries delivery without paid work", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    const requestId = uniq("receipt-failure"); const trigger = uniq("receipt_fault").replaceAll("-", "_");
+    let installed = false;
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, async (request) => {
+      const row = (await env.DB.prepare("SELECT id FROM cloud_agent_runs WHERE channel_slug=? AND request_id=?")
+        .bind(slug, requestId).first<{ id: string }>())!;
+      await env.DB.prepare(`CREATE TRIGGER ${trigger} BEFORE UPDATE OF reply_message_seq ON cloud_agent_runs
+        WHEN NEW.id = '${row.id}' BEGIN SELECT RAISE(ABORT, 'synthetic receipt failure'); END`).run();
+      installed = true;
+      return { run_id: "receipt-run", session_id: JSON.parse(request.body).session_id, status: "completed", output: "Durably saved answer" };
+    });
+    try {
+      const { run } = await (await start(slug, owner.token, connection.id, requestId)).json() as { run: CloudAgentRun };
+      expect(installed).toBe(true);
+      expect(run).toMatchObject({ state: "completed", result: "Durably saved answer", reply_message_seq: null });
+      await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); installed = false;
+      expect(await (await api(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" })).json())
+        .toMatchObject({ run: { state: "completed", result: "Durably saved answer", reply_message_seq: expect.any(Number) } });
+      const messages = await (await api(`/api/channels/${slug}/messages`, owner.token)).json() as { messages: Array<{ body: string }> };
+      expect(messages.messages.filter((m) => m.body?.includes("Durably saved answer"))).toHaveLength(1);
+    } finally { if (installed) await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
+  });
+
+  it("re-reads task state after taking ownership rather than using the pre-lock snapshot", async () => {
+    const { owner, slug } = await group(); const connection = await connect(slug, owner.token);
+    fetchMock.get("https://hermes.test").intercept({ path: "/v1/runs", method: "POST" }).reply(200, (request) => ({
+      run_id: "snapshot-run", session_id: JSON.parse(request.body).session_id, status: "running",
+    }));
+    const { run } = await (await start(slug, owner.token, connection.id)).json() as { run: CloudAgentRun };
+    const trigger = uniq("lock_snapshot").replaceAll("-", "_");
+    await env.DB.prepare(`CREATE TRIGGER ${trigger} AFTER UPDATE OF lease_token ON cloud_agent_runs
+      WHEN NEW.id = '${run.id}' AND NEW.lease_token IS NOT NULL AND OLD.lease_token IS NULL
+      BEGIN UPDATE cloud_agent_runs SET state='completed',result='Post-lock saved answer' WHERE id=NEW.id; END`).run();
+    try {
+      const response = await api(`/api/channels/${slug}/cloud-agents/${connection.id}/runs/${run.id}/sync`, owner.token, { method: "POST" });
+      expect(await response.json()).toMatchObject({ run: { state: "completed", result: "Post-lock saved answer", reply_message_seq: expect.any(Number) } });
+      // No poll fixture exists: a correct recovery only posts the saved answer.
+    } finally { await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
+  });
+});

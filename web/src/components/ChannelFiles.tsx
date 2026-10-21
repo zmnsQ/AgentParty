@@ -67,7 +67,10 @@ export function ChannelFiles({ token, slug, canUpload, client, upload = uploadAt
       if (!alive.current) break;
       try {
         const attachment = await upload(token, slug, file);
-        if (alive.current) setNotice(t("Collab.fileUploaded", { name: file.name }));
+        // The upload may finish after switching account/group or closing this
+        // panel. Keep the stored file, but do not start a new automatic post.
+        if (!alive.current) break;
+        setNotice(t("Collab.fileUploaded", { name: file.name }));
         if (shareAfterUpload) await share(attachment);
       } catch (cause) { failures.push(`${file.name}: ${collaborationError(cause)}`); }
     }

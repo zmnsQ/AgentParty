@@ -44,7 +44,7 @@ async function fixture(options: { missingBlob?: boolean } = {}) {
   github.intercept({ path: `${ROOT}/git/blobs/${oldBlob}`, method: "GET" }).reply(options.missingBlob ? 404 : 200, {
     sha: oldBlob, encoding: "base64", size: new TextEncoder().encode(BEFORE).byteLength, content: btoa(BEFORE),
   }).persist();
-  function publishing(proposal: CodeProposalDetail, uncertainRef = false) {
+  function publishing(proposal: CodeProposalDetail, uncertainRef = false, afterRemotePull?: () => Promise<void>) {
     const branch = `agentparty/${proposal.id}`;
     const branchPath = `${ROOT}/git/ref/heads/${branch}`;
     github.intercept({ path: branchPath, method: "GET" }).reply(404, { message: "Not Found" });
@@ -75,7 +75,7 @@ async function fixture(options: { missingBlob?: boolean } = {}) {
     });
     github.intercept({ path: `${ROOT}/pulls?state=all&head=${encodeURIComponent(`acme:${branch}`)}&per_page=100`, method: "GET" })
       .reply(200, () => state.pull ? [state.pull] : []).persist();
-    github.intercept({ path: `${ROOT}/pulls`, method: "POST" }).reply(201, (request) => {
+    github.intercept({ path: `${ROOT}/pulls`, method: "POST" }).reply(201, async (request) => {
       const body = JSON.parse(request.body);
       expect(body).toMatchObject({ head: branch, base: "main", draft: true, maintainer_can_modify: false });
       expect(body.body).toContain(`agentparty-proposal:${proposal.id}`);
@@ -83,6 +83,7 @@ async function fixture(options: { missingBlob?: boolean } = {}) {
       state.pull = { number: 42, state: "open", draft: true, body: body.body,
         head: { ref: branch, sha: NEXT_COMMIT, repo: { full_name: REPOSITORY } },
         base: { ref: "main", repo: { full_name: REPOSITORY } } };
+      await afterRemotePull?.();
       return state.pull;
     });
   }
@@ -254,5 +255,63 @@ describe("reviewed GitHub code proposals", () => {
     expect(response.status).toBe(404);
     expect(await env.DB.prepare("SELECT id FROM code_change_proposals WHERE repository_id=?").bind(context.repository.id).first()).toBeNull();
     expect(context.state.writes).toEqual([]);
+  });
+});
+
+
+describe("publication fencing regressions", () => {
+  it("preserves a newer publisher's live lease when an older credential request fails", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    fetchMock.deactivate(); fetchMock.activate(); fetchMock.disableNetConnect();
+    const token = crypto.randomUUID(); const until = Date.now() + 90_000;
+    fetchMock.get("https://api.github.com").intercept({ path: `${ROOT}/git/commits/${BASE}`, method: "GET" }).reply(403, async () => {
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_token=?,lease_until=?,error='successor note' WHERE id=?")
+        .bind(token, until, proposal.id).run();
+      return { private_debug: WRITE_KEY };
+    });
+    const text = await (await publish(context, proposal)).text();
+    expect(text).not.toContain(token); expect(text).not.toContain(WRITE_KEY);
+    expect(JSON.parse(text)).toMatchObject({ proposal: { state: "publishing", error: "successor note" } });
+    expect(await env.DB.prepare("SELECT lease_token,lease_until,error FROM code_change_proposals WHERE id=?").bind(proposal.id).first())
+      .toEqual({ lease_token: token, lease_until: until, error: "successor note" });
+    expect((await publish(context, proposal)).status).toBe(409);
+    expect((await api(context.base, context.owner.token, { method: "DELETE" })).status).toBe(409);
+  });
+
+  it("does not announce or overwrite a successful publication recovered by a newer request", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    let saved: Record<string, unknown> | null = null; let recoveredStatus = 0;
+    context.publishing(proposal, false, async () => {
+      // GitHub created the PR before the old publisher received its receipt.
+      // A second request recovers that same PR, then the old response resumes.
+      await env.DB.prepare("UPDATE code_change_proposals SET lease_until=0 WHERE id=?").bind(proposal.id).run();
+      const recovered = await publish(context, proposal); recoveredStatus = recovered.status; await recovered.text();
+      saved = await env.DB.prepare("SELECT * FROM code_change_proposals WHERE id=?").bind(proposal.id).first();
+    });
+    const result = await (await publish(context, proposal)).json();
+    expect(recoveredStatus).toBe(200);
+    expect(result).toMatchObject({ proposal: { state: "published", pull_request_number: 42 } });
+    expect(await env.DB.prepare("SELECT * FROM code_change_proposals WHERE id=?").bind(proposal.id).first()).toEqual(saved);
+    expect(context.state.writes).toEqual(["tree", "commit", "new-branch", "draft-pr"]);
+    const messages = await (await api(`/api/channels/${context.slug}/messages`, context.owner.token)).json() as { messages: Array<{ body: string }> };
+    expect(messages.messages.filter((m) => m.body?.includes("Code proposal published for review:"))).toHaveLength(1);
+  });
+
+  it("checks current publication ownership before the first external write", async () => {
+    const context = await setup(); const proposal = await propose(context);
+    const trigger = uniq("publish_takeover").replaceAll("-", "_"); const successor = crypto.randomUUID();
+    // Emulate takeover immediately after the old request acquires its lease.
+    await env.DB.prepare(`CREATE TRIGGER ${trigger} AFTER UPDATE OF lease_token ON code_change_proposals
+      WHEN NEW.id='${proposal.id}' AND NEW.lease_token IS NOT NULL AND OLD.lease_token IS NULL
+      BEGIN UPDATE code_change_proposals SET lease_token='${successor}' WHERE id=NEW.id; END`).run();
+    const github = fetchMock.get("https://api.github.com");
+    github.intercept({ path: `${ROOT}/git/ref/heads/agentparty/${proposal.id}`, method: "GET" }).reply(404, { message: "Not Found" });
+    github.intercept({ path: `${ROOT}/pulls?state=all&head=${encodeURIComponent(`acme:agentparty/${proposal.id}`)}&per_page=100`, method: "GET" }).reply(200, []);
+    try {
+      expect(await (await publish(context, proposal)).json()).toMatchObject({ proposal: { state: "publishing", error: null } });
+      expect(await env.DB.prepare("SELECT lease_token,state FROM code_change_proposals WHERE id=?").bind(proposal.id).first())
+        .toEqual({ lease_token: successor, state: "publishing" });
+      expect(context.state.writes).toEqual([]);
+    } finally { await env.DB.prepare(`DROP TRIGGER ${trigger}`).run(); }
   });
 });
