@@ -10,13 +10,13 @@
   "gate": {
     "command": "bun run check:commons",
     "exit_code": 0,
-    "passed": 415,
+    "passed": 423,
     "failed": 0,
     "skipped": 0,
     "test_files": 27,
     "layers": {
       "contracts": 46,
-      "worker": 102,
+      "worker": 110,
       "web": 162,
       "cli": 101,
       "configuration": 4
@@ -28,10 +28,19 @@
     "failed": 11,
     "unselected_original_tests": 21,
     "exit_code": 1,
-    "fixed_sources_restored": true
+    "fixed_sources_restored": true,
+    "phase": "before integrating the eight parallel regression cases"
   },
   "external_provider_accounts_tested": false,
   "native_desktop_build_tested": false,
   "github_actions_dispatched": false,
-  "production_deployed": false
+  "production_deployed": false,
+  "integrated_remote_commit": "4d0ea5e2d340a0652b080e005a02e3d3d454f45a",
+  "first_merged_attempt": {
+    "exit_code": 1,
+    "contracts_passed": 43,
+    "contracts_failed": 3,
+    "failure": "Existing Hermes loopback fixtures exceeded their unchanged 1000ms deadline. Root cause unconfirmed.",
+    "rerun_same_command_passed": true
+  }
 }

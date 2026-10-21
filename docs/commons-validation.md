@@ -7,8 +7,11 @@ operating systems. It is not a production-readiness or all-provider certificatio
 ## Follow-up hardening (2026-10-21)
 
 The follow-up [lease fencing and recovery audit](commons-hardening-2026-10-21.md)
-ran on macOS arm64 / Node 24.11.1 / Bun 1.4.3: **415 tests passed** in the full
-`check:commons` gate. Eleven new Worker regression cases failed against the
+ran on macOS arm64 / Node 24.11.1 / Bun 1.4.3: **423 tests passed** in the full
+`check:commons` gate after preserving the eight parallel regression cases from
+`4d0ea5e`. An initial merged attempt had three existing 1-second loopback timeouts;
+the unchanged full command passed on rerun. Their root cause remains unresolved.
+Eleven new Worker regression cases failed against the
 pre-fix production code and passed with the fixes; four additional loopback
 contracts cover publication-authority loss and deadlines. Migration `0048`
 requires draining old requests before switching all writers to the new code.
@@ -16,6 +19,26 @@ No native app build, live provider certification or deployment is implied.
 
 The **400-test Linux run below is the earlier baseline**, not the follow-up's
 current test total. Its independent HTTP smoke was not rerun for this patch.
+
+## Parallel hardening baseline (2026-10-21, commit 4d0ea5e)
+
+The subsequent concurrency/revocation review ran the entire current gate on
+macOS ARM64 (Node 24.11.1, Bun 1.4.3): **408 / 408 tests passed in 27 files**,
+with no skipped tests and exit code 0. Worker coverage increased from 91 to 99;
+the other layer counts are unchanged. Eight new deterministic regressions also
+failed against the original implementation before the fixed code was restored.
+
+See the [follow-up review and migration notes](commons-hardening-2026-10-21.zh.md)
+and [machine-readable check summary](validation/hardening-2026-10-21.json).
+Migration `0048_collaboration_lease_fencing.sql` must be applied before the new
+Worker is enabled; drain old handlers rather than mixing unfenced writers with
+new ones. This adds request-owner fencing and purges saved credentials for
+revoked connections. It does not establish permanent exactly-once messaging or
+live-provider/native-desktop acceptance.
+
+The original 400-test Linux run below is retained as the **initial preview's
+historical validation**, not the latest gate count. Its independent HTTP smoke
+was not rerun for this hardening pass.
 
 ## Source and sequence
 
