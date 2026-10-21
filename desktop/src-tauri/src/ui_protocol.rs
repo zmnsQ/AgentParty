@@ -558,7 +558,7 @@ mod tests {
             published_at: "2026-07-11T07:30:00Z".to_string(),
             archive: UiArchive {
                 name: "agentparty-desktop-ui-v1.4.0.tar.gz".to_string(),
-                url: "https://github.com/leeguooooo/AgentParty/releases/download/desktop-ui/agentparty-desktop-ui-v1.4.0.tar.gz".to_string(),
+                url: "https://updates.invalid/agentparty-commons/agentparty-desktop-ui-v1.4.0.tar.gz".to_string(),
                 size_bytes: bytes.len() as u64,
                 file_count: 2,
                 sha256: sha256_hex(&bytes),

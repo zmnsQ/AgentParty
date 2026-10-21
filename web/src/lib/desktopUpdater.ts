@@ -1,3 +1,6 @@
+// Commons previews do not trust or check the upstream release channel.
+export const COMMONS_AUTO_UPDATE_ENABLED = false;
+
 export const LAST_SUCCESSFUL_CHECK_KEY = "ap_desktop_updater_last_success";
 export const LAST_UPDATER_DIAGNOSTIC_KEY = "ap_desktop_updater_diagnostic";
 export const LAST_NOTIFIED_VERSION_KEY = "ap_desktop_updater_notified_version";
@@ -843,7 +846,7 @@ export function createBrowserDesktopUpdaterClient(
   options: BrowserDesktopUpdaterClientOptions = {},
 ): DesktopUpdaterController | null {
   const windowRef = options.windowRef ?? globalThis;
-  if (!isTauriEnvironment(windowRef)) return null;
+  if (!COMMONS_AUTO_UPDATE_ENABLED || !isTauriEnvironment(windowRef)) return null;
   let nativeAdapterPromise: Promise<DesktopUpdaterAdapter> | null = null;
   const getNativeAdapter = () => {
     if (nativeAdapterPromise === null) {

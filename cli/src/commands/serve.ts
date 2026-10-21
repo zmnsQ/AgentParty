@@ -342,12 +342,12 @@ export const EXIT_SIGNAL_INT = 128 + 2;
 export const EXIT_SIGNAL_TERM = 128 + 15;
 
 /** 桌面「转为常驻」生成的 launchd job label 前缀(须与 desktop/src-tauri/src/duty.rs 的 DUTY_LABEL_PREFIX 一致)。 */
-const DUTY_LABEL_PREFIX = "com.agentparty.duty.";
+const DUTY_LABEL_PREFIX = "com.zmns.agentpartycommons.duty.";
 const DUTY_BLOCKED_MARKER_SCHEMA = "agentparty.duty-blocked.v1";
 
 /** 与 desktop duty reconcile 共享的终局停机标记路径。 */
 export function dutyBlockedMarkerPath(label: string, home: string = homedir()): string {
-  return join(home, ".agentparty", "desktop", "duty-blocked", `${label}.json`);
+  return join(home, ".agentparty-commons", "desktop", "duty-blocked", `${label}.json`);
 }
 
 /** marker/launchctl disable 都失败时的最后持久兜底；desktop 会展示并允许显式 repair/unpersist。 */
@@ -398,7 +398,7 @@ export function dutyLockOwnerIsStale(
 }
 
 export function dutyLockPath(label: string, home: string = homedir()): string {
-  return join(home, ".agentparty", "desktop", "duty-locks", `${label}.lock`);
+  return join(home, ".agentparty-commons", "desktop", "duty-locks", `${label}.lock`);
 }
 
 function dutyLockPathIsStale(path: string, fallbackMtimeMs?: number): boolean {
@@ -1801,7 +1801,7 @@ export function runnerWorkdir(root: string, channel: string, namespace: string):
  * owner-less token 按 token sha256 隔离，避免同名 token 撤销重铸后接管旧 session。
  */
 export function defaultRunnerWorkdir(channel: string, namespace: string): string {
-  const stateRoot = process.env.AGENTPARTY_HOME ?? join(homedir(), ".agentparty");
+  const stateRoot = process.env.AGENTPARTY_HOME ?? join(homedir(), ".agentparty-commons");
   return runnerWorkdir(join(stateRoot, "runners"), channel, namespace);
 }
 
@@ -4281,7 +4281,7 @@ export async function prepareProfileChannelWorkspace(opts: PrepareProfileWorkspa
     opts.profile.created_at,
   ]);
   const root = join(
-    process.env.AGENTPARTY_HOME ?? join(homedir(), ".agentparty"),
+    process.env.AGENTPARTY_HOME ?? join(homedir(), ".agentparty-commons"),
     "project-agents",
     serverNamespace,
     safeSegment(opts.profile.owner_account),

@@ -58,7 +58,7 @@ describe("server profile controls", () => {
         />
       </LocaleProvider>,
     );
-    expect(html).toContain("leeguooooo");
+    expect(html).toContain("AgentParty Commons");
     expect(html).toContain("Team Party");
     expect(html).toContain('type="url"');
     expect(html).toContain("Check and add server");

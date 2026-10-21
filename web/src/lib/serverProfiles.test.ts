@@ -69,10 +69,11 @@ describe("server origin validation", () => {
 });
 
 describe("server profiles", () => {
-  test("names the official deployment by owner and recognizes membership billing scope", () => {
+  test("defaults to the independent local server while recognizing legacy billing scope", () => {
     expect(OFFICIAL_SERVER_PROFILES.map((profile) => profile.label)).toEqual([
-      "leeguooooo",
+      "AgentParty Commons",
     ]);
+    expect(OFFICIAL_SERVER_PROFILES[0]?.origin).toBe("http://127.0.0.1:8787");
     expect(isLeeguoooooDeployment("https://agentparty.leeguoo.com")).toBe(true);
     expect(isLeeguoooooDeployment("https://party.example.net")).toBe(false);
     expect(isLeeguoooooDeployment("https://private.example.com")).toBe(false);

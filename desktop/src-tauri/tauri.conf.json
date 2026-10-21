@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AgentParty",
+  "productName": "AgentParty Commons",
   "version": "../package.json",
-  "identifier": "com.agentparty.desktop",
+  "identifier": "com.zmns.agentpartycommons",
   "build": {
     "beforeDevCommand": "cd ../web && bun run dev -- --host 127.0.0.1",
     "devUrl": "http://127.0.0.1:5173",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "AgentParty",
+        "title": "AgentParty Commons",
         "visible": false,
         "width": 1200,
         "height": 800,
@@ -27,7 +27,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": ["binaries/party"],
+    "externalBin": [
+      "binaries/party"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -35,18 +37,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "macOS": {}
   },
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["agentparty"]
+        "schemes": [
+          "agentparty-commons"
+        ]
       }
-    },
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ0MjAzQTEyNTEwNDVDQTEKUldTaFhBUlJFam9nMUtTQkU5a1NjKzNqUHN5eThQRGZScGRvNnpsdkwrRjNBaUpGZGFrc21vSmEK",
-      "endpoints": ["https://github.com/leeguooooo/agentparty/releases/download/desktop-preview/latest-v2.json"]
     }
   }
 }

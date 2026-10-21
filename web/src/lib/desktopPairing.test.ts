@@ -50,7 +50,7 @@ describe("pairing short codes and deep links", () => {
 
   test("accepts navigation-only pair links for an allowlisted server", () => {
     expect(parsePairDeepLink(
-      "agentparty://pair/ab12c-de34f?server=https%3A%2F%2Fagentparty.leeguoo.com",
+      "agentparty-commons://pair/ab12c-de34f?server=https%3A%2F%2Fagentparty.leeguoo.com",
       ["https://agentparty.leeguoo.com"],
     )).toEqual({
       userCode: "AB12C-DE34F",
@@ -61,11 +61,11 @@ describe("pairing short codes and deep links", () => {
   test("rejects unknown servers, malformed routes, and links carrying credentials", () => {
     const allowlist = ["https://agentparty.leeguoo.com"];
     expect(parsePairDeepLink("https://agentparty.leeguoo.com/pair/AB12C-DE34F", allowlist)).toBeNull();
-    expect(parsePairDeepLink("agentparty://other/AB12C-DE34F", allowlist)).toBeNull();
-    expect(parsePairDeepLink("agentparty://pair/AB12C-DE34F?server=https://evil.example", allowlist)).toBeNull();
-    expect(parsePairDeepLink("agentparty://pair/AB12C-DE34F?token=secret", allowlist)).toBeNull();
-    expect(parsePairDeepLink("agentparty://pair/AB12C-DE34F?code_verifier=secret", allowlist)).toBeNull();
-    expect(parsePairDeepLink("agentparty://pair/AB12C-DE34F?device_secret=secret", allowlist)).toBeNull();
+    expect(parsePairDeepLink("agentparty-commons://other/AB12C-DE34F", allowlist)).toBeNull();
+    expect(parsePairDeepLink("agentparty-commons://pair/AB12C-DE34F?server=https://evil.example", allowlist)).toBeNull();
+    expect(parsePairDeepLink("agentparty-commons://pair/AB12C-DE34F?token=secret", allowlist)).toBeNull();
+    expect(parsePairDeepLink("agentparty-commons://pair/AB12C-DE34F?code_verifier=secret", allowlist)).toBeNull();
+    expect(parsePairDeepLink("agentparty-commons://pair/AB12C-DE34F?device_secret=secret", allowlist)).toBeNull();
   });
 });
 

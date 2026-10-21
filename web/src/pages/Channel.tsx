@@ -1,6 +1,6 @@
 // 频道页：presence 条 + 实时消息流 + 内联错误条幅 + 插话框。
 // App 用 key={slug} 挂载本组件，切频道即整体重建（socket/状态零残留）。
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { TeamBoard, type TeamRoleDraft } from "../components/team/TeamBoard";
 import type { TeamSquadDraft } from "../components/team/TeamSquads";
 import { TeamShell } from "../components/team/TeamShell";
@@ -132,6 +132,8 @@ import { ChannelSocket } from "../lib/ws";
 import { channelReducer, initialChannelState } from "../state";
 import { useT } from "../i18n/useT";
 import { ChannelToolstrip } from "../components/ChannelToolstrip";
+import "../i18n/strings/CollaborationHub";
+const CollaborationHub = lazy(() => import("../components/CollaborationHub"));
 import "../i18n/strings/Channel";
 import "../i18n/strings/Composer";
 import "../i18n/strings/WakeReceipt";
@@ -240,7 +242,7 @@ function writeSeenCharterRev(slug: string, rev: number) {
   }
 }
 
-type ChannelPanel = "charter" | "team" | "focus" | "tasks" | "search" | "admin";
+type ChannelPanel = "charter" | "team" | "focus" | "tasks" | "search" | "admin" | "collaboration";
 type MemberDetailSource = Extract<ChannelPanel, "team" | "admin">;
 
 interface MemberDetailRoute {
@@ -4666,6 +4668,9 @@ export function ChannelPage({
               <span className="t-mono chan-tool-badge chan-tool-badge--hot">{t("Channel.tools.active")}</span>
             )}
           </button>
+          <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("collaboration")}>
+            <span aria-hidden="true">↗</span><span>{t("Collab.title")}</span>
+          </button>
           {/* #700 的「本机 agent」独立入口已并入「我的 agent」(AgentTokens) 面板的本机运行段，此处不再单列。 */}
           </>
         }
@@ -4743,6 +4748,7 @@ export function ChannelPage({
             activePanel === "focus" ? t("ChannelFocusBar.overviewTitle") :
             activePanel === "tasks" ? t("Channel.tasks.title") :
             activePanel === "admin" ? t("ChannelAdmin.title") :
+            activePanel === "collaboration" ? t("Collab.title") :
             t("Channel.tools.timeline")
           }
           subtitle={
@@ -4770,6 +4776,11 @@ export function ChannelPage({
           shouldRestoreFocus={() => !skipPanelFocusRestoreRef.current}
           hideHeader={activePanel === "team" || activePanel === "tasks" || activePanel === "admin"}
         >
+          {activePanel === "collaboration" && (
+            <Suspense fallback={<p role="status">{t("Collab.loading")}</p>}>
+              <CollaborationHub key={slug} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed} />
+            </Suspense>
+          )}
           {activePanel === "charter" && (
             <CharterBanner
               charter={charter}

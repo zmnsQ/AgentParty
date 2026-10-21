@@ -1,0 +1,57 @@
+name: Commons desktop preview (manual, one platform)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Build one preview; no release or auto-update publication
+        type: choice
+        required: true
+        default: macos-arm64
+        options:
+          - macos-arm64
+          - macos-intel
+          - windows-x64
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commons-desktop-${{ github.ref }}-${{ inputs.platform }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ inputs.platform == 'windows-x64' && 'windows-2025' || inputs.platform == 'macos-intel' && 'macos-15-intel' || 'macos-15' }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bun install --frozen-lockfile
+      - run: bun run check:shared
+      - run: bun run --cwd web typecheck
+      - name: Build macOS preview (ad hoc signature)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+        run: bun run desktop:build
+      - name: Build Windows preview (unsigned)
+        if: runner.os == 'Windows'
+        run: bun run desktop:build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AgentParty-Commons-${{ inputs.platform }}-${{ github.sha }}
+          path: |
+            desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            desktop/src-tauri/target/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 7

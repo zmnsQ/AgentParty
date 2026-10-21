@@ -756,7 +756,7 @@ export function claudePluginDoctorFixLines(
           "claude plugin uninstall agentparty@agentparty && claude plugin install agentparty@agentparty" +
           " && claude plugin enable agentparty@agentparty, then restart Claude Code",
       );
-      lines.push("  fix: still invalid after a reinstall? that is our bug — report it at https://github.com/leeguooooo/AgentParty/issues");
+      lines.push("  fix: still invalid after a reinstall? that is our bug — report it at https://github.com/zmnsQ/AgentParty/issues");
     } else {
       lines.push("  fix: claude plugin update agentparty@agentparty, then restart Claude Code");
     }

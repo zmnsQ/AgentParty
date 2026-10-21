@@ -30,14 +30,6 @@ export interface ServerProbeResult {
 
 export const LEEGUOOOOO_SERVER_ORIGIN = "https://agentparty.leeguoo.com";
 
-export const OFFICIAL_SERVER_PROFILES: readonly ServerProfile[] = [
-  {
-    id: "official:prod",
-    label: "leeguooooo",
-    origin: LEEGUOOOOO_SERVER_ORIGIN,
-    kind: "official",
-  },
-];
 
 export function isLeeguoooooDeployment(origin: string): boolean {
   return normalizeServerOrigin(origin) === LEEGUOOOOO_SERVER_ORIGIN;
@@ -107,6 +99,16 @@ export function normalizeServerOrigin(input: string): string | null {
     return null;
   }
 }
+
+// Explicit deployment configuration wins; fresh Commons installs use a local server.
+// The upstream hosted service is never selected implicitly.
+export const COMMONS_SERVER_ORIGIN = normalizeServerOrigin(import.meta.env?.VITE_API_BASE ?? "") ?? "http://127.0.0.1:8787";
+export const OFFICIAL_SERVER_PROFILES: readonly ServerProfile[] = [{
+  id: "commons:default",
+  label: "AgentParty Commons",
+  origin: COMMONS_SERVER_ORIGIN,
+  kind: "official",
+}];
 
 function defaultStorage(): ServerProfileStorage {
   return localStorage;

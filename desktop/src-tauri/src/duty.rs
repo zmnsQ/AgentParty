@@ -3,8 +3,8 @@
 // 值守实例落成 macOS LaunchAgent：RunAtLoad + KeepAlive，退出 app 不断线、重启机器自动拉起。
 //
 // 安全边界（#221 教训）：plist 里绝不放 token——只放 AGENTPARTY_CONFIG 的文件路径；
-// 二进制拷贝到 ~/.agentparty/desktop/bin 的稳定路径（app bundle 路径随更新/挪动会失效），
-// 并给 serve 挂 --auto-upgrade，让常驻进程在 wake 间隙自行换新。
+// 二进制拷贝到 ~/.agentparty-commons/desktop/bin 的稳定路径（app bundle 路径随更新/挪动会失效），
+// Commons 的常驻进程使用随桌面打包的 CLI；独立签名发布通道准备好前不自动换新。
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -34,7 +34,7 @@ use reconcile::{
 #[cfg(all(desktop, target_os = "macos"))]
 pub(crate) use reconcile::start_duty_reconciler;
 
-pub(crate) const DUTY_LABEL_PREFIX: &str = "com.agentparty.duty.";
+pub(crate) const DUTY_LABEL_PREFIX: &str = "com.zmns.agentpartycommons.duty.";
 
 /// launchd label 只收 [A-Za-z0-9.-]：instance_id 的 config_id 是 sha256 hex、channel 是 slug，
 /// 唯一的越界字符是分隔用的冒号——映射成 '.'；其余越界字符一律 '-'（防御，不该出现）。
@@ -357,8 +357,6 @@ pub(crate) fn duty_plist_content(spec: &DutyPlistSpec<'_>) -> String {
         spec.channel.to_string(),
         "--runner".to_string(),
         spec.runner.to_string(),
-        // 常驻进程没有 app 帮它换新二进制：wake 间隙发现磁盘上有更新的 party 就自我重启（#45 机制）。
-        "--auto-upgrade".to_string(),
     ];
     if let Some(dir) = spec.workdir {
         args.push("--workdir".to_string());
@@ -446,7 +444,7 @@ pub(crate) fn duty_plist_path(home: &Path, label: &str) -> PathBuf {
 }
 
 pub(crate) fn duty_log_path(home: &Path, label: &str) -> PathBuf {
-    home.join(".agentparty/desktop/logs")
+    home.join(".agentparty-commons/desktop/logs")
         .join(format!("{label}.log"))
 }
 
@@ -552,7 +550,7 @@ fn tail_utf8(bytes: &[u8], cap: usize) -> String {
 }
 
 pub(crate) fn duty_bin_path(home: &Path) -> PathBuf {
-    home.join(".agentparty/desktop/bin/party")
+    home.join(".agentparty-commons/desktop/bin/party")
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -646,7 +644,7 @@ fn health_slot_path(home: &Path, config_path: &str, channel: &str) -> Option<Pat
     let file_name = health_slot_file_name(config_path, &config.token, channel)?;
     let root_hash = crate::ui_update::sha256_hex(b"/");
     Some(
-        home.join(".agentparty/state")
+        home.join(".agentparty-commons/state")
             .join(format!("workspace-{}", &root_hash[..16]))
             .join("slots")
             .join(file_name),
@@ -1171,7 +1169,7 @@ pub(crate) async fn desktop_duty_adopt(
         // adopt 接下来会写含 token 的身份配置并准备 launchd 回滚；依赖缺失必须在任何落盘/bootout 前失败。
         resolve_runner_executable(&runner, &home)?;
         // 与 join pack 的 AGENTPARTY_CONFIG 约定同路径：CLI 与桌面端看见的是同一个身份文件。
-        let config_dir = home.join(".agentparty/agents");
+        let config_dir = home.join(".agentparty-commons/agents");
         fs::create_dir_all(&config_dir)
             .map_err(|error| format!("cannot create agents dir: {error}"))?;
         let config_path = config_dir.join(format!("agentparty-{name}-{channel}.json"));
@@ -1442,7 +1440,7 @@ mod tests {
     #[test]
     fn label_maps_colon_to_dot_and_round_trips() {
         let label = duty_label("abc123:native-r4");
-        assert_eq!(label, "com.agentparty.duty.abc123.native-r4");
+        assert_eq!(label, "com.zmns.agentpartycommons.duty.abc123.native-r4");
         assert_eq!(
             instance_id_from_label(&label).as_deref(),
             Some("abc123:native-r4")
@@ -1484,7 +1482,7 @@ mod tests {
     #[test]
     fn plist_carries_live_output_tap_only_when_set() {
         let spec = |live: Option<&'static str>| DutyPlistSpec {
-            label: "com.agentparty.duty.x",
+            label: "com.zmns.agentpartycommons.duty.x",
             party_bin: "/bin/party",
             config_path: "/c.json",
             channel: "dev",
@@ -1497,7 +1495,7 @@ mod tests {
             generation: None,
             live_output_path: live,
         };
-        let with = duty_plist_content(&spec(Some("/Users/x/.agentparty/desktop/live/duty-a&b.json")));
+        let with = duty_plist_content(&spec(Some("/Users/x/.agentparty-commons/desktop/live/duty-a&b.json")));
         assert!(with.contains("<key>AGENTPARTY_SESSION_OUTPUT_FILE</key>"));
         assert!(with.contains("duty-a&amp;b.json"));
         let without = duty_plist_content(&spec(None));
@@ -1507,14 +1505,14 @@ mod tests {
     #[test]
     fn plist_never_contains_tokens_and_escapes_xml() {
         let plist = duty_plist_content(&DutyPlistSpec {
-            label: "com.agentparty.duty.x.dev",
-            party_bin: "/Users/leo/.agentparty/desktop/bin/party",
-            config_path: "/Users/leo/.agentparty/agents/agentparty-a&b-dev.json",
+            label: "com.zmns.agentpartycommons.duty.x.dev",
+            party_bin: "/Users/leo/.agentparty-commons/desktop/bin/party",
+            config_path: "/Users/leo/.agentparty-commons/agents/agentparty-a&b-dev.json",
             channel: "dev",
             runner: "claude",
             workdir: Some("/srv/<duty>"),
             repo: None,
-            log_path: "/Users/leo/.agentparty/desktop/logs/x.log",
+            log_path: "/Users/leo/.agentparty-commons/desktop/logs/x.log",
             path: "/Users/leo/.local/bin:/opt/homebrew/bin:/usr/bin:/bin",
             runner_bin: Some("/Users/leo/.local/bin/claude"),
             generation: Some("install-42"),
@@ -1524,7 +1522,7 @@ mod tests {
         assert!(plist.contains("&lt;duty&gt;"));
         assert!(!plist.contains("ap_"));
         assert!(plist.contains("<key>RunAtLoad</key>"));
-        assert!(plist.contains("<string>--auto-upgrade</string>"));
+        assert!(!plist.contains("<string>--auto-upgrade</string>"));
         assert!(plist.contains("<key>AGENTPARTY_CONFIG</key>"));
         // #741:PATH 必须进 EnvironmentVariables,否则 launchd 精简 PATH 找不到 codex/claude runner。
         assert!(plist.contains("<key>PATH</key>"));
@@ -1533,7 +1531,7 @@ mod tests {
         ));
         // #744:AP_DUTY_LABEL 的值必须紧跟其 key(不能只是碰巧 label 在别处出现,#745 CodeRabbit)。
         assert!(plist
-            .contains("<key>AP_DUTY_LABEL</key>\n    <string>com.agentparty.duty.x.dev</string>"));
+            .contains("<key>AP_DUTY_LABEL</key>\n    <string>com.zmns.agentpartycommons.duty.x.dev</string>"));
         assert!(plist.contains("<key>AP_DUTY_GENERATION</key>\n    <string>install-42</string>"));
         assert!(plist.contains("/Users/leo/.local/bin"));
         // --repo 未指定时绝不出现

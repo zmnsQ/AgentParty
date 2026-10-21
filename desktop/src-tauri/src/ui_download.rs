@@ -356,7 +356,7 @@ mod tests {
             "published_at": "2026-07-11T07:30:00Z",
             "archive": {
                 "name": "agentparty-desktop-ui-v1.4.0.tar.gz",
-                "url": "https://github.com/leeguooooo/AgentParty/releases/download/desktop-ui/agentparty-desktop-ui-v1.4.0.tar.gz",
+                "url": "https://updates.invalid/agentparty-commons/agentparty-desktop-ui-v1.4.0.tar.gz",
                 "sizeBytes": bundle.len(),
                 "fileCount": 1,
                 "sha256": sha256_hex(bundle),

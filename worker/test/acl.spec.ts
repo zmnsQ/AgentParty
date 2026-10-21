@@ -40,18 +40,22 @@ const legacyCh: ChannelAcl = { slug: "old", visibility: "private", owner_account
 const publicWatchCh: ChannelAcl = { slug: "watch", visibility: "public_watch", owner_account: LEO }; // #381 任意人可读
 
 describe("canAccessChannel v2 matrix (spec §5.4/§5.5)", () => {
-  it("public channel: every identity may enter (public 先于 scope)", () => {
-    for (const id of [apAgent, apHuman, legacyAgent, legacyReadonly, scopedAgent, scopedReadonly, roNoScope, oidcOwner, oidcFan]) {
+  it("public channel: unscoped identities may enter; a scope remains a hard boundary", () => {
+    for (const id of [apAgent, apHuman, legacyAgent, legacyReadonly, roNoScope, oidcOwner, oidcFan]) {
       expect(canAccessChannel(id, publicCh, false)).toBe(true);
     }
+    for (const id of [scopedAgent, scopedReadonly]) expect(canAccessChannel(id, publicCh, false)).toBe(false);
+    expect(canAccessChannel({ ...scopedAgent, channel_scope: publicCh.slug }, publicCh, false)).toBe(true);
   });
 
   // #381：public_watch 的读门与 public 完全一致——任何通过鉴权的身份（含粉丝/只读/无 scope）都可观看。
   // 写门（参与）不在本纯函数内判断，由 worker 的 canParticipateInChannel + DO 强制（见 public-watch.spec）。
-  it("public_watch channel: every identity may READ, same as public (write-gate is layered elsewhere)", () => {
-    for (const id of [apAgent, apHuman, legacyAgent, legacyReadonly, scopedAgent, scopedReadonly, roNoScope, oidcOwner, oidcFan]) {
+  it("public_watch channel: unscoped identities may read, with the same hard scope limit as public", () => {
+    for (const id of [apAgent, apHuman, legacyAgent, legacyReadonly, roNoScope, oidcOwner, oidcFan]) {
       expect(canAccessChannel(id, publicWatchCh, false)).toBe(true);
     }
+    for (const id of [scopedAgent, scopedReadonly]) expect(canAccessChannel(id, publicWatchCh, false)).toBe(false);
+    expect(canAccessChannel({ ...scopedReadonly, channel_scope: publicWatchCh.slug }, publicWatchCh, false)).toBe(true);
   });
 
   it("account owner (self / own agent / OIDC owner) enters own private channels", () => {
@@ -72,14 +76,14 @@ describe("canAccessChannel v2 matrix (spec §5.4/§5.5)", () => {
     expect(canAccessChannel(scopedAgent, collabCh, false)).toBe(true); // scope 命中
     expect(canAccessChannel(scopedAgent, privateOwned, false)).toBe(false); // 同 owner 也拒（scope 硬上限）
     expect(canAccessChannel(scopedAgent, otherOwned, false)).toBe(false);
-    expect(canAccessChannel(scopedAgent, publicCh, false)).toBe(true); // 公开频道可发
+    expect(canAccessChannel(scopedAgent, publicCh, false)).toBe(false); // 公开群也不能越过 scope
   });
 
   it("channel-scoped readonly: read-only single channel; scope mismatch forbidden (连读都拒)", () => {
     expect(canAccessChannel(scopedReadonly, collabCh, false)).toBe(true); // 只读单频道
     expect(canAccessChannel(scopedReadonly, privateOwned, false)).toBe(false); // scope 不匹配连读都拒
     expect(canAccessChannel(scopedReadonly, otherOwned, false)).toBe(false);
-    expect(canAccessChannel(scopedReadonly, publicCh, false)).toBe(true);
+    expect(canAccessChannel(scopedReadonly, publicCh, false)).toBe(false);
   });
 
   it("readonly without scope: private denied (不该再签发)", () => {
@@ -760,7 +764,7 @@ describe("GET /api/channels hides inaccessible private channels (spec §3.2)", (
 
 // ── channel-scoped token 硬上限（spec §5.3/§5.4/§5.5）── 跨公司隔离的真正手段 ──
 describe("channel_scope enforcement (spec §5.4/§5.5)", () => {
-  it("scoped agent token: only its scope channel; same-owner other private is forbidden; public ok", async () => {
+  it("scoped agent token: only its scope channel, including when other channels are public", async () => {
     const acct = `${uniq("acct")}@leeguoo.com`;
     const { token: ownerTok } = await seedToken("agent", uniq("owner"), { owner: acct });
     const collab = await makeChannel(ownerTok, "private"); // owner_account = acct
@@ -780,16 +784,17 @@ describe("channel_scope enforcement (spec §5.4/§5.5)", () => {
     expect((await api(`/api/channels/${mine}/messages`, scoped)).status).toBe(403);
     expect((await postMsg(mine, scoped, "let me in")).status).toBe(403);
 
-    // 公开频道仍可进可发
-    expect(await wsUpgradeStatus(pub, scoped)).toBe(101);
-    expect((await postMsg(pub, scoped, "public hello")).status).toBe(200);
+    // 公开频道同样受 scope 硬上限保护。
+    expect((await wsForbiddenClose(pub, scoped)).code).toBe(1008);
+    expect((await api(`/api/channels/${pub}/messages`, scoped)).status).toBe(403);
+    expect((await postMsg(pub, scoped, "public hello")).status).toBe(403);
 
-    // scoped token 不在别账号私有频道的列表里，只看得到 scope 频道 + public
+    // 列表也只返回该 scope 的频道。
     const listSlugs = ((await (await api("/api/channels", scoped)).json()) as {
       channels: { slug: string }[];
     }).channels.map((ch) => ch.slug);
     expect(listSlugs).toContain(collab);
-    expect(listSlugs).toContain(pub);
+    expect(listSlugs).not.toContain(pub);
     expect(listSlugs).not.toContain(mine);
   });
 

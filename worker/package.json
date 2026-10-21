@@ -5,17 +5,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler-accounts dev",
+    "dev": "wrangler dev --local --ip 127.0.0.1 --port 8787",
     "build:web": "bun run --cwd ../web build",
-    "migrate:remote": "wrangler-accounts d1 migrations apply agentparty --remote",
-    "deploy": "node scripts/deploy-local.mjs",
-    "deploy:prod": "node scripts/deploy-local.mjs",
+    "migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy",
     "smoke:runtime-peers": "node scripts/smoke-runtime-peers.mjs",
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "verify:remote-schema": "node scripts/verify-remote-schema.mjs",
     "verify:test-runtime": "node scripts/verify-test-runtime.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate:local": "wrangler d1 migrations apply DB --local"
   },
   "dependencies": {
     "@agentparty/shared": "workspace:*",

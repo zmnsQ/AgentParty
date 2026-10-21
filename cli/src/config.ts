@@ -176,7 +176,7 @@ export function agentpartyHome(
   env: NodeJS.ProcessEnv = process.env,
   userHome: string = homedir(),
 ): string {
-  return env.AGENTPARTY_HOME || join(userHome, ".agentparty");
+  return env.AGENTPARTY_HOME || join(userHome, ".agentparty-commons");
 }
 
 export interface LocalAgentConfigHint {

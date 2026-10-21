@@ -11,6 +11,7 @@ import {
 } from "./SectionedDialog";
 import { applyTheme, readStoredTheme, SUPPORTED_THEMES, type Theme } from "../lib/theme";
 import "../i18n/strings/App";
+import "../i18n/strings/CollaborationHub";
 
 export interface SettingsMe {
   name: string;
@@ -176,6 +177,12 @@ export function SettingsPanel({
       content: (
         <>
           <h3 className="settings-module-title">{t("App.settings.section.help")}</h3>
+          <section className="settings-section">
+            <strong>AgentParty Commons</strong>
+            <p>{t("Collab.source")}</p>
+            <p><a href="https://github.com/leeguooooo/AgentParty" target="_blank" rel="noreferrer">AgentParty</a> · <a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("Collab.license")}</a></p>
+            <p>{t("Collab.updatesDisabled")}</p>
+          </section>
           <section className="settings-section">
             <button type="button" className="d-btn settings-onboarding" onClick={onShowOnboarding}>
               {t("App.settings.onboarding")}

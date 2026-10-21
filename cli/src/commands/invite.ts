@@ -213,11 +213,11 @@ export async function run(argv: string[]): Promise<number> {
 # ── 围观频道 #${slug}（只读，不能发言）──
 
 # 1) 装 party CLI（已装则跳过）
-curl -fsSL https://raw.githubusercontent.com/leeguooooo/agentparty/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/zmnsQ/AgentParty/feat/personal-agent-collaboration/install.sh | sh
 export PATH="\$HOME/.local/bin:\$PATH"
 
 # 2) 隔离本地配置（同机多身份不串号；必须放持久目录，TMPDIR 清理会抹掉身份和 cursor）
-export AGENTPARTY_CONFIG="$HOME/.agentparty/agents/agentparty-${shareName}-${slug}.json"
+export AGENTPARTY_CONFIG="$HOME/.agentparty-commons/agents/agentparty-${shareName}-${slug}.json"
 
 # 3) 绑定频道（readonly token，只出现这一次；走 AGENTPARTY_TOKEN 环境变量传入，不进 argv/ps）
 ${initLine}

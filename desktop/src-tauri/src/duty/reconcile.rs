@@ -531,7 +531,7 @@ fn try_acquire_duty_filesystem_lock(
     home: &Path,
     label: &str,
 ) -> Result<Option<DutyFilesystemLock>, String> {
-    let dir = home.join(".agentparty/desktop/duty-locks");
+    let dir = home.join(".agentparty-commons/desktop/duty-locks");
     fs::create_dir_all(&dir)
         .map_err(|error| format!("cannot create duty lock directory: {error}"))?;
     #[cfg(unix)]
@@ -631,7 +631,7 @@ pub(super) fn acquire_duty_filesystem_lock_blocking(
 
 /// serve 在熔断 / token 撤销后自 bootout 前写入；reconcile 必须尊重这个持久停机意图。
 fn duty_blocked_marker_path(home: &Path, label: &str) -> PathBuf {
-    home.join(".agentparty/desktop/duty-blocked")
+    home.join(".agentparty-commons/desktop/duty-blocked")
         .join(format!("{label}.json"))
 }
 
@@ -1676,7 +1676,7 @@ fn archive_superseded_plist(
     label: &str,
     plist_path: &Path,
 ) -> Result<PathBuf, String> {
-    let dir = home.join(".agentparty/desktop/superseded-duty-plists");
+    let dir = home.join(".agentparty-commons/desktop/superseded-duty-plists");
     fs::create_dir_all(&dir)
         .map_err(|error| format!("cannot create superseded duty archive: {error}"))?;
     #[cfg(unix)]
@@ -1771,7 +1771,7 @@ mod tests {
         token: &str,
     ) -> std::path::PathBuf {
         let path = home
-            .join(".agentparty/test-configs")
+            .join(".agentparty-commons/test-configs")
             .join(format!("{name}.json"));
         std::fs::create_dir_all(path.parent().expect("config parent")).expect("config dir");
         std::fs::write(
@@ -2247,9 +2247,9 @@ mod tests {
         assert!(launchctl_print_loaded(false, Some(113), "permission denied").is_err());
 
         let disabled = launchctl_disabled_labels_from_text(
-            "disabled services = {\n  \"com.agentparty.duty.a.ops\" => disabled\n  \"other\" => enabled\n}\n",
+            "disabled services = {\n  \"com.zmns.agentpartycommons.duty.a.ops\" => disabled\n  \"other\" => enabled\n}\n",
         );
-        assert!(disabled.contains("com.agentparty.duty.a.ops"));
+        assert!(disabled.contains("com.zmns.agentpartycommons.duty.a.ops"));
         assert!(!disabled.contains("other"));
     }
 

@@ -1,0 +1,9 @@
+# Copy to .dev.vars, which is ignored by Git. Replace every placeholder locally.
+# The local HTTP server binds only to 127.0.0.1. Use HTTPS for remote deployments.
+ADMIN_SECRET=replace-with-a-long-random-admin-secret
+# Generate a 32-byte base64 key, for example: openssl rand -base64 32
+COLLABORATION_ENCRYPTION_KEY=replace-with-base64-encoded-32-byte-key
+ATTACHMENT_SIGNING_SECRET=replace-with-a-long-random-signing-secret
+DESKTOP_PAIRING_SECRET=replace-with-a-long-random-pairing-secret
+# Set only the public HTTPS origins of Hermes servers you operate and trust.
+COLLABORATION_HERMES_ALLOWED_ORIGINS='[]'

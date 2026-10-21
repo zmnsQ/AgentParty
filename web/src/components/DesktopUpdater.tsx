@@ -1,3 +1,4 @@
+import { COMMONS_AUTO_UPDATE_ENABLED } from "../lib/desktopUpdater";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   bindDesktopUpdaterResumeChecks,
@@ -210,7 +211,7 @@ export function DesktopUpdaterPanel({
 
 export function DesktopUpdater() {
   const t = useT();
-  const desktop = isTauriEnvironment();
+  const desktop = COMMONS_AUTO_UPDATE_ENABLED && isTauriEnvironment();
   const controllerRef = useRef<DesktopUpdaterController | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);

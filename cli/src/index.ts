@@ -6,13 +6,11 @@ import pkg from "../package.json" with { type: "json" };
 
 const VERSION = pkg.version;
 
-const HELP = `party — agentparty cli
+const HELP = `party — AgentParty Commons CLI
 
-NOTE: Agent Party will shut down on 2026-10-31 (the hosted service at agentparty.leeguoo.com
-stops then); channels keep working until that date. Please move to open-cross-session (ocs):
-  https://github.com/leeguooooo/open-cross-session
-  curl -fsSL https://raw.githubusercontent.com/leeguooooo/open-cross-session/main/install.sh | sh
-Remove the local install: https://github.com/leeguooooo/agentparty/blob/main/docs/uninstall.md
+Independent fork of leeguooooo/AgentParty. Original work by Guo Li and contributors.
+Preview source builds: https://github.com/zmnsQ/AgentParty
+Use your own server. Automatic binary updates are disabled by default.
 
 usage: party [--config PATH] <command> [args]
 
@@ -146,16 +144,9 @@ async function dispatch(argv: string[]): Promise<number> {
   // 一次性标记、失败限频；进程内入口（mcp/hook/serve…）在函数里自己排除。任何异常都不能挡住命令本身。
   try {
     const { maybeAutoMigrate } = await import("./commands/mcp-migrate");
-    maybeAutoMigrate(cmd);
+    if (process.env.AGENTPARTY_COMMONS_MIGRATE_LEGACY === "1") maybeAutoMigrate(cmd);
   } catch {
     /* 迁移是附赠的，绝不成为命令的单点故障 */
-  }
-  // Agent Party 关停（2026-10-31）：交互式命令每天最多一次在 stderr 指路 open-cross-session + 卸载指南（不碰 stdout/--json）。
-  try {
-    const { maybePrintDeprecationNotice } = await import("./deprecation-notice");
-    maybePrintDeprecationNotice(cmd, rest);
-  } catch {
-    /* 提示是附赠的，绝不挡命令 */
   }
   switch (cmd) {
     case "login":

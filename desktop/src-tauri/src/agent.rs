@@ -213,7 +213,7 @@ fn agentparty_home() -> Result<PathBuf, String> {
     }
     env::var_os("HOME")
         .or_else(|| env::var_os("USERPROFILE"))
-        .map(|home| PathBuf::from(home).join(".agentparty"))
+        .map(|home| PathBuf::from(home).join(".agentparty-commons"))
         .ok_or_else(|| "cannot locate the AgentParty config directory".to_string())
 }
 
@@ -226,7 +226,7 @@ fn candidate_config_paths(home: &Path) -> Vec<PathBuf> {
             }
         }
     }
-    // ~/.agentparty/agents/*.json — the join-pack AGENTPARTY_CONFIG convention and where
+    // ~/.agentparty-commons/agents/*.json — the join-pack AGENTPARTY_CONFIG convention and where
     // desktop_duty_adopt writes the adopted identity file. Without this the adopted config is
     // undiscoverable, so resolve_config (and thus duty_persist_inner) always fails and adopt rolls
     // back. Skip the *.json.tmp staging files (extension is "tmp", not "json").
@@ -478,7 +478,7 @@ pub(crate) fn live_output_path(home: &Path, kind: &str, id: &str) -> Option<Path
         return None;
     }
     Some(
-        home.join(".agentparty/desktop/live")
+        home.join(".agentparty-commons/desktop/live")
             .join(format!("{kind}-{safe}.json")),
     )
 }
@@ -809,6 +809,7 @@ pub(crate) fn desktop_agent_start(
         validate_repo(url)?;
     }
     let (config_path, summary) = resolve_config(&config_id)?;
+    let commons_home = agentparty_home()?;
     let secrets = config_secrets(&config_path);
     let key = instance_key(&config_id, &channel);
 
@@ -862,7 +863,10 @@ pub(crate) fn desktop_agent_start(
             args.push("--repo".to_string());
             args.push(url.to_string());
         }
-        let mut command = command.args(args).env("AGENTPARTY_CONFIG", &config_path);
+        let mut command = command
+            .args(args)
+            .env("AGENTPARTY_CONFIG", &config_path)
+            .env("AGENTPARTY_HOME", &commons_home);
         if let Some(live) = user_home().and_then(|home| live_output_path(&home, "instance", &key))
         {
             command = command.env("AGENTPARTY_SESSION_OUTPUT_FILE", live);
@@ -1063,7 +1067,7 @@ mod tests {
 
     #[test]
     fn trusted_configs_discovers_adopted_configs_under_agents_dir() {
-        // desktop_duty_adopt writes ~/.agentparty/agents/agentparty-<name>-<channel>.json; resolve_config
+        // desktop_duty_adopt writes ~/.agentparty-commons/agents/agentparty-<name>-<channel>.json; resolve_config
         // must find it there or one-click adopt always fails (config undiscoverable -> persist rolls back).
         let home = TempDir::new().unwrap();
         let agents = home.path().join("agents");
@@ -1345,9 +1349,9 @@ mod tests {
         let path = super::live_output_path(home, "instance", "../../etc:dev").unwrap();
         assert_eq!(
             path,
-            std::path::PathBuf::from("/Users/x/.agentparty/desktop/live/instance-.._.._etc_dev.json")
+            std::path::PathBuf::from("/Users/x/.agentparty-commons/desktop/live/instance-.._.._etc_dev.json")
         );
-        assert!(path.starts_with("/Users/x/.agentparty/desktop/live"));
+        assert!(path.starts_with("/Users/x/.agentparty-commons/desktop/live"));
         assert!(super::live_output_path(home, "other", "a").is_none());
         assert!(super::live_output_path(home, "duty", "").is_none());
         assert!(super::live_output_path(home, "duty", "..").is_none());
