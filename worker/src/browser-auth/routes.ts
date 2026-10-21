@@ -24,7 +24,18 @@ function origin(env: AppEnv): string {
   } catch { return fail('authentication_not_configured', 503); }
 }
 function csrf(c: Ctx): void {
-  if (c.req.header('origin') !== origin(c.env) || c.req.header('x-agentparty-browser') !== '1') fail('origin_not_allowed', 403);
+  const publicOrigin = origin(c.env);
+  const requestUrl = new URL(c.req.url);
+  const receivedOrigin = c.req.header('origin');
+  // Cloudflare terminates browser HTTPS but the isolated Wrangler/workerd
+  // loopback transport may project both the request URL and Origin as HTTP.
+  // Accept this projection ONLY for the exact configured public hostname.
+  // Never trust a caller-supplied forwarded-proto header or another hostname.
+  const isLoopbackProjection = requestUrl.protocol === 'http:'
+    && requestUrl.host === new URL(publicOrigin).host
+    && receivedOrigin === requestUrl.origin;
+  if ((receivedOrigin !== publicOrigin && !isLoopbackProjection)
+    || c.req.header('x-agentparty-browser') !== '1') fail('origin_not_allowed', 403);
   const site = c.req.header('sec-fetch-site');
   if (site && site !== 'same-origin' && site !== 'none') fail('origin_not_allowed', 403);
 }
