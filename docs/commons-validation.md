@@ -1,5 +1,13 @@
 # Commons development-preview validation
 
+## Client-scope supplement integrated with the latest development branch
+
+This supplement preserves the target’s backend and regression tests. Its latest
+executed counts and limits are in [the client-scope review](client-scope-review-2026-10-21.zh.md)
+and [the validation record](validation/client-scope-2026-10-21.json).
+Earlier validation snapshots are retained below.
+
+
 ## Current review branch: durable receipts and identity export (2026-10-21)
 
 Based on `01866a7`, branch `fix/durable-receipts-export-20261021` preserves all

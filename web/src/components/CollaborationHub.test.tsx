@@ -8,7 +8,7 @@ import { LocaleProvider } from "../i18n/locale";
 import { CollaborationStrings } from "../i18n/strings/CollaborationHub";
 import { clearApiBase, setApiBase } from "../lib/base";
 import { CollaborationApiError, type CollaborationClient } from "../lib/collaborationApi";
-import { ForbiddenError } from "../lib/api";
+import { AuthError, ForbiddenError } from "../lib/api";
 import { codeProposalApi } from "../lib/codeProposalApi";
 import { CloudAgentConnections, CloudAgentRuns } from "./CloudAgentConnections";
 import { RepositoryConnections } from "./RepositoryConnections";
@@ -374,5 +374,103 @@ describe("collaboration session isolation", () => {
     await act(async () => { renderer!.unmount(); }); renderer = null;
     await act(async () => { complete(file); });
     expect(posts).toBe(0);
+  });
+});
+
+
+function scopePending<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((ok, fail) => { resolve = ok; reject = fail; });
+  return { promise, resolve, reject };
+}
+
+async function rerender(node: ReactNode) {
+  await act(async () => { renderer!.update(<LocaleProvider>{node}</LocaleProvider>); });
+}
+
+describe("private workspace scope isolation", () => {
+  test.each(["group", "account", "server"])("clears data and secret form state immediately on a %s switch", async (change: string) => {
+    const next = scopePending<CollaborationSummary>();
+    let reads = 0;
+    const scopedClient = client({ summary: async () => ++reads === 1 ? summary : next.promise });
+    await mount(<CollaborationHub token="old-token" slug="demo" client={scopedClient} />);
+    await click("Edit");
+    await act(async () => {
+      renderer!.root.findByProps({ type: "password" }).props.onChange({ target: { value: "OLD PRIVATE SECRET" } });
+      renderer!.root.findByType("textarea").props.onChange({ target: { value: "OLD PRIVATE PROMPT" } });
+    });
+    if (change === "server") setApiBase("https://different-server.example");
+    await rerender(<CollaborationHub token={change === "account" ? "new-token" : "old-token"} slug={change === "group" ? "new-group" : "demo"} client={scopedClient} />);
+    expect(reads).toBe(2);
+    expect(text(renderer!.root)).not.toContain("Research helper");
+    expect(renderer!.root.findAllByProps({ type: "password" })).toHaveLength(0);
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+    await act(async () => { next.resolve({ ...summary, connections: [{ ...connection, name: "Current scope helper" }] }); });
+    expect(text(renderer!.root)).toContain("Current scope helper");
+    expect(renderer!.root.findByType("textarea").props.value).toBe("");
+    await click("Edit");
+    expect(renderer!.root.findByProps({ type: "password" }).props.value).toBe("");
+  });
+
+  test.each(["success", "unauthorized"])("ignores a late %s response from an abandoned group", async (result: string) => {
+    const previous = scopePending<CollaborationSummary>();
+    let authFailures = 0;
+    const scopedClient = client({ summary: async (_token, slug) => slug === "old" ? previous.promise : { ...summary, connections: [{ ...connection, name: "New private helper" }] } });
+    const failed = () => { authFailures++; };
+    await mount(<CollaborationHub token="token" slug="old" client={scopedClient} onAuthFailed={failed} />);
+    await rerender(<CollaborationHub token="token" slug="new" client={scopedClient} onAuthFailed={failed} />);
+    await act(async () => { if (result === "success") previous.resolve(summary); else previous.reject(new AuthError("Old account expired")); });
+    expect(text(renderer!.root)).toContain("New private helper");
+    expect(text(renderer!.root)).not.toContain("Research helper");
+    expect(text(renderer!.root)).not.toContain("Old account expired");
+    expect(authFailures).toBe(0);
+  });
+
+  test.each([401, 403])("removes cached private data and controls after a %s refresh denial", async (status: number) => {
+    let reads = 0; let authFailures = 0;
+    const scopedClient = client({ summary: async () => {
+      if (++reads > 1) throw status === 401 ? new AuthError("No longer authorized") : new ForbiddenError("No longer authorized");
+      return summary;
+    } });
+    await mount(<CollaborationHub token="token" slug="demo" client={scopedClient} onAuthFailed={() => { authFailures++; }} />);
+    expect(text(renderer!.root)).toContain("Research helper");
+    await act(async () => { renderer!.root.findByProps({ "aria-label": "Refresh" }).props.onClick(); });
+    expect(text(renderer!.root)).toContain("No longer authorized");
+    expect(text(renderer!.root)).not.toContain("Research helper");
+    expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
+    expect(authFailures).toBe(status === 401 ? 1 : 0);
+  });
+});
+
+describe("file upload follow-up scope", () => {
+  test.each(["unmount", "server", "permission"])("does not post or upload the next file after %s changes while an upload is pending", async (change: string) => {
+    const uploaded = scopePending<ChannelFile>();
+    let uploads = 0; let posts = 0; let lists = 0;
+    const scopedClient = client({ files: async () => { lists++; return { files: [file], cursor: null }; }, shareFile: async () => { posts++; return { seq: 99 }; } });
+    const upload = async () => { uploads++; return uploaded.promise; };
+    await mount(<ChannelFiles token="old-token" slug="demo" canUpload client={scopedClient} upload={upload} />);
+    await act(async () => {
+      renderer!.root.findByProps({ type: "file" }).props.onChange({ currentTarget: { files: [new File(["one"], "one.txt"), new File(["two"], "two.txt")], value: "" } });
+    });
+    expect(uploads).toBe(1);
+    if (change === "unmount") await act(async () => { renderer!.unmount(); renderer = null; });
+    else if (change === "server") setApiBase("https://another-server.example");
+    else await rerender(<ChannelFiles token="old-token" slug="demo" canUpload={false} client={scopedClient} upload={upload} />);
+    await act(async () => { uploaded.resolve(file); });
+    expect(uploads).toBe(1);
+    expect(posts).toBe(0);
+    expect(lists).toBe(change === "permission" ? 2 : 1);
+  });
+
+  test("clears a standalone file list immediately when the group changes", async () => {
+    const next = scopePending<{ files: ChannelFile[]; cursor: null }>();
+    const scopedClient = client({ files: async (_token, slug) => slug === "demo" ? { files: [file], cursor: null } : next.promise });
+    await mount(<ChannelFiles token="token" slug="demo" canUpload client={scopedClient} />);
+    expect(text(renderer!.root)).toContain("notes.txt");
+    await rerender(<ChannelFiles token="token" slug="other" canUpload client={scopedClient} />);
+    expect(text(renderer!.root)).not.toContain("notes.txt");
+    await act(async () => { next.resolve({ files: [], cursor: null }); });
+    expect(text(renderer!.root)).not.toContain("notes.txt");
   });
 });
