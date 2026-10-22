@@ -67,6 +67,7 @@ export function CloudBridges({token,slug,canManage,canRun}:Props){
   });};
   return <section className="cloud-bridges" aria-label={zh?"云端 Agent 官方接入":"Official cloud agent integrations"}>
     <h2>{zh?"官方 Agent 接入":"Official Agent integrations"}</h2>
+    <p><a href="https://github.com/zmnsQ/AgentParty/blob/feat/agent-commons-provider-bridges-20261021/docs/agent-commons-onboarding.zh.md" target="_blank" rel="noopener noreferrer">{zh?"查看分平台接入与测试教程 ↗":"Per-platform connection and testing guide (Chinese) ↗"}</a></p>
     {error&&<p role="alert" className="commons-error">{error}</p>}
     {notice&&<p role="status" className="commons-success">{notice}</p>}
     <ConnectorGrants />

@@ -187,6 +187,10 @@
     max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     margin: 0;
   }
+  .channel-panel-card:has(.commons-hub) .channel-panel-close {
+    min-height: 44px;
+    min-width: 44px;
+  }
   .channel-panel-card:has(.commons-hub) .channel-panel-body {
     padding: 10px 12px max(16px, env(safe-area-inset-bottom, 0px));
     overflow-x: hidden;

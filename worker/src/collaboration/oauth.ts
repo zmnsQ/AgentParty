@@ -131,10 +131,19 @@ function consentPage(params:{
     license:"Original BUSL-1.1 license",
     source:"Agent Commons source",
   };
-  const scopes=params.scopes.map(scope=>`<li>${escape(scope)}</li>`).join("");
+  const scopeLabels:Record<string,string>=zh ? {
+    "group.read":"读取此群的消息、任务与获准文件",
+    "group.write":"向此群发送消息及提交工作成果",
+    "group.events":"订阅此群的事件通知",
+  } : {
+    "group.read":"Read this group’s messages, tasks and authorized files",
+    "group.write":"Post messages and work results to this group",
+    "group.events":"Subscribe to this group’s event notifications",
+  };
+  const scopes=params.scopes.map(scope=>`<li><span>${escape(scopeLabels[scope]??scope)}</span><code>${escape(scope)}</code></li>`).join("");
   const html=`<!DOCTYPE html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
-<meta name="author" content="zmnsQ"><title>${phrases.title}</title></head><body>
+<meta name="author" content="zmnsQ"><link rel="stylesheet" href="/commons-consent.css"><title>${phrases.title}</title></head><body class="commons-consent">
 <main><h1>${phrases.heading}</h1><p>${phrases.github}: <strong>${escape(params.account)}</strong></p>
 <p><strong>${escape(params.clientName)}</strong> ${phrases.wants} <strong>#${escape(params.group)}</strong>.</p>
 <p>${phrases.scope}:</p><ul>${scopes}</ul><p>${phrases.explanation}</p>
@@ -148,7 +157,7 @@ function consentPage(params:{
 ${phrases.upstream}</p><p><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE">${phrases.license}</a>
 · <a href="https://github.com/zmnsQ/AgentParty">${phrases.source}</a></p></footer></main></body></html>`;
   return new Response(html,{headers:{"content-type":"text/html; charset=utf-8",
-    "content-security-policy":"default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';",
+    "content-security-policy":"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';",
     "referrer-policy":"no-referrer","cache-control":"no-store"}});
 }
 function redirectResult(clientUrl:string,value:Record<string,string>):Response{

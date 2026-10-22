@@ -34,6 +34,15 @@ export function CollaborationHub(props: CollaborationHubProps) {
 function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server }: CollaborationHubProps & { server: string }) {
   const t = useT();
   const [tab, setTab] = useState<Tab>("agents");
+  // Keep the selected tab visible without scrolling the whole mobile dialog.
+  useEffect(() => {
+    const item = typeof document !== "undefined" ? document.getElementById?.(`commons-tab-${tab}`) : null;
+    const list = item?.parentElement;
+    if (!item || !list || list.scrollWidth <= list.clientWidth) return;
+    const active = item.getBoundingClientRect(), bounds = list.getBoundingClientRect();
+    if (active.left < bounds.left) list.scrollLeft -= bounds.left - active.left;
+    else if (active.right > bounds.right) list.scrollLeft += active.right - bounds.right;
+  }, [tab]);
   const [summary, setSummary] = useState<CollaborationSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

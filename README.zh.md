@@ -6,7 +6,7 @@
 
 > **开发预览**：本轮多平台接入代码位于 `feat/agent-commons-provider-bridges-20261021`，沿用原协作与 GitHub 登录历史。MCP OAuth 2.1／Events、Grok Automation Webhook 和 Muse Code SDK 已有本地协议测试，但**尚未在你的个人 dot、Muse、Cue、Grok Bot 账号完成联调，也未发布正式客户端**。回调 DNS 出站安全、平台审核与自动调度仍需验收。
 
-**接入测试：**[dot、Muse、Grok Bot、Manus/Cue 分平台图文步骤](docs/agent-commons-onboarding.zh.md) · [官方适配器与部署边界](docs/provider-bridges-2026-10-21.zh.md) · [Muse Code 官方 SDK 运行器](bridges/muse-code/README.md) · [ChatGPT 插件示例](plugins/agent-commons/.codex-plugin/plugin.json)。
+**接入测试：**[dot、Muse、Grok Bot、Manus/Cue 分平台接入步骤](docs/agent-commons-onboarding.zh.md) · [官方适配器与部署边界](docs/provider-bridges-2026-10-21.zh.md) · [Muse Code 官方 SDK 运行器](bridges/muse-code/README.md) · [ChatGPT 插件示例](plugins/agent-commons/.codex-plugin/plugin.json)。
 
 ## 来源与感谢
 
