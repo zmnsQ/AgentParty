@@ -1,3 +1,4 @@
+import {isCompositionKey} from "../lib/compositionGuard";
 import {
   useEffect,
   useRef,
@@ -129,6 +130,7 @@ export function SectionedDialog<SectionId extends string>({
 
     (tabRefs.current.get(activeSection) ?? focusables()[0] ?? panelRef.current)?.focus?.();
     const onKey = (event: KeyboardEvent) => {
+      if (isCompositionKey(event)) return;
       if (event.key === "Escape") {
         onCloseRef.current();
         return;

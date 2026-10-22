@@ -1,3 +1,5 @@
+import {ChannelWelcome} from "../components/ChannelWelcome";
+import "../i18n/strings/Studio";
 // 频道页：presence 条 + 实时消息流 + 内联错误条幅 + 插话框。
 // App 用 key={slug} 挂载本组件，切频道即整体重建（socket/状态零残留）。
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -5081,16 +5083,7 @@ export function ChannelPage({
               ),
             )}
         {bootstrapped && state.messages.length === 0 && (
-          <div className="stream-empty" role="status" aria-live="polite">
-            <p className="stream-empty-lead">{t("Channel.empty.partyWatch", { slug })}</p>
-            <p className="stream-empty-lead">{t("Channel.empty.noMessagesHint")}</p>
-            <p className="d-empty">{t("Channel.empty.partyWatchCommand", { slug })}</p>
-            {canMintAgent && accountKey !== null && (
-              <button type="button" className="d-btn d-btn--primary" onClick={() => setAdminSurface("agentJoin", true)}>
-                {t("AgentJoin.open")}
-              </button>
-            )}
-          </div>
+          <ChannelWelcome onConnect={canMintAgent && accountKey !== null ? ()=>setAdminSurface("agentJoin", true) : undefined}/>
         )}
         {state.messages.length > 0 && visibleMessages.length === 0 && (
           <p className="d-empty" role="status" aria-live="polite">

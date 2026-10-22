@@ -1,0 +1,337 @@
+{
+  "source": "Production server-side view + exact shared theme tokens; synthetic display data, isolated Chrome CDP",
+  "passed": 37,
+  "cases": [
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "mode": "consent",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "mode": "renewed",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 3
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "mode": "error",
+      "horizontalOverflow": false,
+      "actionsAtLeast48px": true,
+      "permissions": 0
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "mode": "long-fields",
+      "horizontalOverflow": false
+    }
+  ]
+}

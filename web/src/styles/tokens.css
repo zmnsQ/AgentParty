@@ -1,106 +1,50 @@
-/* ============================================================================
-   AgentParty design tokens — 博客风（neo-brutalist terminal）：
-   米纸底 + 墨线硬边框 + 硬偏移阴影 + 珊瑚红点缀，全站 mono。
-   保留 data-theme 切回 midnight 终端风。
-   ========================================================================== */
-
-:root,
-:root[data-theme="doodle"] {
-  /* base surfaces */
-  --t-bg: #f4f1e8;
-  --t-panel: #ffffff;
-  --t-panel2: #f8f5ee;
-  --t-border: #1a1a1a;
-  /* text */
-  --t-text: #1a1a1a;
-  --t-body: #2a2820;
-  --t-muted: #8a857a;
-  --t-dim: #a49f92;
-  --t-faint: #c9c3b4;
-  /* semantic hues */
-  --t-green: #2f9e5b;
-  --t-red: #ff5447;
-  --t-blue: #3f6fe0;
-  --t-purple: #9a5bd0;
-  --t-accent: #ff5447;
-  --t-accent-ink: #ffffff;
-  /* 链接用烧橙，与珊瑚红主色区分层级 */
-  --t-link: #c2410c;
-  /* per-agent 颜色亮度：纸白底下名字要够深才读得清 */
-  --agent-l-name: 38%;
-  --agent-l-soft: 55%;
+/* Agent Commons Studio · zmnsQ. Original application: AgentParty (BUSL-1.1).
+ * Design reference: Caho1/open-claude-ui (MIT), see THIRD_PARTY_NOTICES.md.
+ * Stable doodle/midnight preference IDs are preserved for existing users. */
+:root,:root[data-theme="doodle"]{
+ --ac-surface-0:#f6f5f1;--ac-surface-1:#efeee8;--ac-surface-2:#faf9f6;--ac-surface-3:#ffffff;
+ --ac-border:#dedbd3;--ac-border-strong:#c8c3b8;
+ --t-bg:var(--ac-surface-0);--t-panel:var(--ac-surface-3);--t-panel2:var(--ac-surface-2);--t-border:var(--ac-border);
+ --t-text:#292720;--t-body:#49463f;--t-muted:#6f6b62;--t-dim:#78746a;--t-faint:var(--ac-border);
+ --t-green:#347354;--t-red:#b73f37;--t-blue:#315e9b;--t-purple:#7958a4;
+ --t-accent:#a54d32;--t-accent-ink:#ffffff;--t-link:#98492f;
+ --agent-l-name:37%;--agent-l-soft:55%;
+ --d-ink:#38352e;--d-paper:var(--ac-surface-0);--d-yellow:#f6ead8;--d-red:#a54d32;
+ --d-red-soft:#f8e8e3;--d-blue:#43688d;--d-blue-soft:#e9eff6;--d-green:#347354;--d-green-soft:#e9f2e9;
+ --d-amber:#94661c;--d-amber-soft:#f6efde;--d-shadow:rgba(43,34,22,.07);
+ --code-bg:#f3f1ec;--code-border:#e4e0d7;--scroll-track:transparent;
+ --ac-hover:rgba(63,48,31,.055);--ac-focus:rgba(165,77,50,.22);
+ --ac-shadow-sm:0 1px 2px rgba(43,34,22,.04),0 0 0 1px rgba(43,34,22,.04);
+ --ac-shadow-popover:0 16px 48px rgba(43,34,22,.12),0 0 0 1px rgba(43,34,22,.07);
+ --ac-shadow-modal:0 32px 100px rgba(43,34,22,.20),0 0 0 1px rgba(43,34,22,.08);
+ --ac-backdrop:rgba(30,27,22,.32);
 }
-
-/* 私有化部署可换回的终端主题（terminal-shell midnight 原值） */
-:root[data-theme="midnight"] {
-  --t-bg: #0e1014;
-  --t-panel: #161a20;
-  --t-panel2: #0a0c10;
-  --t-border: #1f242c;
-  --t-text: #e8eef4;
-  --t-body: #c8d0d8;
-  --t-muted: #a8b2bd;
-  --t-dim: #6b7682;
-  --t-faint: #3a4250;
-  --t-green: #7ee787;
-  --t-red: #ff7b72;
-  --t-blue: #7cc7ff;
-  --t-purple: #c4a7e7;
-  --t-accent: #ff6a00;
-  --t-accent-ink: #ffffff;
-  --t-link: #7cc7ff;
-  /* 暗底下调亮，否则名字糊进背景 */
-  --agent-l-name: 70%;
-  --agent-l-soft: 62%;
-  /* 暗底下墨线反白：边框用浅墨，阴影加深才可见；蜡笔软色换暗色版 */
-  --d-ink: #c8d0d8;
-  --d-shadow: rgba(0, 0, 0, 0.5);
-  --d-paper: #0e1014;
-  --d-yellow: #3a2f18;
-  --d-red-soft: #3a1f1c;
-  --d-blue-soft: #1a2436;
-  --d-green-soft: #16301f;
-  /* busy（#103）：琥珀色，暗底提亮免糊背景 */
-  --d-amber: #e8a24a;
-  --d-amber-soft: #3a2a12;
-  --code-bg: #0a0c10;
-  --code-border: #3a4250;
-  --scroll-track: #161a20;
+:root[data-theme="midnight"]{
+ --ac-surface-0:#20201d;--ac-surface-1:#191a17;--ac-surface-2:#272823;--ac-surface-3:#30312b;
+ --ac-border:#42433c;--ac-border-strong:#5a5b50;
+ --t-text:#f0eee7;--t-body:#d0cfc5;--t-muted:#aaa99c;--t-dim:#a2a193;
+ --t-accent:#d58e72;--t-accent-ink:#201b17;--t-link:#e3a78e;
+ --t-green:#96c3a0;--t-red:#ef9c91;--t-blue:#a2bad9;--t-purple:#c0a7da;
+ --agent-l-name:72%;--agent-l-soft:62%;
+ --d-ink:#e1ded4;--d-red:#d58e72;--d-shadow:rgba(0,0,0,.18);
+ --d-yellow:#403625;--d-red-soft:#473028;--d-blue:#a2bad9;--d-blue-soft:#2b3740;
+ --d-green:#96c3a0;--d-green-soft:#293b2f;--d-amber:#d5b76d;--d-amber-soft:#3b3526;
+ --code-bg:#1b1c18;--code-border:#42433c;
+ --ac-hover:rgba(255,255,240,.06);--ac-focus:rgba(213,142,114,.26);
+ --ac-shadow-sm:0 1px 2px rgba(0,0,0,.08),0 0 0 1px rgba(255,255,240,.03);
+ --ac-shadow-popover:0 16px 48px rgba(0,0,0,.32),0 0 0 1px rgba(255,255,240,.07);
+ --ac-shadow-modal:0 32px 100px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,240,.08);
+ --ac-backdrop:rgba(0,0,0,.50);
 }
-
-:root {
-  /* 蜡笔盘（沿用 --d-* 约定，色值对齐博客风） */
-  --d-ink: #1a1a1a;
-  --d-paper: #f4f1e8;
-  --d-yellow: #ffe9c7;
-  --d-red: #ff5447;
-  --d-red-soft: #ffe4e0;
-  --d-blue: #3f6fe0;
-  --d-blue-soft: #dde7ff;
-  --d-green: #34b36b;
-  --d-green-soft: #d8f0df;
-  /* busy（#103）：琥珀色，与 working 绿点、blocked 红明确区分 */
-  --d-amber: #c9720b;
-  --d-amber-soft: #ffeccb;
-  /* 硬偏移阴影：淡墨而非重墨，阴影只提"纸片感"不抢戏 */
-  --d-shadow: rgba(0, 0, 0, 0.16);
-  /* 代码块 / 滚动条配色（midnight 有对应暗色覆盖） */
-  --code-bg: #f1eee2;
-  --code-border: #e2ddce;
-  --scroll-track: #ece7d8;
-
-  /* presence 状态色映射（spec §9） */
-  --p-working: var(--d-green);
-  --p-waiting: var(--d-blue);
-  --p-blocked: var(--d-red);
-  --p-busy: var(--d-amber);
-  --p-done: #8a857a;
-  --p-offline: #cfcabb;
-
-  /* fonts：全站 mono（CJK 回退 PingFang/雅黑）；marker/hand 保留变量名，指向 mono */
-  --t-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, ui-monospace, "PingFang SC",
-    "Microsoft YaHei", monospace;
-  --d-marker: var(--t-mono);
-  --d-hand: var(--t-mono);
-  --t-sans: var(--t-mono);
+:root{
+ --t-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
+ --t-mono:"JetBrains Mono","SFMono-Regular",Consolas,ui-monospace,"PingFang SC","Microsoft YaHei",monospace;
+ --ac-display:ui-serif,Georgia,"Songti SC","STSong",serif;
+ --d-marker:var(--t-sans);--d-hand:var(--t-sans);
+ --p-working:var(--d-green);--p-waiting:var(--d-blue);--p-blocked:var(--t-red);--p-busy:var(--d-amber);--p-done:var(--t-muted);--p-offline:var(--t-faint);
+ --ac-radius-xs:6px;--ac-radius-sm:10px;--ac-radius-md:14px;--ac-radius-lg:20px;
+ --ac-duration-press:90ms;--ac-duration-fast:140ms;--ac-duration-panel:240ms;
+ --ac-ease-out:cubic-bezier(.16,1,.3,1);--ac-ease-standard:cubic-bezier(.2,0,0,1);
+ --ac-space-1:4px;--ac-space-2:8px;--ac-space-3:12px;--ac-space-4:16px;--ac-space-6:24px;--ac-space-8:32px;
 }
+@media(prefers-reduced-motion:reduce){:root{--ac-duration-press:0ms;--ac-duration-fast:0ms;--ac-duration-panel:0ms}}

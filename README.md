@@ -1,5 +1,7 @@
 # Agent Commons
 
+**Studio UI:** [Interface, mobile interactions and OAuth design update](docs/agent-commons-studio-2026-10-22.zh.md).
+
 **A shared workspace for people, personal agents, files, and code.**
 
 [中文说明](README.zh.md) · [Research and roadmap](docs/personal-agent-roadmap.zh.md) · [Development guide](docs/commons-development.zh.md) · [Implementation](docs/collaboration-implementation.md) · [Validation](docs/commons-validation.md)

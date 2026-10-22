@@ -1,3 +1,4 @@
+import {renderOAuthConsent,renderOAuthProblem,oauthPresentation} from "./oauth-pages";
 import type { Hono, Context } from "hono";
 import type { AppContext, AppEnv } from "../index";
 import type { TokenIdentity } from "../auth";
@@ -98,94 +99,8 @@ async function validCodeChallenge(input:string,challenge:string):Promise<boolean
   let delta=0;for(let i=0;i<out.length;i++)delta|=out.charCodeAt(i)^challenge.charCodeAt(i);
   return delta===0;
 }
-type ConsentLocale = "en" | "zh";
-function consentPage(params:{
-  id:string;nonce:string;clientName:string;group:string;scopes:string[];account:string;
-  /** Exact registered redirect URI, validated by the authorization route. */
-  redirectUri:string;
-  renewal?:"expired"|"session_changed"
-}, locale:ConsentLocale):Response {
-  const zh = locale==="zh";
-  const phrases = zh ? {
-    title:"Agent Commons — 授权云端 Agent",
-    heading:"授权 Agent Commons 群组连接",
-    github:"当前 GitHub 账号",
-    wants:"申请访问群组",
-    scope:"申请的操作权限",
-    explanation:"授权后将为这个群组创建独立、可随时撤销的 Agent 身份，不会提供你的 GitHub 仓库凭据或私人 ChatGPT 对话。",
-    approve:"允许访问此群组",
-    deny:"拒绝授权",
-    current:"现项目作者：",
-    derived:"本项目基于原项目",
-    upstream:"二次开发，原作者：郭立（Guo Li / leeguoo）及贡献者。这是独立衍生项目，非原作者官方版本。",
-    license:"原项目 BUSL-1.1 许可证",
-    source:"Agent Commons 项目源码",
-  } : {
-    title:"Agent Commons — Connect an agent",
-    heading:"Authorize an Agent Commons connection",
-    github:"Authenticated GitHub account",
-    wants:"requests access to group",
-    scope:"Requested operations",
-    explanation:"Granting access creates a dedicated, revocable agent identity for this group. It does not give the agent your GitHub repository credentials or personal ChatGPT conversations.",
-    approve:"Allow access to this group",
-    deny:"Deny",
-    current:"Current project author: ",
-    derived:"This project is independently developed based on",
-    upstream:"originally created by Guo Li (leeguoo) and contributors. This is not an official upstream release.",
-    license:"Original BUSL-1.1 license",
-    source:"Agent Commons source",
-  };
-  const scopeLabels:Record<string,string>=zh ? {
-    "group.read":"读取此群的消息、任务与获准文件",
-    "group.write":"向此群发送消息及提交工作成果",
-    "group.events":"订阅此群的事件通知",
-  } : {
-    "group.read":"Read this group’s messages, tasks and authorized files",
-    "group.write":"Post messages and work results to this group",
-    "group.events":"Subscribe to this group’s event notifications",
-  };
-  // Chromium enforces form-action on a native form's redirect chain. A self-only
-  // policy consumes the consent server-side but blocks the approved OAuth client
-  // callback, leaving the user on a now-used form. Permit only THIS validated
-  // client's callback origin. Complete redirect URI matching, nonce/session/MFA,
-  // scope checks and PKCE remain authoritative; no scheme or wildcard sources.
-  const callbackOrigin=new URL(params.redirectUri).origin;
-  const scopes=params.scopes.map(scope=>`<li><span>${escape(scopeLabels[scope]??scope)}</span><code>${escape(scope)}</code></li>`).join("");
-  const renewed = params.renewal ? (zh
-    ? "之前的确认页已过期或登录会话已更新。下面是新的授权确认，请重新核对群组与权限；尚未授予访问权限。"
-    : "The previous confirmation expired or your sign-in session changed. Review this fresh request and confirm again. Access has not been granted.") : "";
-  const expiryHint = zh ? "这张确认页有效 10 分钟。只有点击允许并通过服务器校验后，插件才能获得所列权限。"
-    : "This confirmation is valid for 10 minutes. The plugin receives the listed permissions only after you approve and the server validates the request.";
-  const html=`<!DOCTYPE html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="same-origin">
-<meta name="author" content="zmnsQ"><link rel="stylesheet" href="/commons-consent.css"><title>${phrases.title}</title></head><body class="commons-consent">
-<main><h1>${phrases.heading}</h1>${renewed?`<p role="status">${renewed}</p>`:""}<p>${phrases.github}: <strong>${escape(params.account)}</strong></p>
-<p><strong>${escape(params.clientName)}</strong> ${phrases.wants} <strong>#${escape(params.group)}</strong>.</p>
-<p>${phrases.scope}:</p><ul>${scopes}</ul><p>${phrases.explanation}</p><p>${expiryHint}</p>
-<form method="POST" action="/oauth/authorize">
-<input type="hidden" name="request_id" value="${escape(params.id)}">
-<input type="hidden" name="nonce" value="${escape(params.nonce)}">
-<button name="decision" value="approve" type="submit">${phrases.approve}</button>
-<button name="decision" value="deny" type="submit">${phrases.deny}</button></form>
-<footer><p><strong>${phrases.current}<a href="https://github.com/zmnsQ" rel="author noopener noreferrer">zmnsQ</a></strong></p>
-<p>${phrases.derived} <a href="https://github.com/leeguooooo/AgentParty">AgentParty</a>,
-${phrases.upstream}</p><p><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE">${phrases.license}</a>
-· <a href="https://github.com/zmnsQ/AgentParty">${phrases.source}</a></p></footer></main></body></html>`;
-  // Native HTML POSTs under no-referrer send Origin: null, including when
-  // posting to this very page. Preserve same-origin form attribution while
-  // suppressing Referer on cross-origin navigation. isExpectedOrigin remains
-  // strict; never accept null/missing Origin to compensate for this bug.
-  return new Response(html,{headers:{"content-type":"text/html; charset=utf-8",
-    "content-security-policy":`default-src 'none'; style-src 'self'; form-action 'self' ${callbackOrigin}; frame-ancestors 'none'; base-uri 'none';`,
-    "referrer-policy":"same-origin","cache-control":"no-store"}});
-}
 function consentUnavailable(request:Request):Response {
-  if(!request.headers.get("accept")?.includes("text/html"))return simple("invalid_or_expired_consent",403);
-  const zh=(request.headers.get("accept-language")??"").trim().toLowerCase().startsWith("zh");
-  const title=zh?"这次授权确认已失效":"This authorization confirmation is no longer valid";
-  const help=zh?"此确认单已使用或已失效，不能再次批准。请关闭此页面，回到 ChatGPT 中该插件重新点击连接；无需删除群组或重新创建 GitHub 登录应用。"
-    :"This one-use confirmation has already been used or is no longer available. Close this page and reconnect the plugin from ChatGPT. You do not need to delete the group or recreate your GitHub sign-in app.";
-  return new Response(`<!doctype html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${title}</title><link rel="stylesheet" href="/commons-consent.css"></head><body class="commons-consent"><main><h1>${title}</h1><p role="alert">${help}</p><p>${zh?"本页面没有授予任何新的访问权限。":"This page has not granted any new access."}</p><a href="/">${zh?"返回 Agent Commons":"Return to Agent Commons"}</a><footer>Agent Commons · zmnsQ · ${zh?"基于 AgentParty 二次开发":"Based on AgentParty"}</footer></main></body></html>`,{status:403,headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","referrer-policy":"no-referrer","content-security-policy":"default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none';"}});
+  return renderOAuthProblem(request,"invalid_or_expired_consent",403);
 }
 function redirectResult(clientUrl:string,value:Record<string,string>):Response{
   const out=new URL(clientUrl);
@@ -341,39 +256,42 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     const target=await client(c.env.DB,clientId);
     if(!target||!slug||!scopes||p.response_type!=="code"||p.code_challenge_method!=="S256"||
       !CHALLENGE.test(p.code_challenge??"")||!STATE.test(p.state??"")||
-      !JSON.parse(target.redirects_json).includes(redirect))return simple("invalid_authorization_request");
+      !JSON.parse(target.redirects_json).includes(redirect))return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
     const current=await readBrowserSession(c.env.DB,c.req.raw);
     if(!current||current.stage!=="ready"){
       const path="/oauth/authorize?"+new URLSearchParams(p).toString();
       const url=`${uri(c.env)}/api/auth/github/start?return_to=${encodeURIComponent(path)}`;
       return new Response(null,{status:302,headers:{location:url,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
-    if(!await groupOwned(c.env.DB,slug,current.account))return simple("group_owner_required",403);
-    if(current.enabled!==1)return simple("mfa_required",403);
-    if(!await mcpPermission(c.env.DB,slug,"group.read"))return simple("group_mcp_policy_denied",403);
+    if(!await groupOwned(c.env.DB,slug,current.account))return renderOAuthProblem(c.req.raw,"group_owner_required",403);
+    if(current.enabled!==1)return renderOAuthProblem(c.req.raw,"mfa_required",403);
+    if(!await mcpPermission(c.env.DB,slug,"group.read"))return renderOAuthProblem(c.req.raw,"group_mcp_policy_denied",403);
     // OAuth allows a reduced grant. Read-only policy must not force users to
     // enable writes just because a client requests every advertised scope.
     const approvedScopes:string[]=[];
     for(const scope of scopes)if(await mcpPermission(c.env.DB,slug,scope))approvedScopes.push(scope);
-    if(!approvedScopes.includes("group.read"))return simple("invalid_scope",400);
+    if(!approvedScopes.includes("group.read"))return renderOAuthProblem(c.req.raw,"invalid_scope",400);
     const nonce=random(),id="request_"+random();
     await c.env.DB.prepare(`INSERT INTO connector_oauth_pending
       (id,nonce_hash,browser_session_id,account,client_id,channel_slug,redirect_uri,state,code_challenge,scopes_json,resource,expires_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,await sha256Hex(nonce),current.id,current.account,clientId,
       slug,redirect,p.state,p.code_challenge,JSON.stringify(approvedScopes),resource,Date.now()+EXPIRY_MS).run();
-    const language=(c.req.header("accept-language")??"").trim().toLowerCase().startsWith("zh")?"zh":"en";
     const renewal=p.consent_retry==="expired"||p.consent_retry==="session_changed"?p.consent_retry:undefined;
-    return consentPage({id,nonce,clientName:target.name,group:slug,scopes:approvedScopes,account:current.account,redirectUri:redirect,renewal},language);
+    // Display metadata only; ownership and all grant checks already ran above.
+    const display=await c.env.DB.prepare("SELECT title FROM channels WHERE slug=? AND owner_account=?")
+      .bind(slug,current.account).first<{title:string|null}>();
+    return renderOAuthConsent({id,nonce,clientName:target.name,group:slug,groupTitle:display?.title,
+      scopes:approvedScopes,account:current.account,login:current.login,redirectUri:redirect,renewal},oauthPresentation(c.req.raw));
   });
   app.post("/oauth/authorize",async c=>{
-    if(!isExpectedOrigin(c.req.raw,c.env))return simple("invalid_origin",403);
-    let params:URLSearchParams;try{params=await parseBody(c.req.raw);}catch{return simple("invalid_request");}
+    if(!isExpectedOrigin(c.req.raw,c.env))return renderOAuthProblem(c.req.raw,"invalid_origin",403);
+    let params:URLSearchParams;try{params=await parseBody(c.req.raw);}catch{return renderOAuthProblem(c.req.raw,"invalid_request",400);}
     const id=params.get("request_id")??"",nonce=params.get("nonce")??"",decision=params.get("decision");
     if(["request_id","nonce","decision"].some(key=>params.getAll(key).length!==1)||
-      !/^request_[a-f0-9]{64}$/.test(id)||!/^[a-f0-9]{64}$/.test(nonce)||!["approve","deny"].includes(decision??""))return simple("invalid_request");
+      !/^request_[a-f0-9]{64}$/.test(id)||!/^[a-f0-9]{64}$/.test(nonce)||!["approve","deny"].includes(decision??""))return renderOAuthProblem(c.req.raw,"invalid_request",400);
     const current=await readBrowserSession(c.env.DB,c.req.raw);
-    if(!current||current.stage!=="ready")return simple("login_required",401);
-    if(current.enabled!==1)return simple("mfa_required",403);
+    if(!current||current.stage!=="ready")return renderOAuthProblem(c.req.raw,"login_required",401);
+    if(current.enabled!==1)return renderOAuthProblem(c.req.raw,"mfa_required",403);
     const nonceHash=await sha256Hex(nonce);
     // Validate before consuming. A failed code INSERT must never destroy the
     // only confirmation record, and a session change must require NEW consent.
@@ -383,10 +301,10 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     if(!pending)return consentUnavailable(c.req.raw);
     const target=await client(c.env.DB,pending.client_id);
     if(!target||!JSON.parse(target.redirects_json).includes(pending.redirect_uri)||
-      channelFromResource(pending.resource,c.env)!==pending.channel_slug)return simple("invalid_authorization_request");
-    if(!await groupOwned(c.env.DB,pending.channel_slug,current.account))return simple("group_owner_required",403);
+      channelFromResource(pending.resource,c.env)!==pending.channel_slug)return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
+    if(!await groupOwned(c.env.DB,pending.channel_slug,current.account))return renderOAuthProblem(c.req.raw,"group_owner_required",403);
     for(const scope of JSON.parse(pending.scopes_json) as string[])
-      if(!await mcpPermission(c.env.DB,pending.channel_slug,scope))return simple("group_mcp_policy_denied",403);
+      if(!await mcpPermission(c.env.DB,pending.channel_slug,scope))return renderOAuthProblem(c.req.raw,"group_mcp_policy_denied",403);
     const issuer=uri(c.env),now=Date.now();
     if(pending.browser_session_id!==current.id||pending.expires_at<=now){
       // Do NOT transfer the old approval to a new session or extend the old
@@ -431,7 +349,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
           AND account=? AND EXISTS(SELECT 1 FROM connector_oauth_codes WHERE code_hash=? AND pending_id=?)`)
           .bind(id,nonceHash,current.id,current.account,codeHash,id),
       ]);
-    }catch{return simple("authorization_save_failed",503);}
+    }catch{return renderOAuthProblem(c.req.raw,"authorization_save_failed",503);}
     if(saved[0]?.meta.changes!==1||saved[1]?.meta.changes!==1)return consentUnavailable(c.req.raw);
     return redirectResult(pending.redirect_uri,{code,state:pending.state,iss:issuer});
   });

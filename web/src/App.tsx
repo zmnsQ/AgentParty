@@ -196,6 +196,7 @@ export function App() {
   const channelReloadInFlight = useRef<{ key: string; promise: Promise<void> } | null>(null);
   const [me, setMe] = useState<MeInfo | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [createGroupRequest,setCreateGroupRequest] = useState(0);
   const [notifyOptin, setNotifyOptin] = useState<boolean>(() => readNotifyOptin());
   const [oidc, setOidc] = useState<OidcConfig | null>(null);
   const [authProviders, setAuthProviders] = useState<AuthProviderConfig[]>([]);
@@ -1401,7 +1402,7 @@ export function App() {
       <div className="app-shell">
         <aside className="app-side">
           {canCreate && token !== null && (
-            <CreateChannel token={token} onCreated={onChannelCreated} />
+            <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
           )}
           {/* 桌面版：贴网页邀请链接进入频道（#297）。桌面壳没地址栏，粘贴框把 /join 或 /c 链接
               解析后走网页同款兑换——participate 走 /join/<code> 兑换 effect，watch 落分享态。 */}
@@ -1480,7 +1481,7 @@ export function App() {
               onAuthFailed={onAuthFailed}
             />
           ) : (
-            <Home channels={channels} onOpen={openChannel} />
+            <Home channels={channels} onOpen={openChannel} onCreate={canCreate?()=>setCreateGroupRequest(n=>n+1):undefined} />
           )}
         </main>
       </div>

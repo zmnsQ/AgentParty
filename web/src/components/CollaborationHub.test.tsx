@@ -186,7 +186,7 @@ describe("shared files and repository data", () => {
 
 describe("collaboration hub and access", () => {
   test("uses server permissions to hide mutation controls while keeping group data visible", async () => {
-    await mount(<CollaborationHub token="token" slug="demo" client={client({ summary: async () => ({ ...summary, permissions: { manage: false, run: false, upload: false } }) })} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={client({ summary: async () => ({ ...summary, permissions: { manage: false, run: false, upload: false } }) })} />);
     expect(text(renderer!.root)).toContain("A human group owner manages");
     expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
     expect(renderer!.root.findAll((node) => node.type === "button" && text(node) === "Connect an agent")).toHaveLength(0);
@@ -197,7 +197,7 @@ describe("collaboration hub and access", () => {
   });
 
   test("makes an unsupported server visible and preserves original project attribution", async () => {
-    await mount(<CollaborationHub token="token" slug="demo" client={client({ summary: async () => { throw new CollaborationApiError("missing route", 404, "not_found"); } })} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={client({ summary: async () => { throw new CollaborationApiError("missing route", 404, "not_found"); } })} />);
     expect(text(renderer!.root)).toContain("does not provide the Commons collaboration API");
     expect(text(renderer!.root)).toContain("Agent Commons · Created and maintained by zmnsQ");
     expect(text(renderer!.root)).toContain("Based on AgentParty");
@@ -227,14 +227,14 @@ const emptySummary: CollaborationSummary = {
   ...summary, connections: [], repositories: [], permissions: { manage: false, run: false, upload: false },
 };
 async function updateHub(token: string, slug: string, api: CollaborationClient) {
-  await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub token={token} slug={slug} client={api} /></LocaleProvider>); });
+  await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub initialTab="agents" token={token} slug={slug} client={api} /></LocaleProvider>); });
 }
 
 describe("collaboration workspace scope isolation", () => {
   test("immediately unmounts old group controls and drafts while loading another group", async () => {
     const next = pending<CollaborationSummary>();
     const api = client({ summary: async (_token, slug) => slug === "demo" ? summary : next.promise });
-    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={api} />);
     await act(async () => { renderer!.root.findByType("textarea").props.onChange({ target: { value: "Private group A draft" } }); });
     const oldRefresh = renderer!.root.findByType(CloudAgentConnections).props.onChanged;
     await updateHub("token", "other-group", api);
@@ -254,7 +254,7 @@ describe("collaboration workspace scope isolation", () => {
   test("hides private cached data when the account changes, including a denied replacement request", async () => {
     const next = pending<CollaborationSummary>();
     const api = client({ summary: async (token) => token === "first-account" ? summary : next.promise });
-    await mount(<CollaborationHub token="first-account" slug="demo" client={api} />);
+    await mount(<CollaborationHub initialTab="agents" token="first-account" slug="demo" client={api} />);
     expect(text(renderer!.root)).toContain(connection.name);
     await updateHub("second-account", "demo", api);
     expect(text(renderer!.root)).not.toContain(connection.name);
@@ -267,7 +267,7 @@ describe("collaboration workspace scope isolation", () => {
   test("ignores a late response from an old group even when its request ignores abort", async () => {
     const old = pending<CollaborationSummary>();
     const api = client({ summary: async (_token, slug) => slug === "demo" ? old.promise : emptySummary });
-    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={api} />);
     await updateHub("token", "other-group", api);
     await act(async () => { old.resolve(summary); });
     expect(text(renderer!.root)).not.toContain(connection.name);
@@ -277,7 +277,7 @@ describe("collaboration workspace scope isolation", () => {
   test("resets workspace data and rejects old callbacks when the server changes", async () => {
     let reads = 0; const next = pending<CollaborationSummary>();
     const api = client({ summary: async () => ++reads === 1 ? summary : next.promise });
-    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={api} />);
     const oldRefresh = renderer!.root.findByType(CloudAgentConnections).props.onChanged;
     setApiBase("https://another-commons.example");
     // Even before the parent renders, old callbacks cannot send to the new host.
@@ -296,7 +296,7 @@ describe("collaboration workspace scope isolation", () => {
       if (++reads > 1) throw new ForbiddenError("Group access revoked", "forbidden", "Group access revoked");
       return summary;
     } });
-    await mount(<CollaborationHub token="token" slug="demo" client={api} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={api} />);
     const refresh = renderer!.root.findByType(CloudAgentConnections).props.onChanged;
     await act(async () => { await refresh(); });
     expect(text(renderer!.root)).toContain("Group access revoked");
@@ -329,11 +329,11 @@ describe("collaboration session isolation", () => {
     let complete!: (value: CollaborationSummary) => void;
     const next = new Promise<CollaborationSummary>((resolve) => { complete = resolve; });
     const service = client({ summary: async (token, slug) => token === "token" && slug === "demo" ? summary : next });
-    await mount(<CollaborationHub token="token" slug="demo" client={service} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={service} />);
     expect(text(renderer!.root)).toContain("Research helper");
     await click("Edit");
     await act(async () => { renderer!.root.findByProps({ type: "password" }).props.onChange({ target: { value: "unsaved-private-key" } }); });
-    await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub token={change === "account" ? "other-token" : "token"}
+    await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub initialTab="agents" token={change === "account" ? "other-token" : "token"}
       slug={change === "group" ? "other-group" : "demo"} client={service} /></LocaleProvider>); });
     expect(text(renderer!.root)).not.toContain("Research helper");
     expect(renderer!.root.findAllByProps({ type: "password" })).toHaveLength(0);
@@ -348,8 +348,8 @@ describe("collaboration session isolation", () => {
     let complete!: (value: CollaborationSummary) => void;
     const pending = new Promise<CollaborationSummary>((resolve) => { complete = resolve; });
     const service = client({ summary: async (_token, slug) => slug === "demo" ? pending : { ...summary, connections: [], repositories: [] } });
-    await mount(<CollaborationHub token="token" slug="demo" client={service} />);
-    await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub token="token" slug="other-group" client={service} /></LocaleProvider>); });
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={service} />);
+    await act(async () => { renderer!.update(<LocaleProvider><CollaborationHub initialTab="agents" token="token" slug="other-group" client={service} /></LocaleProvider>); });
     await act(async () => { complete(summary); });
     expect(text(renderer!.root)).toContain("#other-group");
     expect(text(renderer!.root)).not.toContain("Research helper");
@@ -357,7 +357,7 @@ describe("collaboration session isolation", () => {
 
   test("removes cached group content when a refresh reports revoked access", async () => {
     let calls = 0;
-    await mount(<CollaborationHub token="token" slug="demo" client={client({ summary: async () => {
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={client({ summary: async () => {
       if (++calls > 1) throw new CollaborationApiError("Group access revoked", 403, "forbidden");
       return summary;
     } })} />);
@@ -397,14 +397,14 @@ describe("private workspace scope isolation", () => {
     const next = scopePending<CollaborationSummary>();
     let reads = 0;
     const scopedClient = client({ summary: async () => ++reads === 1 ? summary : next.promise });
-    await mount(<CollaborationHub token="old-token" slug="demo" client={scopedClient} />);
+    await mount(<CollaborationHub initialTab="agents" token="old-token" slug="demo" client={scopedClient} />);
     await click("Edit");
     await act(async () => {
       renderer!.root.findByProps({ type: "password" }).props.onChange({ target: { value: "OLD PRIVATE SECRET" } });
       renderer!.root.findByType("textarea").props.onChange({ target: { value: "OLD PRIVATE PROMPT" } });
     });
     if (change === "server") setApiBase("https://different-server.example");
-    await rerender(<CollaborationHub token={change === "account" ? "new-token" : "old-token"} slug={change === "group" ? "new-group" : "demo"} client={scopedClient} />);
+    await rerender(<CollaborationHub initialTab="agents" token={change === "account" ? "new-token" : "old-token"} slug={change === "group" ? "new-group" : "demo"} client={scopedClient} />);
     expect(reads).toBe(2);
     expect(text(renderer!.root)).not.toContain("Research helper");
     expect(renderer!.root.findAllByProps({ type: "password" })).toHaveLength(0);
@@ -421,8 +421,8 @@ describe("private workspace scope isolation", () => {
     let authFailures = 0;
     const scopedClient = client({ summary: async (_token, slug) => slug === "old" ? previous.promise : { ...summary, connections: [{ ...connection, name: "New private helper" }] } });
     const failed = () => { authFailures++; };
-    await mount(<CollaborationHub token="token" slug="old" client={scopedClient} onAuthFailed={failed} />);
-    await rerender(<CollaborationHub token="token" slug="new" client={scopedClient} onAuthFailed={failed} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="old" client={scopedClient} onAuthFailed={failed} />);
+    await rerender(<CollaborationHub initialTab="agents" token="token" slug="new" client={scopedClient} onAuthFailed={failed} />);
     await act(async () => { if (result === "success") previous.resolve(summary); else previous.reject(new AuthError("Old account expired")); });
     expect(text(renderer!.root)).toContain("New private helper");
     expect(text(renderer!.root)).not.toContain("Research helper");
@@ -436,7 +436,7 @@ describe("private workspace scope isolation", () => {
       if (++reads > 1) throw status === 401 ? new AuthError("No longer authorized") : new ForbiddenError("No longer authorized");
       return summary;
     } });
-    await mount(<CollaborationHub token="token" slug="demo" client={scopedClient} onAuthFailed={() => { authFailures++; }} />);
+    await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={scopedClient} onAuthFailed={() => { authFailures++; }} />);
     expect(text(renderer!.root)).toContain("Research helper");
     await act(async () => { renderer!.root.findByProps({ "aria-label": "Refresh" }).props.onClick(); });
     expect(text(renderer!.root)).toContain("No longer authorized");

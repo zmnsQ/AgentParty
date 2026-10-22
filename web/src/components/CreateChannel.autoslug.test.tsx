@@ -62,6 +62,17 @@ describe("new channel needs only a name; server allocates the ID",()=>{
     expect(navigated).toBe(false);
     expect(root.findByProps({role:"alert"}).children.join("")).toContain("Couldn't create");
   });
+  test("IME candidate confirmation never creates a group and rapid clicks share one request",async()=>{
+    let calls=0,finish!:(response:Response)=>void;
+    globalThis.fetch=(async()=>{calls++;return new Promise<Response>(r=>{finish=r;});}) as typeof fetch;
+    const root=await openForm();
+    await act(async()=>root.findByProps({id:"newchan-name"}).props.onChange({target:{value:"中文协作"}}));
+    await act(async()=>root.findByProps({id:"newchan-name"}).props.onKeyDown({key:"Enter",keyCode:229,nativeEvent:{isComposing:false},preventDefault(){}}));
+    expect(calls).toBe(0);
+    await act(async()=>{const b=root.findByProps({className:"d-btn d-btn--primary"});void b.props.onClick();void b.props.onClick();});
+    expect(calls).toBe(1);
+    await act(async()=>finish(Response.json({slug:"ch-unique"},{status:201})));
+  });
   test("Chinese and English names/automatic identifier hints are translated",()=>{
     expect(Object.keys(CreateChannelStrings.en).sort()).toEqual(Object.keys(CreateChannelStrings.zh).sort());
     expect(CreateChannelStrings.zh["CreateChannel.nameLabel"]).toBe("群组名称");

@@ -1,3 +1,5 @@
+import {StudioIcon} from "./StudioIcon";
+import "../i18n/strings/Studio";
 import {useT} from "../i18n/useT";
 import "../i18n/strings/AgentConnect";
 import "../styles/agent-connect.css";
@@ -10,10 +12,10 @@ export function AgentConnectionPicker({onCloud,onLocal}:{onCloud:(provider:Cloud
     <h4>{t("AgentConnect.cloud")}</h4>
     <div className="agent-connect-grid">{CLOUD_AGENT_CHOICES.map(provider=><button
       className="agent-connect-option" type="button" key={provider} data-provider={provider}
-      onClick={()=>onCloud(provider)}><strong>{t(`AgentConnect.${provider}`)}</strong>
-      <span>{t(`AgentConnect.${provider}Hint`)}</span></button>)}</div>
-    <section className="agent-connect-local"><h4>{t("AgentConnect.local")}</h4>
+      onClick={()=>onCloud(provider)}><span className="studio-provider-icon"><StudioIcon name="agent"/></span><strong>{t(`AgentConnect.${provider}`)}</strong>
+      <span>{t(`AgentConnect.${provider}Hint`)}</span><small>{t(provider==="dot"?"Studio.oauth":provider==="muse"?"Studio.sdk":"Studio.api")}</small><span className="studio-option-arrow"><StudioIcon name="arrow"/></span></button>)}</div>
+    <details className="agent-connect-local"><summary>{t("Studio.localLabel")}</summary>
       <p>{t("AgentConnect.localHint")}</p><button className="d-btn" type="button" onClick={onLocal}>{t("AgentConnect.localButton")}</button>
-    </section>
+    </details>
   </section>;
 }

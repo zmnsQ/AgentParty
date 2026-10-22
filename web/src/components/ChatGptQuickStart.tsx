@@ -81,25 +81,27 @@ export function ChatGptQuickStart({token,slug,canManage}:{token:string;slug:stri
       <a className="d-btn connector-open-chat" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">{t("ConnectorUsage.open")}</a>
       <ol className="connector-first-steps">
         {(["read","post","task"] as const).map((kind,i)=><li key={kind}>
-          <h4>{t(`ConnectorUsage.step${i+1}`)}</h4><p>{t(`ConnectorUsage.step${i+1}Help`)}</p>
+          <details className="connector-step" open={i===0}><summary><span className="studio-step-number">{i+1}</span><h4>{t(`ConnectorUsage.step${i+1}`)}</h4></summary><div className="connector-step-body"><p>{t(`ConnectorUsage.step${i+1}Help`)}</p>
           <textarea readOnly rows={4} aria-label={t(`ConnectorUsage.step${i+1}`)} value={connectorTestPrompt(kind,slug,agent.name,zh)} onFocus={e=>e.currentTarget.select()}/>
           <button type="button" className="d-btn" disabled={kind==="read"?!readable:!writable} onClick={()=>void copy(kind)}>
             {t(copied===kind?"ConnectorUsage.copied":"ConnectorUsage.copy")}</button>
           {i<2&&<small>{t(`ConnectorUsage.step${i+1}Expect`)}</small>}
+          </div></details>
         </li>)}
       </ol>
       {copyFailed&&<p role="alert">{t("ConnectorUsage.copyFailed")}</p>}
       {copied&&<p role="status">{t("ConnectorUsage.copied")}</p>}
       <small>{t("ConnectorUsage.noAutoSend")}</small>
-      <section className="connector-subscription-setup" aria-label={t("ConnectorUsage.subscribeTitle")}>
-        <h4>{t("ConnectorUsage.subscribeTitle")}</h4>
+      <details className="connector-subscription-setup connector-step" aria-label={t("ConnectorUsage.subscribeTitle")}>
+        <summary><span className="studio-step-number">4</span><h4>{t("ConnectorUsage.subscribeTitle")}</h4></summary><div className="connector-step-body">
         <p>{t(value.events?.callback_policy_configured?"ConnectorUsage.serverPrepared":"ConnectorUsage.serverNotReady")}</p>
         <p>{t("ConnectorUsage.subscribeHow")}</p>
         <textarea readOnly rows={5} aria-label={t("ConnectorUsage.subscribePrompt")} value={connectorTestPrompt("subscribe",slug,agent.name,zh)} onFocus={e=>e.currentTarget.select()}/>
         <button className="d-btn" type="button" disabled={!subscribable} onClick={()=>void copy("subscribe")}>{t("ConnectorUsage.copySubscription")}</button>
         {!subscribable&&<small>{t("ConnectorUsage.subscriptionBlocked")}</small>}
         <small>{t("ConnectorUsage.subscribeExpected")}</small>
-      </section>
+        </div>
+      </details>
     </>}
   </section>;
 }

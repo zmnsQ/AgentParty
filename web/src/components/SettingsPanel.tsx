@@ -6,6 +6,7 @@ import { useT } from "../i18n/useT";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HandleSetup } from "./HandleSetup";
 import { OriginalProjectCredit } from "./OriginalProjectCredit";
+import "../i18n/strings/Studio";
 import { useNotifyOptinToggle } from "./NotifyToggle";
 import {
   SectionedDialog,
@@ -182,6 +183,7 @@ export function SettingsPanel({
           <h3 className="settings-module-title">{t("App.settings.section.help")}</h3>
           <section className="settings-section">
             <OriginalProjectCredit />
+            <p className="studio-design-credit"><a href="https://github.com/Caho1/open-claude-ui" target="_blank" rel="noopener noreferrer">{t("Studio.reference")}</a> · <a href="/third-party-notices.txt" target="_blank" rel="noopener noreferrer">MIT</a></p>
             <p>{t("Collab.updatesDisabled")}</p>
           </section>
           <section className="settings-section">

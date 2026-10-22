@@ -5,12 +5,12 @@
 .connector-capabilities{display:grid;gap:0;margin:0;min-width:0}.connector-capabilities>div{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--t-faint)}
 .connector-capabilities dt{font-weight:600}.connector-capabilities dd{margin:0;overflow-wrap:anywhere}
 .connector-first-steps{list-style:none;padding:0!important;margin:0!important;display:grid;gap:14px;min-width:0}
-.connector-first-steps>li{padding:14px!important;border:1px solid var(--t-faint);border-radius:6px;display:grid;gap:10px;min-width:0}
+.connector-first-steps>li{padding:14px;border:1px solid var(--t-faint);border-radius:6px;display:grid;gap:10px;min-width:0}
 .connector-first-steps h4{margin:0}.connector-first-steps textarea{box-sizing:border-box;width:100%;min-width:0;max-width:100%;resize:vertical;min-height:100px;background:var(--t-panel);color:var(--t-text);padding:10px;border:1px solid var(--t-faint);border-radius:4px;font:inherit;font-size:13px;line-height:1.55}
 .connector-first-steps .d-btn{margin:0!important;justify-self:start;min-height:44px}.connector-usage select{width:100%;min-width:0}
 .connector-usage details summary{cursor:pointer;min-height:44px;line-height:1.5;padding-block:10px;font-weight:600}
 .connector-open-chat{align-self:start;min-height:44px;text-decoration:none}.agentmanager-oauth p{line-height:1.6;margin:8px 0;overflow-wrap:anywhere}
-@media(max-width:720px){.connector-usage-heading{display:grid;grid-template-columns:minmax(0,1fr)}.connector-usage-heading button{min-height:44px}.connector-capabilities>div{grid-template-columns:minmax(0,1fr);gap:4px}.connector-first-steps textarea,.connector-usage select{font-size:16px}.connector-first-steps .d-btn,.connector-open-chat{width:100%;box-sizing:border-box;justify-self:stretch;text-align:center}.connector-first-steps>li{padding:12px!important}}
+@media(max-width:720px){.connector-usage-heading{display:grid;grid-template-columns:minmax(0,1fr)}.connector-usage-heading button{min-height:44px}.connector-capabilities>div{grid-template-columns:minmax(0,1fr);gap:4px}.connector-first-steps textarea,.connector-usage select{font-size:16px}.connector-first-steps .d-btn,.connector-open-chat{width:100%;box-sizing:border-box;justify-self:stretch;text-align:center}.connector-first-steps>li{padding:12px}}
 
 .connector-subscription-setup{display:grid;gap:12px;min-width:0;padding:14px;border:1px solid var(--t-faint);border-radius:6px}
 .connector-subscription-setup h4{margin:0}

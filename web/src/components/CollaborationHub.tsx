@@ -1,3 +1,4 @@
+import "../i18n/strings/Studio";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CollaborationSummary } from "@agentparty/shared/collaboration";
 import { AuthError, ForbiddenError } from "../lib/api";
@@ -13,7 +14,7 @@ import { OriginalProjectCredit } from "./OriginalProjectCredit";
 import "../i18n/strings/CollaborationHub";
 import "../styles/collaboration.css";
 
-const TABS = ["agents", "repositories", "files", "bridges"] as const;
+const TABS = ["bridges", "agents", "files", "repositories"] as const;
 type Tab = typeof TABS[number];
 
 interface CollaborationHubProps {
@@ -36,7 +37,7 @@ export function CollaborationHub(props: CollaborationHubProps) {
 
 function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server, initialTab, initialProvider }: CollaborationHubProps & { server: string }) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>(initialTab??"agents");
+  const [tab, setTab] = useState<Tab>(initialTab??"bridges");
   // Keep the selected tab visible without scrolling the whole mobile dialog.
   useEffect(() => {
     const item = typeof document !== "undefined" ? document.getElementById?.(`commons-tab-${tab}`) : null;
@@ -82,20 +83,20 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
   };
   const current = summary === null ? null : { ...summary, permissions: { manage: !archived && summary.permissions.manage, run: !archived && summary.permissions.run, upload: !archived && summary.permissions.upload } };
   return <div className="commons-hub">
-    <header className="commons-hero"><div><span className="commons-kicker">AGENT COMMONS</span><p>{t("Collab.subtitle")}</p><OriginalProjectCredit compact /></div><span className="commons-group">#{slug}</span></header>
-    <div className="commons-nav"><div role="tablist" aria-label={t("Collab.title")}>{TABS.map((item) => <button className={`commons-tab ${tab === item ? "is-active" : ""}`} key={item} id={`commons-tab-${item}`} type="button" role="tab" aria-selected={tab === item} aria-controls={`commons-panel-${item}`} tabIndex={tab === item ? 0 : -1} onKeyDown={(event) => selectWithKeyboard(event, item)} onClick={() => setTab(item)}>{t(`Collab.${item}`)}{summary !== null && (item === "agents" || item === "repositories") && <span>{item === "agents" ? summary.connections.length : summary.repositories.length}</span>}</button>)}</div><button className="d-btn" type="button" disabled={loading} onClick={() => void refresh()} aria-label={t("Collab.refresh")}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
+    <header className="commons-hero"><div><span className="commons-kicker">AGENT COMMONS</span><h2>{t("Studio.connectLead")}</h2><p>{t("Studio.connectSub")}</p></div><details className="studio-group-detail"><summary>{t("Studio.id")}</summary><code>#{slug}</code></details></header>
+    <div className="commons-nav"><div role="tablist" aria-label={t("Collab.title")}>{TABS.map((item) => <button className={`commons-tab ${tab === item ? "is-active" : ""}`} key={item} id={`commons-tab-${item}`} type="button" role="tab" aria-selected={tab === item} aria-controls={`commons-panel-${item}`} tabIndex={tab === item ? 0 : -1} onKeyDown={(event) => selectWithKeyboard(event, item)} onClick={() => setTab(item)}>{t(item==="bridges"?"Studio.setup":item==="agents"?"Studio.manage":item==="files"?"Studio.files":"Studio.code")}{summary !== null && ((item === "agents" && summary.connections.length > 0) || (item === "repositories" && summary.repositories.length > 0)) && <span>{item === "agents" ? summary.connections.length : summary.repositories.length}</span>}</button>)}</div><button className="d-btn" type="button" disabled={loading} onClick={() => void refresh()} aria-label={t("Collab.refresh")}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
     {error !== null && <p className="commons-error" role="alert">{error}</p>}
     {summary === null && loading && <p className="commons-empty" role="status">{t("Collab.loading")}</p>}
     {current !== null && <>
       {!current.permissions.manage && <p className="commons-muted">{t("Collab.readOnly")}</p>}
-      <div className="commons-panel" id={`commons-panel-${tab}`} role="tabpanel" aria-labelledby={`commons-tab-${tab}`}>
-        {tab === "agents" && <CloudAgentConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
+      <div key={tab} className="commons-panel" id={`commons-panel-${tab}`} role="tabpanel" aria-labelledby={`commons-tab-${tab}`}>
+        {tab === "agents" && <><p className="studio-direct-hint">{t("Studio.directHint")}</p><CloudAgentConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} /></>}
         {tab === "repositories" && <RepositoryConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "files" && <ChannelFiles token={token} slug={slug} canUpload={current.permissions.upload} client={client} />}
         {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} />}
       </div>
     </>}
-    <footer className="commons-attribution"><p>{t("Collab.source")}</p><a href="https://github.com/leeguooooo/AgentParty" target="_blank" rel="noreferrer">AgentParty ↗</a><span> · </span><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("Collab.license")}</a></footer>
+    <footer className="commons-attribution"><OriginalProjectCredit compact /></footer>
   </div>;
 }
 

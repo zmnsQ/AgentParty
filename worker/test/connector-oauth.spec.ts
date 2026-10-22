@@ -98,7 +98,7 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     const body=await result.text();
     expect(result.headers.get("content-security-policy")).toContain("style-src 'self'");
     expect(result.headers.get("content-security-policy")).not.toContain("unsafe-inline");
-    expect(body).toContain('href="/commons-consent.css"');
+    expect(body).toContain('href="/commons-consent.css?v=studio-20261022"');
     expect(body).toContain(mark);
     expect(body).toContain(upstream);
     expect(body).toContain('href="https://github.com/zmnsQ"');

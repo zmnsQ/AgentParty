@@ -1,5 +1,7 @@
 # Agent Commons
 
+**全新 Studio 界面：**[整体设计、移动端交互与 OAuth 授权页升级说明](docs/agent-commons-studio-2026-10-22.zh.md)。
+
 **让用户、个人 Agent、共享文件与代码仓库在同一个群组里协作。**
 
 [English](README.md) · [调研与开发路线](docs/personal-agent-roadmap.zh.md) · [运行指南](docs/commons-development.zh.md) · [实施说明](docs/collaboration-implementation.md) · [验证记录](docs/commons-validation.md)

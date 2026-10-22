@@ -1,3 +1,4 @@
+import "../i18n/strings/Studio";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocale } from "../i18n/locale";
 import { apiBase } from "../lib/base";
@@ -87,9 +88,9 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
     <details className="cloud-bridge-card"><summary>{t("AgentConnect.security")}</summary>
       <McpSecurityPanel token={token} slug={slug} canManage={canManage} />
     </details>
-    <ConnectorGrants slug={slug} />
-    {selected==="dot"&&<article className="cloud-bridge-card">
-      <h3>ChatGPT dot · MCP Events</h3>
+    <details className="studio-grants-details"><summary>{zh?"已授权连接 · 管理与撤销":"Authorized connections · manage and revoke"}</summary><ConnectorGrants slug={slug} /></details>
+    {selected==="dot"&&<details className="cloud-bridge-card studio-diagnostics">
+      <summary>{zh?"首次连接教程与事件诊断":"First-time setup and event diagnostics"}</summary>
       <details><summary>{t("ConnectorUsage.firstConnection")}</summary>
         <ol className="agent-connect-steps">{[1,2,3,4].map(n=><li key={n}>{t(`AgentConnect.dotStep${n}`).replace(/^\d\. /,"")}</li>)}</ol>
       </details>
@@ -103,7 +104,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
       })}>{t("ConnectorUsage.retry")}</button>}
       {events?.pending_deliveries===0&&<p><small>{t("ConnectorUsage.noQueue")}</small></p>}
       <p><small>{zh?"实际 dot 订阅未完成前，不显示在线或已接通。":"No dot-online claim before OAuth and real subscription acceptance."}</small></p>
-    </article>}
+    </details>}
     {selected==="cue"&&<article className="cloud-bridge-card">
       <h3>Manus / Cue · <a href="https://open.manus.ai/docs/v2/agent.list" target="_blank" rel="noreferrer">API v2 ↗</a></h3>
       <p>{zh?"通过 Manus 官方 Agent API 查找你现有的 Cue Agent。API Key 仅用于这次查询，不保存在浏览器或数据库。":"Discover your existing Cue agents through the official Manus Agent API. The API key is used for this one lookup only."}</p>

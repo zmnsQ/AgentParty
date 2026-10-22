@@ -1,3 +1,4 @@
+import {isCompositionKey} from "../lib/compositionGuard";
 // 底部插话框：Markdown、@name mention（动态在线列表补全，issue #39）、Cmd/Ctrl+Enter 发送（spec §9 第 4 块）。
 // readonly / archived 时由页面层直接不渲染本组件（错误内联为条幅）。
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -305,7 +306,7 @@ export function Composer({
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // isComposing 或护栏 ref 任一为真都视为合成中：前者覆盖 Chrome（keydown 时仍 true），
     // 后者覆盖 WebKit（compositionend 先行、keydown 时已 false）。
-    if (e.nativeEvent.isComposing || composingRef.current) return;
+    if (isCompositionKey(e) || composingRef.current) return;
     if (menu !== null) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -609,6 +610,7 @@ export function Composer({
         >
           {t("Composer.paste.label")}
         </button>
+        <span className="composer-keyboard-hint">{t("Composer.keyboardHint")}</span>
         <button
           type="button"
           className="d-btn d-btn--primary composer-send"
