@@ -1103,3 +1103,34 @@ describe("第③步的唤醒命令带 token（#1029）", () => {
 // #1028 端到端：owner 截图里第 ② 步打了 ✓，依据是「已报到（4637 分钟前）」。
 // 纯函数用例挡不住这个——判据读的是 session.baseline，只更新 baselineRef 的修复完全不生效
 // （CodeRabbit on #1031 指出、变异自检实测确认）。所以这条用例必须真渲染弹窗。
+
+
+describe("mixed cloud and coding team onboarding",()=>{
+  test.each(["codex","claude"] as const)("%s card preselects both interactive tool and resident runner, then still offers the cloud choices",async(provider:"codex"|"claude")=>{
+    let cloud:string|null=null;
+    const r=render(undefined,null,{onCloudConnect:p=>{cloud=p;},presence:[],messages:[]});
+    open(r);
+    expect(r.root.findByProps({"data-coding-provider":"codex"})).toBeTruthy();
+    expect(r.root.findByProps({"data-coding-provider":"claude"})).toBeTruthy();
+    expect(r.root.findByProps({"data-provider":"dot"})).toBeTruthy();
+    await act(async()=>r.root.findByProps({"data-coding-provider":provider}).props.onClick());
+    expect(r.root.findByProps({name:"agent-join-harness",value:provider}).props.checked).toBe(true);
+    expect(savedAgents).toHaveLength(0);
+    await act(async()=>r.root.findByProps({name:"agent-join-mode",value:"unattended"}).props.onChange());
+    expect(r.root.findByProps({name:"agent-join-runner"}).props.value).toBe(provider);
+    expect(savedAgents).toHaveLength(0);
+    const back=r.root.findAllByType("button").find(b=>b.children.includes("Choose another connection type"));
+    expect(back).toBeTruthy();await act(async()=>back!.props.onClick());
+    expect(r.root.findByProps({"data-coding-provider":provider})).toBeTruthy();
+    await act(async()=>r.root.findByProps({"data-provider":"muse"}).props.onClick());
+    expect(cloud).toBe("muse");expect(savedAgents).toHaveLength(0);
+  });
+  test.each(["codex","claude"] as const)("%s connection retains its actual harness in the generated join command",async(provider:"codex"|"claude")=>{
+    const r=render(undefined,null,{onCloudConnect:()=>{},presence:[],messages:[]});open(r);
+    await act(async()=>r.root.findByProps({"data-coding-provider":provider}).props.onClick());
+    await act(async()=>r.root.find(node=>node.props.className==="d-btn d-btn--primary"&&node.props.onClick).props.onClick());
+    expect(savedAgents).toHaveLength(1);
+    expect(savedAgents[0]!.command).toContain("--harness "+provider);
+    expect(savedAgents[0]!.command).not.toContain("--harness "+(provider==="codex"?"claude":"codex"));
+  });
+});

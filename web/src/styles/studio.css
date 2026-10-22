@@ -152,7 +152,7 @@
 :root .agent-connect-option:hover{transform:none;box-shadow:none;border-color:var(--t-accent);background:var(--t-panel)}
 :root .studio-provider-icon{display:grid;place-items:center;grid-row:1 / 4;align-self:start;width:38px;height:38px;background:var(--d-yellow);color:var(--t-accent);border-radius:10px}
 :root .agent-connect-option strong{grid-column:2;font-size:14px;font-weight:600;margin-right:20px}
-:root .agent-connect-option>span:not(.studio-provider-icon):not(.studio-option-arrow){grid-column:2;font-size:12px;color:var(--t-muted);line-height:1.6}
+:root .agent-connect-option>span:not(.studio-provider-icon):not(.studio-option-arrow):not(.provider-mark){grid-column:2;font-size:12px;color:var(--t-muted);line-height:1.6}
 :root .agent-connect-option small{grid-column:2;font-size:10px;color:var(--t-link);margin-top:4px}
 :root .studio-option-arrow{position:absolute;right:16px;top:19px;color:var(--t-muted)}
 :root .studio-option-arrow svg{width:16px;height:16px}

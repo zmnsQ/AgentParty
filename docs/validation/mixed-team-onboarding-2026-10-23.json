@@ -1,0 +1,113 @@
+{
+  "source": "real React AgentJoin and picker; isolated browser, synthetic credentials, no real models or network writes",
+  "cases": [
+    {
+      "lang": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "en",
+      "theme": "doodle",
+      "width": 320,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "en",
+      "theme": "doodle",
+      "width": 390,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "en",
+      "theme": "midnight",
+      "width": 320,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "en",
+      "theme": "midnight",
+      "width": 390,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    },
+    {
+      "lang": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "codingVisible": 3,
+      "cloudVisible": 5,
+      "correctRunnerPreselection": true,
+      "noImplicitNetworkRequests": true
+    }
+  ]
+}

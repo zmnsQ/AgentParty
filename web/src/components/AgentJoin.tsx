@@ -856,7 +856,12 @@ export function AgentJoin({
 
             {onCloudConnect && !localChosen ? <AgentConnectionPicker
               onCloud={provider=>{close();onCloudConnect(provider);}}
-              onLocal={()=>setLocalChosen(true)} /> : <>
+              onLocal={provider=>{
+                setHarness(provider);
+                if(provider!=="other")setRunner(provider);
+                setMode("interactive");
+                setLocalChosen(true);
+              }} /> : <>
             {onCloudConnect && <button className="d-btn" type="button" onClick={()=>setLocalChosen(false)}>{t("AgentConnect.back")}</button>}
             <p className="agent-join-lead">{t("AgentJoin.lead", { examples: "drawstyle-review, leo-debug" })}</p>
 

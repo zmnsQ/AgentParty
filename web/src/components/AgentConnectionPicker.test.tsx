@@ -2,7 +2,7 @@
 import {afterEach,beforeEach,describe,expect,test} from "bun:test";
 import {act,create,type ReactTestRenderer} from "react-test-renderer";
 import {LocaleProvider} from "../i18n/locale";
-import {AgentConnectionPicker,CLOUD_AGENT_CHOICES,type CloudAgentChoice} from "./AgentConnectionPicker";
+import {AgentConnectionPicker,CLOUD_AGENT_CHOICES,CODING_AGENT_CHOICES,type CloudAgentChoice} from "./AgentConnectionPicker";
 import {AgentConnectStrings} from "../i18n/strings/AgentConnect";
 import {McpSecurityPanel} from "./McpSecurityPanel";
 let renderer:ReactTestRenderer|null=null;
@@ -24,15 +24,36 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
     expect(text(root)).toContain("ChatGPT dot");expect(text(root)).toContain("Meta Muse");
     expect(text(root)).toContain("Manus / Cue");expect(local).toBe(0);expect(network).toBe(0);
     expect(root.findAllByType("input")).toHaveLength(0);
-    const button=root.findAllByType("button").find(b=>text(b)==="Connect a local coding tool")!;
-    await act(async()=>button.props.onClick());expect(local).toBe(1);
+    const selected:string[]=[];
+    await act(async()=>renderer!.update(<LocaleProvider><AgentConnectionPicker onCloud={p=>{chosen=p;}} onLocal={p=>{selected.push(p);local++;}}/></LocaleProvider>));
+    for(const provider of CODING_AGENT_CHOICES){
+      const button=renderer!.root.findByProps({"data-coding-provider":provider});
+      expect(button.findAllByType("input")).toHaveLength(0);
+      await act(async()=>button.props.onClick());
+    }
+    expect(selected).toEqual(["codex","claude","other"]);expect(local).toBe(3);expect(network).toBe(0);
+    expect(renderer!.root.findAllByType("details")).toHaveLength(0);
   });
   test("keeps all new choices, security explanations and instructions bilingual",async()=>{
     expect(Object.keys(AgentConnectStrings.en).sort()).toEqual(Object.keys(AgentConnectStrings.zh).sort());
     Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:()=>"zh",setItem:()=>{}}});
     const root=await mount(<AgentConnectionPicker onCloud={()=>{}} onLocal={()=>{}}/>);
-    expect(text(root)).toContain("个人云端智能体");expect(text(root)).toContain("本地编程工具");
+    expect(text(root)).toContain("个人云端智能体");expect(text(root)).toContain("编程与执行 Agent");
+    expect(text(root)).toContain("Codex");expect(text(root)).toContain("Claude Code");
+    expect(text(root)).toContain("同一个群");expect(text(root)).toContain("防循环");
     expect(text(root)).not.toContain("AgentConnect.");
+  });
+  test("both categories remain visible and platform selection is reversible without side effects",async()=>{
+    let cloud:CloudAgentChoice|null=null;let coding:string|null=null;
+    const root=await mount(<AgentConnectionPicker onCloud={v=>{cloud=v;}} onLocal={v=>{coding=v;}}/>);
+    expect(root.findAllByProps({className:"agent-connect-category"})).toHaveLength(2);
+    expect(root.findAllByType("details")).toHaveLength(0);
+    await act(async()=>root.findByProps({"data-coding-provider":"claude"}).props.onClick());
+    expect(coding).toBe("claude");expect(cloud).toBeNull();
+    await act(async()=>root.findByProps({"data-provider":"dot"}).props.onClick());
+    expect(cloud).toBe("dot");expect(coding).toBe("claude");
+    expect(root.findByProps({"data-coding-provider":"codex"})).toBeTruthy();
+    expect(text(root)).toContain("not permission changes");
   });
   test("MCP address contains no token and no policy changes happen until the human saves",async()=>{
     const calls:Array<{url:string;method:string;body:any}>=[];

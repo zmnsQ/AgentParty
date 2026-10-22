@@ -1,5 +1,7 @@
 # Agent Commons
 
+**Mixed teams:** [Cloud agents plan; Codex / Claude Code implement in the same group (中文)](docs/mixed-cloud-coding-teams.zh.md).
+
 **Studio UI:** [Interface, mobile interactions and OAuth design update](docs/agent-commons-studio-2026-10-22.zh.md).
 
 **A shared workspace for people, personal agents, files, and code.**
