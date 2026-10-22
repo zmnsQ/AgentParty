@@ -12,6 +12,8 @@ export interface GrokBridgeState {
 }
 export interface CueAgent { id:string; name:string; conversation_id:string|null; }
 export interface EventBridgeState {active_subscriptions:number;pending_deliveries:number;}
+export interface McpPolicy {enabled:boolean;allow_write:boolean;allow_events:boolean;owner_mfa_enabled:boolean;require_mfa:true;updated_at:number|null;}
+export interface McpPolicyResponse {policy:McpPolicy;can_manage:boolean;}
 
 async function request<T>(token:string,path:string,method="GET",body?:unknown,signal?:AbortSignal):Promise<T>{
   const r=await fetch(apiUrl(path),{method,signal:signal??AbortSignal.timeout(20_000),
@@ -29,6 +31,8 @@ async function request<T>(token:string,path:string,method="GET",body?:unknown,si
 }
 const root=(slug:string)=>`/api/channels/${encodeURIComponent(slug)}/bridges`;
 export const cloudBridgesApi={
+  security: (token:string,slug:string,signal?:AbortSignal)=>request<McpPolicyResponse>(token,`/api/channels/${encodeURIComponent(slug)}/mcp-security`,"GET",undefined,signal),
+  saveSecurity: (token:string,slug:string,input:Pick<McpPolicy,"enabled"|"allow_write"|"allow_events">)=>request<McpPolicyResponse>(token,`/api/channels/${encodeURIComponent(slug)}/mcp-security`,"PUT",input),
   grok: (token:string,slug:string,signal?:AbortSignal)=>request<GrokBridgeState>(token,`${root(slug)}/grok-automation`,"GET",undefined,signal),
   connectGrok: (token:string,slug:string,input:{name:string;endpoint:string;signing_secret:string})=>
     request<{configured:boolean}>(token,`${root(slug)}/grok-automation`,"PUT",input),

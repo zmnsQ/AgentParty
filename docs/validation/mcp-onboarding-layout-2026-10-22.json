@@ -1,0 +1,217 @@
+{
+  "engine": "isolated Chrome CDP",
+  "data": "synthetic API fixtures; real React components",
+  "count": 16,
+  "passed": 16,
+  "runtime_errors": [],
+  "cases": [
+    {
+      "locale": "zh",
+      "width": 320,
+      "screen": "picker",
+      "doc": 320,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "zh",
+      "width": 320,
+      "screen": "dot",
+      "doc": 320,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "zh",
+      "width": 390,
+      "screen": "picker",
+      "doc": 390,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "zh",
+      "width": 390,
+      "screen": "dot",
+      "doc": 390,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "zh",
+      "width": 768,
+      "screen": "picker",
+      "doc": 768,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "zh",
+      "width": 768,
+      "screen": "dot",
+      "doc": 768,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "zh",
+      "width": 1280,
+      "screen": "picker",
+      "doc": 1280,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "zh",
+      "width": 1280,
+      "screen": "dot",
+      "doc": 1280,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "en",
+      "width": 320,
+      "screen": "picker",
+      "doc": 320,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "en",
+      "width": 320,
+      "screen": "dot",
+      "doc": 320,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "en",
+      "width": 390,
+      "screen": "picker",
+      "doc": 390,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "en",
+      "width": 390,
+      "screen": "dot",
+      "doc": 390,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "en",
+      "width": 768,
+      "screen": "picker",
+      "doc": 768,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "en",
+      "width": 768,
+      "screen": "dot",
+      "doc": 768,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "screen": "picker",
+      "doc": 1280,
+      "providers": [
+        "dot",
+        "muse",
+        "cue",
+        "grok",
+        "hermes"
+      ],
+      "harness": false,
+      "minted": false
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "screen": "dot",
+      "doc": 1280,
+      "hasOAuth": true,
+      "endpoint": "http://127.0.0.1:4177/api/channels/ch-00000000000000000000000000000001/mcp",
+      "harness": false,
+      "mfaLink": true,
+      "checkboxDisabled": true
+    }
+  ]
+}

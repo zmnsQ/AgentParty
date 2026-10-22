@@ -3,10 +3,16 @@ import { useLocale } from "../i18n/locale";
 import { apiBase } from "../lib/base";
 import { cloudBridgesApi, type CueAgent, type EventBridgeState, type GrokBridgeState } from "../lib/cloudBridgesApi";
 import { ConnectorGrants } from "./ConnectorGrants";
+import {McpSecurityPanel} from "./McpSecurityPanel";
+import {useT} from "../i18n/useT";
+import type {CloudAgentChoice} from "./AgentConnectionPicker";
+import "../i18n/strings/AgentConnect";
 import "../styles/cloud-bridges.css";
 
-interface Props { token:string;slug:string;canManage:boolean;canRun:boolean; }
-export function CloudBridges({token,slug,canManage,canRun}:Props){
+interface Props { token:string;slug:string;canManage:boolean;canRun:boolean;initialProvider?:CloudAgentChoice; }
+export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props){
+  const t=useT();
+  const [selected,setSelected]=useState<CloudAgentChoice>(initialProvider??"dot");
   const {locale}=useLocale();const zh=locale==="zh";
   const [state,setState]=useState<GrokBridgeState|null>(null);
   const [events,setEvents]=useState<EventBridgeState|null>(null);
@@ -70,9 +76,17 @@ export function CloudBridges({token,slug,canManage,canRun}:Props){
     <p><a href="https://github.com/zmnsQ/AgentParty/blob/feat/agent-commons-provider-bridges-20261021/docs/agent-commons-onboarding.zh.md" target="_blank" rel="noopener noreferrer">{zh?"查看分平台接入与测试教程 ↗":"Per-platform connection and testing guide (Chinese) ↗"}</a></p>
     {error&&<p role="alert" className="commons-error">{error}</p>}
     {notice&&<p role="status" className="commons-success">{notice}</p>}
+    <p className="commons-note">{t("AgentConnect.testWarning")}</p>
+    <div className="agent-connect-tabs" aria-label={t("AgentConnect.cloud")}>
+      {(["dot","muse","cue","grok"] as const).map(provider=><button className="d-btn" type="button" key={provider}
+        aria-pressed={selected===provider} onClick={()=>setSelected(provider)}>{t(`AgentConnect.${provider}`)}</button>)}
+    </div>
+    <McpSecurityPanel token={token} slug={slug} canManage={canManage} />
     <ConnectorGrants />
-    <article className="cloud-bridge-card">
+    {selected==="dot"&&<article className="cloud-bridge-card">
       <h3>ChatGPT dot · MCP Events</h3>
+      <ol className="agent-connect-steps">{[1,2,3,4].map(n=><li key={n}>{t(`AgentConnect.dotStep${n}`).replace(/^\d\. /,"")}</li>)}</ol>
+      <a href="https://developers.openai.com/plugins/build/plugins" target="_blank" rel="noopener noreferrer">{t("AgentConnect.dotDocs")}</a>
       <p>{zh?"已实现 MCP 2.0 事件订阅、签名 Webhook 和 @ 唤醒队列。服务端已加入 MCP OAuth 2.1 授权与按群 consent；还需用户在 ChatGPT 中安装插件并完成真实账号验收。":"MCP 2.0 subscriptions, signed webhooks and @-mention wake delivery are implemented. OAuth 2.1 authorization and group consent are implemented; real dot account/plugin installation remains to be accepted."}</p>
       {events&&<p>{zh?"有效订阅":"Subscriptions"}: {events.active_subscriptions} · {zh?"待投递":"Queued"}: {events.pending_deliveries}</p>}
       {canRun&&<button type="button" className="d-btn" disabled={busy} onClick={()=>void task(async()=>{
@@ -81,8 +95,8 @@ export function CloudBridges({token,slug,canManage,canRun}:Props){
         await reload();
       })}>{zh?"重试待投递事件":"Retry pending events"}</button>}
       <p><small>{zh?"实际 dot 订阅未完成前，不显示在线或已接通。":"No dot-online claim before OAuth and real subscription acceptance."}</small></p>
-    </article>
-    <article className="cloud-bridge-card">
+    </article>}
+    {selected==="cue"&&<article className="cloud-bridge-card">
       <h3>Manus / Cue · <a href="https://open.manus.ai/docs/v2/agent.list" target="_blank" rel="noreferrer">API v2 ↗</a></h3>
       <p>{zh?"通过 Manus 官方 Agent API 查找你现有的 Cue Agent。API Key 仅用于这次查询，不保存在浏览器或数据库。":"Discover your existing Cue agents through the official Manus Agent API. The API key is used for this one lookup only."}</p>
       {canManage&&<form onSubmit={discover} className="cloud-bridge-form">
@@ -91,8 +105,8 @@ export function CloudBridges({token,slug,canManage,canRun}:Props){
       </form>}
       {cue.length>0&&<ul>{cue.map(agent=><li key={agent.id}><strong>{agent.name}</strong> · <code>{agent.id}</code> <button className="d-btn" type="button" onClick={()=>void navigator.clipboard?.writeText(agent.id)}>{zh?"复制 ID":"Copy ID"}</button></li>)}</ul>}
       <p><small>{zh?"向已有个人 Cue 主会话投递任务已支持；不自动导入无法确定归属的私人聊天回复。":"Send to existing Cue main tasks is supported; private replies without reliable request correlation are not imported."}</small></p>
-    </article>
-    <article className="cloud-bridge-card">
+    </article>}
+    {selected==="grok"&&<article className="cloud-bridge-card">
       <h3>Grok · Official Automations Webhook</h3>
       <p>{zh?"这是官方 Automation Webhook，不是个人 Grok Bot 的直接 SDK。Webhook 返回成功仅代表接收任务。":"This is an official Automation webhook, not a direct personal Grok Bot SDK. An accepted webhook does not prove task completion."}</p>
       <p>{state?.connection?zh?`已绑定：${state.connection.name}`:`Configured: ${state.connection.name}`:zh?"尚未绑定":"Not configured"}</p>
@@ -111,12 +125,12 @@ export function CloudBridges({token,slug,canManage,canRun}:Props){
         if(!confirm(zh?"取消此群 Grok Automation 绑定？已发送的远程任务不会自动取消。":"Disconnect Grok Automation for this group? In-flight remote work is not cancelled."))return;
         await cloudBridgesApi.disconnectGrok(token,slug);await reload();
       })}>{zh?"断开连接":"Disconnect"}</button>}
-    </article>
-    <article className="cloud-bridge-card">
+    </article>}
+    {selected==="muse"&&<article className="cloud-bridge-card">
       <h3>Meta Muse · Cloud Connector / Muse Code SDK</h3>
       <p>{zh?"云端 Muse 使用官方 Connector Platform 接入群工具；Muse Code 则可使用已集成的 @muse-code/sdk 本地运行器。两者不是同一个会话。":"Cloud Muse uses the official Connector Platform for group tools. Muse Code uses the included @muse-code/sdk runner on a machine with the Muse host installed. They are separate session types."}</p>
       <p><a href="https://platform.muse.ai/docs" target="_blank" rel="noreferrer">Muse Connector Platform ↗</a> · <a href="https://github.com/meta-models/muse-code-sdk" target="_blank" rel="noreferrer">Muse Code SDK ↗</a></p>
       <p><small>{zh?"Muse Cloud 的个人会话自动唤醒、平台审核及 OAuth 接入未完成；Muse Code 需要本机 muse 可执行程序。":"Muse Cloud automatic wake, approval and OAuth setup are unverified. Muse Code requires an installed local muse binary."}</small></p>
-    </article>
+    </article>}
   </section>;
 }

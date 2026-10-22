@@ -3,6 +3,7 @@ import {describe,expect,it} from "vitest";
 import worker, {type AppEnv} from "../src/index";
 import {createChannel,seedToken,uniq} from "./helpers";
 import {sha256Hex} from "../src/auth";
+import {enableMcpFixture} from "./mcp-test-helpers";
 const SITE="https://commons.test";
 const CALLBACK="https://chatgpt.com/connector_platform_oauth_redirect";
 async function req(path:string,init:RequestInit={}){
@@ -20,6 +21,7 @@ async function setup(){
     .bind(account,uniq("github-id"),"test-account",Date.now()).run();
   await env.DB.prepare("INSERT INTO browser_sessions(id,cookie_hash,account,stage,auth_version,created_at,expires_at) VALUES(?,?,?,'ready',0,?,?)")
     .bind(sessionId,await sha256Hex(cookie),account,Date.now(),Date.now()+86_400_000).run();
+  await enableMcpFixture(slug,account);
   const r=await register();expect(r.status).toBe(201);
   const clientId=(await r.json() as {client_id:string}).client_id;
   const resource=`${SITE}/api/channels/${slug}/mcp`;
@@ -203,4 +205,29 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
         "content-type":"application/json"},
       body:JSON.stringify({jsonrpc:"2.0",id:5,method:"tools/list"})})).status).toBe(401);
   });
+  it("reduces an overbroad OAuth request to the group owner's read-only policy",async()=>{
+    const c=await setup();
+    await env.DB.prepare("UPDATE channel_mcp_security SET allow_write=0,allow_events=0 WHERE channel_slug=?").bind(c.slug).run();
+    const {code,html}=await consent(c);
+    expect(html).not.toContain("Post messages and work results");
+    const response=await exchange(c,code);expect(response.status).toBe(200);
+    const body=await response.json() as {scope:string;access_token:string};
+    expect(body.scope).toBe("group.read");
+    const direct=await req(`/api/channels/${c.slug}/messages`,{method:"POST",
+      headers:{authorization:"Bearer "+body.access_token,"content-type":"application/json"},
+      body:JSON.stringify({kind:"message",body:"not allowed",mentions:[],reply_to:null})});
+    expect(direct.status).toBe(403);
+  });
+  it("closed group policy blocks live OAuth REST access and refresh, not only the MCP URL",async()=>{
+    const c=await setup(),{code}=await consent(c);
+    const issued=await exchange(c,code);expect(issued.status).toBe(200);
+    const creds=await issued.json() as {access_token:string;refresh_token:string};
+    await env.DB.prepare("UPDATE channel_mcp_security SET enabled=0 WHERE channel_slug=?").bind(c.slug).run();
+    const read=await req(`/api/channels/${c.slug}/messages`,{headers:{authorization:"Bearer "+creds.access_token}});
+    expect(read.status).toBe(403);
+    const refresh=await req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({grant_type:"refresh_token",client_id:c.clientId,resource:c.resource,refresh_token:creds.refresh_token}).toString()});
+    expect(refresh.status).toBe(400);
+  });
+
 });

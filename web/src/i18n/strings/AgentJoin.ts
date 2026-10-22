@@ -38,7 +38,7 @@ export const AgentJoinStrings: LocaleDict = {
     // 这不是 bug 而是引导缺口——所以把判据写死在接入包里，别让每个 agent 自己悟。
 
     // #845 第 4 点：interactive 包的目标 harness 三选——只渲染对应分支，把包砍薄
-    "AgentJoin.harnessLabel": "target harness",
+    "AgentJoin.harnessLabel": "Local coding tool",
     "AgentJoin.harnessClaude": "Claude Code",
     "AgentJoin.harnessCodex": "Codex",
     "AgentJoin.harnessOther": "other / not sure (let it detect)",
@@ -191,7 +191,7 @@ export const AgentJoinStrings: LocaleDict = {
     "AgentJoin.cmd.channelDedupeNote2": "# 如果它列出了东西，请做显式选择：【替换】（先退役旧的——按它打印的 party mcp identities --keep 那行走；默认 dry-run，不加 --yes 什么都不删）或【并存】（不同角色 / 不同 harness 是正当的）。它只打印，不阻断、不删除任何东西。",
 
     // #845 第 4 点：interactive 包的目标 harness 三选——只渲染对应分支，把包砍薄
-    "AgentJoin.harnessLabel": "目标 harness",
+    "AgentJoin.harnessLabel": "本地编程工具",
     "AgentJoin.harnessClaude": "Claude Code",
     "AgentJoin.harnessCodex": "Codex",
     "AgentJoin.harnessOther": "其他 / 不确定（让它自己探测）",

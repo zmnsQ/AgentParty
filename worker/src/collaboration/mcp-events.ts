@@ -1,6 +1,7 @@
 import type { AppEnv } from "../index";
 import type { TokenIdentity } from "../auth";
 import { sha256Hex } from "../auth";
+import { mcpPermission } from "./mcp-security";
 import { openCredential, sealCredential } from "./vault";
 
 const VERSION = "2026-07-28";
@@ -90,6 +91,7 @@ function canonicalFilter(params: unknown, slug: string): string {
 async function validIdentity(db: D1Database, subscription: Pick<Subscription,
   "agent_name" | "agent_token_hash" | "channel_slug" | "owner_account">): Promise<boolean> {
   const {agent_name, agent_token_hash, channel_slug, owner_account} = subscription;
+  if(!await mcpPermission(db,channel_slug,"group.events"))return false;
   if (agent_name.startsWith("ac-oauth-")) {
     const grant = await db.prepare(
       "SELECT g.scopes_json FROM connector_oauth_grants g JOIN tokens t ON t.name=g.agent_name " +

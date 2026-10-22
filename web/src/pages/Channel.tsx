@@ -13,6 +13,7 @@ import { LiveSessionModal, hasLiveSession } from "../components/LiveSessionView"
 import { draftWithMention } from "../components/LocalOcsSessions";
 import { teamMemberOnlineNames } from "../lib/onlineNames";
 import { AgentJoin, type JoinGuideSession } from "../components/AgentJoin";
+import type {CloudAgentChoice} from "../components/AgentConnectionPicker";
 import { AgentTokens } from "../components/AgentTokens";
 import { VisibilityToggle } from "../components/VisibilityToggle";
 import { JoinLink } from "../components/JoinLink";
@@ -2112,6 +2113,7 @@ export function ChannelPage({
   const [hostAssignError, setHostAssignError] = useState<string | null>(null);
   const [seenCharterRev, setSeenCharterRev] = useState(() => readSeenCharterRev(slug));
   const [activePanel, setActivePanel] = useState<ChannelPanel | null>(null);
+  const [cloudConnectTarget,setCloudConnectTarget]=useState<CloudAgentChoice|null>(null);
   const [activeAdminSurface, setActiveAdminSurface] = useState<AdminSurface | null>(null);
   // #1009：「接入凭证」面板点「接入引导 / 重新接上」交过来的一次引导会话——转给 AgentJoin 打开四步 stepper。
   const [joinGuideSession, setJoinGuideSession] = useState<JoinGuideSession | null>(null);
@@ -4697,6 +4699,7 @@ export function ChannelPage({
                     active={activeAdminSurface === "agentJoin"}
                     onActiveChange={(open) => setAdminSurface("agentJoin", open)}
                     guideSession={joinGuideSession}
+                    onCloudConnect={provider=>{setCloudConnectTarget(provider);openPanel("collaboration");}}
                   />
                   <AgentTokens
                     slug={slug}
@@ -4778,7 +4781,9 @@ export function ChannelPage({
         >
           {activePanel === "collaboration" && (
             <Suspense fallback={<p role="status">{t("Collab.loading")}</p>}>
-              <CollaborationHub key={slug} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed} />
+              <CollaborationHub key={slug} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed}
+                initialTab={cloudConnectTarget==="hermes"?"agents":cloudConnectTarget?"bridges":undefined}
+                initialProvider={cloudConnectTarget??undefined} />
             </Suspense>
           )}
           {activePanel === "charter" && (

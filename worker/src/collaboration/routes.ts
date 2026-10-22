@@ -9,6 +9,7 @@ import type { AppContext, AppEnv, LoadedChannel } from "../index";
 import { isHumanChannelOwner } from "../acl";
 import { randomToken, sha256Hex, type TokenIdentity } from "../auth";
 import { handleChannelMcp } from "./mcp";
+import { mcpSecurity, verifiedMfaOwner } from "./mcp-security";
 import { registerProposalRoutes } from "./proposals";
 import { registerGrokAutomationRoutes } from "./grok-automation";
 import { deliverMcpEvents } from "./mcp-events";
@@ -511,6 +512,41 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       return c.json({ repository: repositoryView(row), [kind]: data });
     }));
   }
+
+  app.get("/api/channels/:slug/mcp-security",route(async c=>{
+    const grant=await access(c,"read");if(grant instanceof Response)return grant;
+    return c.json({policy:await mcpSecurity(c.env.DB,grant.slug),can_manage:isHumanChannelOwner(grant.identity,grant.channel)});
+  }));
+  app.put("/api/channels/:slug/mcp-security",route(async c=>{
+    const grant=await access(c,"manage");if(grant instanceof Response)return grant;
+    const input=await jsonObject(c);
+    if(!input||Object.keys(input).some(k=>!["enabled","allow_write","allow_events"].includes(k))||
+      ["enabled","allow_write","allow_events"].some(k=>typeof input[k]!=="boolean"))
+      return fail(c,400,"Invalid MCP security policy.","invalid_policy");
+    if(input.enabled && !(await verifiedMfaOwner(c.env.DB,grant.identity)))
+      return fail(c,403,"Enable authenticator verification in Account security, sign in, then enable this connection.","mfa_required");
+    const now=Date.now();
+    const statements=[c.env.DB.prepare(`INSERT INTO channel_mcp_security(channel_slug,enabled,allow_write,allow_events,updated_by,updated_at)
+      VALUES(?,?,?,?,?,?) ON CONFLICT(channel_slug) DO UPDATE SET enabled=excluded.enabled,
+      allow_write=excluded.allow_write,allow_events=excluded.allow_events,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
+      .bind(grant.slug,input.enabled?1:0,input.enabled&&input.allow_write?1:0,input.enabled&&input.allow_events?1:0,grant.identity.account??grant.identity.name,now)];
+    // Disabling revokes grants, not just UI state. Re-enabling requires fresh consent.
+    if(!input.enabled){
+      // Closing external access also invalidates unfinished consent/code flows.
+      // Reopening a group must not redeem an approval captured before closure.
+      statements.push(c.env.DB.prepare("DELETE FROM connector_oauth_pending WHERE channel_slug=?").bind(grant.slug));
+      statements.push(c.env.DB.prepare("DELETE FROM connector_oauth_codes WHERE channel_slug=?").bind(grant.slug));
+      statements.push(c.env.DB.prepare(`UPDATE tokens SET revoked_at=? WHERE name IN
+        (SELECT agent_name FROM connector_oauth_grants WHERE channel_slug=?)`).bind(now,grant.slug));
+      statements.push(c.env.DB.prepare("UPDATE connector_oauth_grants SET revoked_at=?,updated_at=? WHERE channel_slug=? AND revoked_at IS NULL").bind(now,now,grant.slug));
+    }
+    if(!input.enabled||!input.allow_events){
+      statements.push(c.env.DB.prepare("UPDATE mcp_event_subscriptions SET revoked_at=?,updated_at=? WHERE channel_slug=? AND revoked_at IS NULL").bind(now,now,grant.slug));
+      statements.push(c.env.DB.prepare("UPDATE mcp_event_outbox SET state='revoked',lease_token=NULL,lease_until=0,updated_at=? WHERE channel_slug=? AND state='pending'").bind(now,grant.slug));
+    }
+    await c.env.DB.batch(statements);
+    return c.json({policy:await mcpSecurity(c.env.DB,grant.slug),can_manage:true});
+  }));
 
   app.post("/api/channels/:slug/mcp", route(async (c) => {
     const granted = await access(c); if (granted instanceof Response) return granted;

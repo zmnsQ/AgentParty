@@ -63,6 +63,7 @@ import { useT, type TFunc } from "../i18n/useT";
 import { useDismissableLayer } from "./useDismissableLayer";
 import { useModalFocusTrap } from "./useModalFocusTrap";
 import "../i18n/strings/AgentJoin";
+import {AgentConnectionPicker,type CloudAgentChoice} from "./AgentConnectionPicker";
 
 interface Props {
   slug: string;
@@ -77,6 +78,7 @@ interface Props {
   accountKey: string;
   active?: boolean;
   onActiveChange?(open: boolean): void;
+  onCloudConnect?(provider:CloudAgentChoice): void;
   /**
    * 频道页的实时 presence / 历史（WS 流）。传了就直接用（不轮询）；缺省时弹窗打开期间每 pollIntervalMs
    * 拉一次 /presence + /messages，关掉即停（#1005）。
@@ -309,6 +311,7 @@ export function AgentJoin({
   accountKey,
   active,
   onActiveChange,
+  onCloudConnect,
   dutyAdapter = desktopAgentAdapter,
   desktopDetect = isMacDesktop,
   pickDirectory = pickDirectoryDefault,
@@ -325,6 +328,7 @@ export function AgentJoin({
 }: Props) {
   const t = useT();
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [localChosen,setLocalChosen]=useState(false);
   const [name, setName] = useState("");
   // #612：无人值守值守预设——unattended 生成「装 CLI → init → party serve --runner <选中的>」的
   // 运维脚本（runner 见下方 state，缺省 codex），interactive 仍是贴给 agent harness 的完整接入包。
@@ -372,6 +376,7 @@ export function AgentJoin({
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const open = useCallback(() => {
+    setLocalChosen(false);
     onActiveChange?.(true);
     setName(suggestName(namePrefix, slug));
     setMode("interactive");
@@ -848,6 +853,10 @@ export function AgentJoin({
               </button>
             </header>
 
+            {onCloudConnect && !localChosen ? <AgentConnectionPicker
+              onCloud={provider=>{close();onCloudConnect(provider);}}
+              onLocal={()=>setLocalChosen(true)} /> : <>
+            {onCloudConnect && <button className="d-btn" type="button" onClick={()=>setLocalChosen(false)}>{t("AgentConnect.back")}</button>}
             <p className="agent-join-lead">{t("AgentJoin.lead", { examples: "drawstyle-review, leo-debug" })}</p>
 
             <label className="agent-join-namerow">
@@ -954,6 +963,7 @@ export function AgentJoin({
                 {phase.kind === "loading" ? t("AgentJoin.minting") : t("AgentJoin.generate")}
               </button>
             </div>
+            </>}
           </div>
         </div>
       )}

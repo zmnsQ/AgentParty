@@ -6,6 +6,7 @@ import { sha256Hex } from "../src/auth";
 import { signMcpWebhook, enqueueMcpEvent, deliverMcpEvents } from "../src/collaboration/mcp-events";
 import { handleChannelMcp } from "../src/collaboration/mcp";
 import type { TokenIdentity } from "../src/auth";
+import { enableMcpFixture } from "./mcp-test-helpers";
 
 const CALLBACK="https://events.chatgpt.test/dot/callback";
 const SECRET="whsec_"+btoa("dot-bridge-signing-key-12345678901234567890");
@@ -22,6 +23,7 @@ async function group(){
   const account=uniq("event-account");
   const human=await seedToken("human",uniq("human"),{owner:account});
   const slug=await createChannel(human.token);
+  await enableMcpFixture(slug,account);
   const agent=await seedToken("agent",uniq("dot"),{owner:account,channelScope:slug});
   const identity:TokenIdentity={name:agent.name,kind:"agent",role:"agent",hash:await sha256Hex(agent.token),owner:account,account,channel_scope:slug};
   return {account,human,slug,agent,identity};

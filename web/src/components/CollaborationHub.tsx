@@ -8,6 +8,7 @@ import { CloudAgentConnections } from "./CloudAgentConnections";
 import { RepositoryConnections } from "./RepositoryConnections";
 import { ChannelFiles } from "./ChannelFiles";
 import { CloudBridges } from "./CloudBridges";
+import type {CloudAgentChoice} from "./AgentConnectionPicker";
 import { OriginalProjectCredit } from "./OriginalProjectCredit";
 import "../i18n/strings/CollaborationHub";
 import "../styles/collaboration.css";
@@ -21,6 +22,8 @@ interface CollaborationHubProps {
   archived?: boolean;
   onAuthFailed?(message: string): void;
   client?: CollaborationClient;
+  initialTab?: Tab;
+  initialProvider?: CloudAgentChoice;
 }
 
 export function CollaborationHub(props: CollaborationHubProps) {
@@ -31,9 +34,9 @@ export function CollaborationHub(props: CollaborationHubProps) {
   return <ScopedCollaborationHub key={scope} {...props} server={server} />;
 }
 
-function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server }: CollaborationHubProps & { server: string }) {
+function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server, initialTab, initialProvider }: CollaborationHubProps & { server: string }) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>("agents");
+  const [tab, setTab] = useState<Tab>(initialTab??"agents");
   // Keep the selected tab visible without scrolling the whole mobile dialog.
   useEffect(() => {
     const item = typeof document !== "undefined" ? document.getElementById?.(`commons-tab-${tab}`) : null;
@@ -89,7 +92,7 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
         {tab === "agents" && <CloudAgentConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "repositories" && <RepositoryConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "files" && <ChannelFiles token={token} slug={slug} canUpload={current.permissions.upload} client={client} />}
-        {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} />}
+        {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} />}
       </div>
     </>}
     <footer className="commons-attribution"><p>{t("Collab.source")}</p><a href="https://github.com/leeguooooo/AgentParty" target="_blank" rel="noreferrer">AgentParty ↗</a><span> · </span><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("Collab.license")}</a></footer>

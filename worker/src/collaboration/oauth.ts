@@ -3,6 +3,7 @@ import type { AppContext, AppEnv } from "../index";
 import type { TokenIdentity } from "../auth";
 import { readBrowserSession } from "../browser-auth/session";
 import { sha256Hex } from "../auth";
+import { mcpPermission } from "./mcp-security";
 
 type Ctx=Context<AppContext>;
 const ACCESS_MS=10*60_000;
@@ -175,6 +176,7 @@ async function issueToken(db:D1Database,from:Code|Grant,clientId:string,
   isRefresh=false):Promise<Record<string,unknown>>{
   const now=Date.now();
   const scope=JSON.parse(from.scopes_json) as string[];
+  for(const requested of scope)if(!await mcpPermission(db,from.channel_slug,requested))throw new Error("invalid_grant");
   const account=from.account,slug=from.channel_slug;
   const grantId=await sha256Hex(JSON.stringify([clientId,account,slug]));
   const agentName="ac-oauth-"+grantId.slice(0,25);
@@ -230,8 +232,12 @@ export function oauthResourceMetadata(env:AppEnv,slug?:string){
 }
 export async function oauthPermission(identity:TokenIdentity,env:AppEnv,slug:string,needed:string):Promise<boolean>{
   if(!identity.name.startsWith("ac-oauth-"))return true;
-  const row=await env.DB.prepare(`SELECT scopes_json FROM connector_oauth_grants WHERE channel_slug=? AND account=? AND agent_name=?
-    AND access_hash=? AND access_expires_at>? AND revoked_at IS NULL`).bind(slug,identity.account??"",identity.name,identity.hash,Date.now()).first<{scopes_json:string}>();
+  if(!await mcpPermission(env.DB,slug,needed))return false;
+  const row=await env.DB.prepare(`SELECT g.scopes_json FROM connector_oauth_grants g
+    JOIN channels c ON c.slug=g.channel_slug JOIN connector_oauth_clients client ON client.client_id=g.client_id
+    WHERE g.channel_slug=? AND g.account=? AND g.agent_name=? AND g.access_hash=? AND g.access_expires_at>?
+    AND g.revoked_at IS NULL AND client.disabled_at IS NULL AND c.owner_account=g.account
+    AND c.archived_at IS NULL AND g.resource=?`).bind(slug,identity.account??"",identity.name,identity.hash,Date.now(),publicUrlForSlug(env,slug)).first<{scopes_json:string}>();
   if(!row)return false;
   try{return (JSON.parse(row.scopes_json) as string[]).includes(needed);}catch{return false;}
 }
@@ -317,13 +323,20 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       return new Response(null,{status:302,headers:{location:url,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
     if(!await groupOwned(c.env.DB,slug,current.account))return simple("group_owner_required",403);
+    if(current.enabled!==1)return simple("mfa_required",403);
+    if(!await mcpPermission(c.env.DB,slug,"group.read"))return simple("group_mcp_policy_denied",403);
+    // OAuth allows a reduced grant. Read-only policy must not force users to
+    // enable writes just because a client requests every advertised scope.
+    const approvedScopes:string[]=[];
+    for(const scope of scopes)if(await mcpPermission(c.env.DB,slug,scope))approvedScopes.push(scope);
+    if(!approvedScopes.includes("group.read"))return simple("invalid_scope",400);
     const nonce=random(),id="request_"+random();
     await c.env.DB.prepare(`INSERT INTO connector_oauth_pending
       (id,nonce_hash,browser_session_id,account,client_id,channel_slug,redirect_uri,state,code_challenge,scopes_json,resource,expires_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,await sha256Hex(nonce),current.id,current.account,clientId,
-      slug,redirect,p.state,p.code_challenge,JSON.stringify(scopes),resource,Date.now()+EXPIRY_MS).run();
+      slug,redirect,p.state,p.code_challenge,JSON.stringify(approvedScopes),resource,Date.now()+EXPIRY_MS).run();
     const language=(c.req.header("accept-language")??"").trim().toLowerCase().startsWith("zh")?"zh":"en";
-    return consentPage({id,nonce,clientName:target.name,group:slug,scopes,account:current.account},language);
+    return consentPage({id,nonce,clientName:target.name,group:slug,scopes:approvedScopes,account:current.account},language);
   });
   app.post("/oauth/authorize",async c=>{
     if(!isExpectedOrigin(c.req.raw,c.env))return simple("invalid_origin",403);
@@ -332,6 +345,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     if(!/^request_[a-f0-9]{64}$/.test(id)||!/^[a-f0-9]{64}$/.test(nonce)||!["approve","deny"].includes(decision??""))return simple("invalid_request");
     const current=await readBrowserSession(c.env.DB,c.req.raw);
     if(!current||current.stage!=="ready")return simple("login_required",401);
+    if(current.enabled!==1)return simple("mfa_required",403);
     const pending=await c.env.DB.prepare(`DELETE FROM connector_oauth_pending WHERE id=? AND nonce_hash=? AND browser_session_id=?
       AND account=? AND expires_at>? RETURNING *`)
       .bind(id,await sha256Hex(nonce),current.id,current.account,Date.now()).first<Pending>();
@@ -339,6 +353,8 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     const issuer=uri(c.env);
     if(decision==="deny")return redirectResult(pending.redirect_uri,{error:"access_denied",state:pending.state,iss:issuer});
     if(!await groupOwned(c.env.DB,pending.channel_slug,current.account))return simple("group_owner_required",403);
+    for(const scope of JSON.parse(pending.scopes_json) as string[])
+      if(!await mcpPermission(c.env.DB,pending.channel_slug,scope))return simple("group_mcp_policy_denied",403);
     const code="acco_"+random();
     await c.env.DB.prepare(`INSERT INTO connector_oauth_codes(code_hash,pending_id,client_id,account,channel_slug,redirect_uri,
       code_challenge,scopes_json,resource,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)`)
