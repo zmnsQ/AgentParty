@@ -107,6 +107,30 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     expect(body).toContain("zmnsQ");
     expect(body).toContain("BUSL-1.1");
   });
+  it("permits the validated client callback origin in the native form redirect CSP",async()=>{
+    const c=await setup();
+    const qs=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"csp-callback",scope:"group.read",resource:c.resource});
+    const response=await req("/oauth/authorize?"+qs,{headers:{cookie:c.cookie}});
+    expect(response.status).toBe(200);
+    const policy=response.headers.get("content-security-policy")??"";
+    const formAction=policy.split(";").map(s=>s.trim()).find(s=>s.startsWith("form-action "));
+    expect(formAction).toBe("form-action 'self' https://chatgpt.com");
+    expect(policy).toContain("default-src 'none'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(formAction?.split(/\s+/)).not.toContain("https:");
+    expect(formAction).not.toContain("*");
+  });
+  it.each(["https://attacker.test/receive", "https://chatgpt.com.attacker.test/connector_platform_oauth_redirect",
+    "https://chatgpt.com/not-the-registered-callback"])("does not let a supplied redirect widen consent navigation: %s",async(redirect)=>{
+    const c=await setup();
+    const qs=new URLSearchParams({client_id:c.clientId,redirect_uri:redirect,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"unregistered-callback",scope:"group.read",resource:c.resource});
+    const response=await req("/oauth/authorize?"+qs,{headers:{cookie:c.cookie}});
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({error:"invalid_authorization_request"});
+    expect((await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_pending WHERE client_id=?").bind(c.clientId).first<{n:number}>())!.n).toBe(0);
+  });
   it("keeps the real Origin on native consent form POSTs without leaking referrers cross-site",async()=>{
     const c=await setup();
     const query=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",

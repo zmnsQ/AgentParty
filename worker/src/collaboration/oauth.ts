@@ -101,6 +101,8 @@ async function validCodeChallenge(input:string,challenge:string):Promise<boolean
 type ConsentLocale = "en" | "zh";
 function consentPage(params:{
   id:string;nonce:string;clientName:string;group:string;scopes:string[];account:string;
+  /** Exact registered redirect URI, validated by the authorization route. */
+  redirectUri:string;
   renewal?:"expired"|"session_changed"
 }, locale:ConsentLocale):Response {
   const zh = locale==="zh";
@@ -142,6 +144,12 @@ function consentPage(params:{
     "group.write":"Post messages and work results to this group",
     "group.events":"Subscribe to this group’s event notifications",
   };
+  // Chromium enforces form-action on a native form's redirect chain. A self-only
+  // policy consumes the consent server-side but blocks the approved OAuth client
+  // callback, leaving the user on a now-used form. Permit only THIS validated
+  // client's callback origin. Complete redirect URI matching, nonce/session/MFA,
+  // scope checks and PKCE remain authoritative; no scheme or wildcard sources.
+  const callbackOrigin=new URL(params.redirectUri).origin;
   const scopes=params.scopes.map(scope=>`<li><span>${escape(scopeLabels[scope]??scope)}</span><code>${escape(scope)}</code></li>`).join("");
   const renewed = params.renewal ? (zh
     ? "之前的确认页已过期或登录会话已更新。下面是新的授权确认，请重新核对群组与权限；尚未授予访问权限。"
@@ -168,7 +176,7 @@ ${phrases.upstream}</p><p><a href="https://github.com/leeguooooo/AgentParty/blob
   // suppressing Referer on cross-origin navigation. isExpectedOrigin remains
   // strict; never accept null/missing Origin to compensate for this bug.
   return new Response(html,{headers:{"content-type":"text/html; charset=utf-8",
-    "content-security-policy":"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';",
+    "content-security-policy":`default-src 'none'; style-src 'self'; form-action 'self' ${callbackOrigin}; frame-ancestors 'none'; base-uri 'none';`,
     "referrer-policy":"same-origin","cache-control":"no-store"}});
 }
 function consentUnavailable(request:Request):Response {
@@ -355,7 +363,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       slug,redirect,p.state,p.code_challenge,JSON.stringify(approvedScopes),resource,Date.now()+EXPIRY_MS).run();
     const language=(c.req.header("accept-language")??"").trim().toLowerCase().startsWith("zh")?"zh":"en";
     const renewal=p.consent_retry==="expired"||p.consent_retry==="session_changed"?p.consent_retry:undefined;
-    return consentPage({id,nonce,clientName:target.name,group:slug,scopes:approvedScopes,account:current.account,renewal},language);
+    return consentPage({id,nonce,clientName:target.name,group:slug,scopes:approvedScopes,account:current.account,redirectUri:redirect,renewal},language);
   });
   app.post("/oauth/authorize",async c=>{
     if(!isExpectedOrigin(c.req.raw,c.env))return simple("invalid_origin",403);
