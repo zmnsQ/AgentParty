@@ -1,7 +1,7 @@
 import {env,SELF,createExecutionContext,waitOnExecutionContext} from "cloudflare:test";
 import {describe,expect,it} from "vitest";
 import worker, {type AppEnv} from "../src/index";
-import {createChannel,seedToken,uniq} from "./helpers";
+import {api,createChannel,seedToken,uniq} from "./helpers";
 import {sha256Hex} from "../src/auth";
 import {enableMcpFixture} from "./mcp-test-helpers";
 const SITE="https://commons.test";
@@ -314,6 +314,53 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     const refresh=await req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},
       body:new URLSearchParams({grant_type:"refresh_token",client_id:c.clientId,resource:c.resource,refresh_token:creds.refresh_token}).toString()});
     expect(refresh.status).toBe(400);
+  });
+
+  it("lists OAuth identities as client-managed without exposing credentials or token hashes",async()=>{
+    const c=await setup(),{code}=await consent(c);
+    const granted=await exchange(c,code);expect(granted.status).toBe(200);
+    const secret=await granted.json() as {access_token:string;refresh_token:string};
+    const response=await api(`/api/channels/${c.slug}/agents`,c.human.token);
+    expect(response.status).toBe(200);
+    const content=await response.text();
+    expect(content).not.toContain(secret.access_token);expect(content).not.toContain(secret.refresh_token);
+    expect(content).not.toContain(await sha256Hex(secret.access_token));
+    const data=JSON.parse(content) as {agents:any[]};
+    expect(data.agents).toHaveLength(1);
+    expect(data.agents[0]).toMatchObject({credential_kind:"oauth",oauth:{client_name:"ChatGPT dot",provider:"chatgpt",status:"authorized",scopes:["group.events","group.read","group.write"]}});
+    expect(Object.keys(data.agents[0]).sort()).toEqual(["channel_scope","created_at","credential_kind","name","nickname","oauth","owner"].sort());
+    const outsider=await seedToken("human",uniq("outside"),{owner:uniq("outside-account")});
+    const rejected=await api(`/api/channels/${c.slug}/agents`,outsider.token);
+    if(rejected.status===200)expect((await rejected.json() as {agents:unknown[]}).agents).toHaveLength(0);
+    else expect(rejected.status).toBe(403);
+  });
+  it("rejects manual OAuth token rotation without altering the active connection",async()=>{
+    const c=await setup(),{code}=await consent(c);expect((await exchange(c,code)).status).toBe(200);
+    const before=await env.DB.prepare("SELECT agent_name,access_hash,refresh_hash FROM connector_oauth_grants WHERE account=?").bind(c.account).first<{agent_name:string;access_hash:string;refresh_hash:string}>();
+    const response=await api(`/api/channels/${c.slug}/agents/${before!.agent_name}/rotate`,c.human.token,{method:"POST"});
+    expect(response.status).toBe(409);
+    expect(await response.text()).toContain("OAuth credentials are managed by the connected client");
+    const after=await env.DB.prepare("SELECT hash FROM tokens WHERE name=?").bind(before!.agent_name).first<{hash:string}>();
+    expect(after?.hash).toBe(before!.access_hash);
+    expect(await env.DB.prepare("SELECT agent_name,access_hash,refresh_hash FROM connector_oauth_grants WHERE account=?").bind(c.account).first()).toEqual(before);
+  });
+  it("deleting an OAuth identity also revokes refresh so it cannot be silently restored",async()=>{
+    const c=await setup(),{code}=await consent(c);
+    const secret=await(await exchange(c,code)).json() as {refresh_token:string};
+    const grant=await env.DB.prepare("SELECT agent_name FROM connector_oauth_grants WHERE account=?").bind(c.account).first<{agent_name:string}>();
+    const removed=await api(`/api/channels/${c.slug}/agents/${grant!.agent_name}`,c.human.token,{method:"DELETE"});
+    expect(removed.status).toBe(200);
+    const refreshed=await req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",client_id:c.clientId,resource:c.resource,refresh_token:secret.refresh_token}).toString()});
+    expect(refreshed.status).toBe(400);
+    const row=await env.DB.prepare("SELECT revoked_at FROM connector_oauth_grants WHERE agent_name=?").bind(grant!.agent_name).first<{revoked_at:number|null}>();
+    expect(row?.revoked_at).not.toBeNull();
+  });
+  it("marks an expired OAuth connection as reconnect-required instead of a missing local token",async()=>{
+    const c=await setup(),{code}=await consent(c);expect((await exchange(c,code)).status).toBe(200);
+    await env.DB.prepare("UPDATE connector_oauth_grants SET access_expires_at=?,refresh_expires_at=? WHERE account=?").bind(Date.now()-1,Date.now()-1,c.account).run();
+    const response=await api(`/api/channels/${c.slug}/agents`,c.human.token);
+    expect(response.status).toBe(200);
+    expect((await response.json() as {agents:any[]}).agents[0]).toMatchObject({credential_kind:"oauth",oauth:{status:"reconnect_required"}});
   });
 
   async function viewOnly(c:Awaited<ReturnType<typeof setup>>,scope="group.read") {

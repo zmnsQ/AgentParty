@@ -4712,6 +4712,7 @@ export function ChannelPage({
                     onActiveChange={(open) => setAdminSurface("agentTokens", open)}
                     focusAgentName={agentManagerTarget}
                     onGuide={openJoinGuide}
+                    onOpenConnections={()=>{setCloudConnectTarget("dot");openPanel("collaboration");}}
                     onlineNames={memberOnlineNames}
                   />
                 </div>

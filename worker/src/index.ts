@@ -3782,9 +3782,16 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
     return c.json(errorBody("forbidden", "not allowed in this channel"), 403);
   }
   const rows = await c.env.DB.prepare(
-    `SELECT t.name, t.owner, t.channel_scope, t.created_at, n.nickname
+    `SELECT t.name, t.owner, t.channel_scope, t.created_at, n.nickname,
+            g.id AS oauth_grant_id, g.revoked_at AS oauth_revoked_at,
+            g.refresh_expires_at AS oauth_refresh_expires_at, g.access_expires_at AS oauth_access_expires_at,
+            g.scopes_json AS oauth_scopes, c.name AS oauth_client_name,
+            c.redirects_json AS oauth_redirects, c.disabled_at AS oauth_client_disabled,
+            CASE WHEN g.access_hash=t.hash THEN 1 ELSE 0 END AS oauth_token_matches
        FROM tokens t
        LEFT JOIN agent_nicknames n ON n.name = t.name
+       LEFT JOIN connector_oauth_grants g ON g.agent_name=t.name AND g.account=t.owner AND g.channel_slug=t.channel_scope
+       LEFT JOIN connector_oauth_clients c ON c.client_id=g.client_id
       WHERE t.owner = ?
         AND t.role = 'agent'
         AND t.channel_scope = ?
@@ -3793,8 +3800,28 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
       ORDER BY t.created_at DESC, t.name`,
   )
     .bind(identity.account, slug)
-    .all<{ name: string; owner: string; channel_scope: string; created_at: number; nickname: string | null }>();
-  return c.json({ agents: rows.results ?? [] });
+    .all<{ name: string; owner: string; channel_scope: string; created_at: number; nickname: string | null;
+      oauth_grant_id: string | null; oauth_revoked_at: number | null; oauth_refresh_expires_at: number | null;
+      oauth_access_expires_at: number | null; oauth_scopes: string | null; oauth_client_name: string | null;
+      oauth_redirects: string | null; oauth_client_disabled: number | null; oauth_token_matches: number }>();
+  const now=Date.now();
+  return c.json({ agents: rows.results.map(row=>{
+    // Explicit allowlist: never expose access/refresh hashes, credentials or cookies.
+    const basic={name:row.name,owner:row.owner,channel_scope:row.channel_scope,created_at:row.created_at,nickname:row.nickname};
+    if(!row.oauth_grant_id)return {...basic,credential_kind:"token"};
+    let redirects:unknown=[],scopes:unknown=[];
+    try{redirects=JSON.parse(row.oauth_redirects??"[]");scopes=JSON.parse(row.oauth_scopes??"[]");}catch{/* fail closed */}
+    const chatgpt=Array.isArray(redirects)&&redirects.some(value=>{
+      try{return typeof value==="string"&&new URL(value).origin==="https://chatgpt.com";}catch{return false;}
+    });
+    const active=row.oauth_revoked_at===null&&row.oauth_client_disabled===null&&row.oauth_token_matches===1&&
+      Math.max(row.oauth_refresh_expires_at??0,row.oauth_access_expires_at??0)>now;
+    return {...basic,credential_kind:"oauth",oauth:{
+      client_name:row.oauth_client_name??"OAuth client",provider:chatgpt?"chatgpt":"other",
+      status:active?"authorized":"reconnect_required",
+      scopes:Array.isArray(scopes)?scopes.filter((v):v is string=>typeof v==="string"):[],
+    }};
+  }) });
 });
 
 // #165 页面入口：human owner 可给自己铸造的 channel-scoped agent 设置全局昵称。
@@ -3881,6 +3908,8 @@ app.delete("/api/channels/:slug/agents/:name", requireBearer, async (c) => {
     c.env.DB.prepare(
       "DELETE FROM channel_members WHERE channel_slug = ? AND account = ?",
     ).bind(slug, name),
+    c.env.DB.prepare("UPDATE connector_oauth_grants SET revoked_at=?,updated_at=? WHERE channel_slug=? AND agent_name=? AND revoked_at IS NULL")
+      .bind(now,now,slug,name),
   ]);
   const tombstoned = await c.env.DB.prepare(
     `SELECT principal AS name
@@ -4013,6 +4042,9 @@ app.post("/api/channels/:slug/agents/:name/rotate", requireBearer, async (c) => 
     .bind(name, identity.account, slug)
     .first<{ id: number }>();
   if (!row) return c.json(errorBody("not_found", "agent token not found"), 404);
+  const oauthManaged=await c.env.DB.prepare("SELECT id FROM connector_oauth_grants WHERE agent_name=? AND account=? AND channel_slug=?")
+    .bind(name,identity.account,slug).first();
+  if(oauthManaged)return c.json(errorBody("conflict", "OAuth credentials are managed by the connected client. Reauthorize or revoke the connection instead."),409);
   const nextToken = randomToken();
   const now = Date.now();
   await c.env.DB.prepare(

@@ -9,7 +9,7 @@ import { LocaleProvider } from "../i18n/locale";
 // 并在浏览器剪贴板边界捕获文本，避免 mock.module 污染同一 Bun 进程里的 vault 单测。
 const copiedTexts: string[] = [];
 
-type AgentFixture = { name: string; owner: string; channel_scope: string; created_at: number; nickname?: string | null };
+type AgentFixture = import("../lib/api").ChannelAgentInfo;
 let agentsFixture: AgentFixture[] = [];
 // @ts-expect-error Bun supports query-suffixed imports that bypass process-wide module mocks.
 const actualApi = await import("../lib/api.ts?test-actual");
@@ -300,5 +300,24 @@ describe("AgentTokens copy join pack · harness 档位 (#902/#944)", () => {
     expect(saved.command).toContain("分步引导");
     expect(saved.command).toMatch(/ --yes$/);
     expect(saved.command).not.toContain("party init --server");
+  });
+});
+
+// OAuth cloud identities must never be treated as missing local CLI secrets.
+describe("OAuth agent identity UX",()=>{
+  test("shows the OAuth client name and guide instead of credential recovery controls",async()=>{
+    agentsFixture=[{name:"ac-oauth-fixture",owner:"acct-1",channel_scope:"demo",created_at:0,credential_kind:"oauth",oauth:{client_name:"ChatGPT",provider:"chatgpt",status:"authorized",scopes:["group.read"]}}];
+    const r=await renderOpen();
+    const content=JSON.stringify(r.toJSON());
+    expect(content).toContain("ChatGPT");expect(content).toContain("OAuth authorized");
+    expect(content).toContain("Credentials are managed by the connected client");
+    expect(content).not.toContain("This browser does not have the token");
+    expect(r.root.findAll(n=>n.type==="button"&&["rotate and recover","rotate","delete","copy token"].includes(String(n.props.children)))).toHaveLength(0);
+    expect(r.root.findAll(n=>n.type==="select"&&["agenttokens-pack-harness-select","agenttokens-resident-runner"].some(v=>String(n.props.id??n.props.className).includes(v)))).toHaveLength(0);
+  });
+  test("an expired OAuth grant says reauthorization instead of asking for a token reset",async()=>{
+    agentsFixture=[{name:"ac-oauth-fixture",owner:"acct-1",channel_scope:"demo",created_at:0,credential_kind:"oauth",oauth:{client_name:"ChatGPT",provider:"chatgpt",status:"reconnect_required",scopes:[]}}];
+    const r=await renderOpen();const content=JSON.stringify(r.toJSON());
+    expect(content).toContain("reauthorization needed");expect(content).not.toContain("rotate and recover");
   });
 });

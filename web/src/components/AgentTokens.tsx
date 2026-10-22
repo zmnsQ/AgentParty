@@ -42,6 +42,7 @@ import type { JoinGuideSession } from "./AgentJoin";
 import { useT } from "../i18n/useT";
 import { SectionedDialog, type SectionedDialogSection } from "./SectionedDialog";
 import "../i18n/strings/AgentTokens";
+import "../styles/connector-usage.css";
 
 interface Props {
   slug: string;
@@ -59,6 +60,7 @@ interface Props {
    * 不传则退回旧行为（主按钮仍是「复制接入包」）。
    */
   onGuide?(session: JoinGuideSession): void;
+  onOpenConnections?(): void;
   /**
    * 在线名单（频道页的 presence 快照）。ChannelAgentInfo 本身没有在线字段，所以离线判定靠这份；
    * 不传＝无从判断，一律按在线处理（不会误显「重新接上」）。
@@ -70,6 +72,10 @@ interface Props {
   // 常驻是 macOS launchd，仅 mac 桌面可用；测试注入覆盖。
   canMakeResident?: boolean;
 }
+
+const isOAuthIdentity=(agent:ChannelAgentInfo)=>agent.credential_kind==="oauth"||agent.name.startsWith("ac-oauth-");
+const oauthReady=(agent:ChannelAgentInfo)=>agent.oauth?.status==="authorized";
+const agentLabel=(agent:ChannelAgentInfo)=>agent.nickname??agent.oauth?.client_name??agent.name;
 
 type CopyTarget = `${string}:token` | `${string}:command`;
 type AgentManagerSection = "channel" | "projects" | "local";
@@ -106,6 +112,7 @@ export function AgentTokens({
   onActiveChange,
   focusAgentName = null,
   onGuide,
+  onOpenConnections,
   onlineNames,
   dutyAdapter = desktopAgentAdapter,
   pickDirectory = pickDirectoryDefault,
@@ -162,12 +169,13 @@ export function AgentTokens({
     const query = agentQuery.trim().toLocaleLowerCase();
     if (query === "") return agents ?? [];
     return (agents ?? []).filter((agent) =>
-      `${agent.name} ${agent.nickname ?? ""}`.toLocaleLowerCase().includes(query)
+      `${agent.name} ${agent.nickname ?? ""} ${agent.oauth?.client_name ?? ""}`.toLocaleLowerCase().includes(query)
     );
   }, [agentQuery, agents]);
   const selectedAgent = filteredAgents.find((agent) => agent.name === selectedAgentName)
     ?? filteredAgents[0]
     ?? null;
+  const selectedAgentOAuth=selectedAgent!==null&&isOAuthIdentity(selectedAgent);
   const selectedAgentSaved = selectedAgent === null
     ? null
     : savedTokensByName.get(selectedAgent.name) ?? null;
@@ -408,6 +416,7 @@ export function AgentTokens({
   // #612：换 token 不换接入方式——沿用旧记录的 mode，让「复制接入包」仍是同款脚本。
   // #530：桌面版 location.origin 是 tauri://localhost，接入包会报错；优先真实后端 apiBase，同源 web 回退 origin。
   async function regenerateAndSaveToken(name: string): Promise<string> {
+    if(name.startsWith("ac-oauth-")||agents?.some(a=>a.name===name&&isOAuthIdentity(a)))throw new Error("OAuth credentials are client managed");
     const next = await rotateChannelAgent(token, slug, name);
     const prior = findSavedAgentToken(accountKey, slug, name);
     // #902：这里曾经手写一份平行的「最小接入包」（buildMinimalAgentCommand），于是 joinPack 里
@@ -623,7 +632,8 @@ export function AgentTokens({
     }
   }
 
-  const plaintextCount = (agents ?? []).filter((agent) => savedTokensByName.has(agent.name)).length;
+  const plaintextCount = (agents ?? []).filter((agent) => !isOAuthIdentity(agent)&&savedTokensByName.has(agent.name)).length;
+  const oauthCount=(agents??[]).filter(a=>isOAuthIdentity(a)&&oauthReady(a)).length;
   const worktreeLabel = (strategy: ProjectAgentWorktreeStrategy) => {
     if (strategy === "shared") return t("AgentTokens.worktreeShared");
     if (strategy === "none") return t("AgentTokens.worktreeNone");
@@ -653,7 +663,7 @@ export function AgentTokens({
           <span>{t("AgentTokens.identityCount")}</span>
         </div>
         <div>
-          <strong>{agents === null ? "—" : plaintextCount}</strong>
+          <strong>{agents === null ? "—" : plaintextCount+oauthCount}</strong>
           <span>{t("AgentTokens.plaintextCount")}</span>
         </div>
         <div>
@@ -697,11 +707,12 @@ export function AgentTokens({
                   }}
                 >
                   <span className="agentmanager-list-name">
-                    {agent.nickname ?? agent.name}
-                    {agent.nickname && <small>{agent.name}</small>}
+                    {agentLabel(agent)}
+                    {(agent.nickname||isOAuthIdentity(agent)) && <small>{agent.name}</small>}
                   </span>
-                  <span className={`agentmanager-status${saved ? " is-ready" : " is-warning"}`}>
-                    {saved ? t("AgentTokens.plaintextReady") : t("AgentTokens.plaintextMissing")}
+                  <span className={`agentmanager-status${isOAuthIdentity(agent)?oauthReady(agent)?" is-ready":" is-warning":saved?" is-ready":" is-warning"}`}>
+                    {isOAuthIdentity(agent)?t(oauthReady(agent)?"AgentTokens.oauthReady":"AgentTokens.oauthReconnect"):
+                      saved?t("AgentTokens.plaintextReady"):t("AgentTokens.plaintextMissing")}
                   </span>
                 </button>
               );
@@ -741,15 +752,25 @@ export function AgentTokens({
                 <header className="agentmanager-detail-head">
                   <div>
                     <span className="agentmanager-eyebrow">{t("AgentTokens.channelIdentity")}</span>
-                    <h4>{selectedAgent.nickname ?? selectedAgent.name}</h4>
-                    {selectedAgent.nickname && <p className="t-mono">{selectedAgent.name}</p>}
+                    <h4>{agentLabel(selectedAgent)}</h4>
+                    {(selectedAgent.nickname||selectedAgentOAuth) && <p className="t-mono">{selectedAgent.name}</p>}
                   </div>
-                  <span className={`agentmanager-status${selectedAgentSaved ? " is-ready" : " is-warning"}`}>
-                    {selectedAgentSaved ? t("AgentTokens.plaintextReady") : t("AgentTokens.plaintextMissing")}
+                  <span className={`agentmanager-status${selectedAgentOAuth?oauthReady(selectedAgent)?" is-ready":" is-warning":selectedAgentSaved?" is-ready":" is-warning"}`}>
+                    {selectedAgentOAuth?t(oauthReady(selectedAgent)?"AgentTokens.oauthReady":"AgentTokens.oauthReconnect"):
+                      selectedAgentSaved?t("AgentTokens.plaintextReady"):t("AgentTokens.plaintextMissing")}
                   </span>
                 </header>
 
-                {selectedAgentSaved ? (
+                {selectedAgentOAuth ? (
+                  <section className="agentmanager-detail-section agentmanager-callout agentmanager-oauth">
+                    <strong>{t("AgentTokens.oauthManaged")}</strong>
+                    <p>{t("AgentTokens.oauthHint")}</p>
+                    <p>{t("AgentTokens.oauthNext")}</p>
+                    <p>{t("AgentTokens.oauthWake")}</p>
+                    {onOpenConnections&&<button type="button" className="d-btn d-btn--primary agenttokens-oauth-guide"
+                      onClick={()=>{onActiveChange?.(false);setOpen(false);onOpenConnections();}}>{t("AgentTokens.oauthOpen")}</button>}
+                  </section>
+                ) : selectedAgentSaved ? (
                   <section className="agentmanager-detail-section">
                     <div className="agentmanager-section-head">
                       <strong>{t("AgentTokens.credentialTitle")}</strong>
@@ -888,7 +909,7 @@ export function AgentTokens({
                   )}
                 </section>
 
-                {canMakeResident && (
+                {canMakeResident && !selectedAgentOAuth && (
                   <section className="agentmanager-detail-section">
                     <div className="agentmanager-section-head">
                       <strong>{t("AgentTokens.runtimeTitle")}</strong>
@@ -926,7 +947,7 @@ export function AgentTokens({
                   </section>
                 )}
 
-                <section className="agentmanager-detail-section agentmanager-danger">
+                {!selectedAgentOAuth&&<section className="agentmanager-detail-section agentmanager-danger">
                   <div className="agentmanager-section-head">
                     <strong>{t("AgentTokens.dangerTitle")}</strong>
                     <span>{t("AgentTokens.dangerHint")}</span>
@@ -951,7 +972,7 @@ export function AgentTokens({
                       {t("AgentTokens.delete")}
                     </button>
                   </div>
-                </section>
+                </section>}
               </>
             )}
           </section>

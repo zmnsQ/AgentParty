@@ -3,6 +3,8 @@ import { useLocale } from "../i18n/locale";
 import { apiBase } from "../lib/base";
 import { cloudBridgesApi, type CueAgent, type EventBridgeState, type GrokBridgeState } from "../lib/cloudBridgesApi";
 import { ConnectorGrants } from "./ConnectorGrants";
+import { ChatGptQuickStart } from "./ChatGptQuickStart";
+import "../i18n/strings/ConnectorUsage";
 import {McpSecurityPanel} from "./McpSecurityPanel";
 import {useT} from "../i18n/useT";
 import type {CloudAgentChoice} from "./AgentConnectionPicker";
@@ -81,19 +83,25 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
       {(["dot","muse","cue","grok"] as const).map(provider=><button className="d-btn" type="button" key={provider}
         aria-pressed={selected===provider} onClick={()=>setSelected(provider)}>{t(`AgentConnect.${provider}`)}</button>)}
     </div>
-    <McpSecurityPanel token={token} slug={slug} canManage={canManage} />
-    <ConnectorGrants />
+    {selected==="dot"&&<ChatGptQuickStart key={`${slug}:${token}`} token={token} slug={slug} canManage={canManage} />}
+    <details className="cloud-bridge-card"><summary>{t("AgentConnect.security")}</summary>
+      <McpSecurityPanel token={token} slug={slug} canManage={canManage} />
+    </details>
+    <ConnectorGrants slug={slug} />
     {selected==="dot"&&<article className="cloud-bridge-card">
       <h3>ChatGPT dot · MCP Events</h3>
-      <ol className="agent-connect-steps">{[1,2,3,4].map(n=><li key={n}>{t(`AgentConnect.dotStep${n}`).replace(/^\d\. /,"")}</li>)}</ol>
+      <details><summary>{t("ConnectorUsage.firstConnection")}</summary>
+        <ol className="agent-connect-steps">{[1,2,3,4].map(n=><li key={n}>{t(`AgentConnect.dotStep${n}`).replace(/^\d\. /,"")}</li>)}</ol>
+      </details>
       <a href="https://developers.openai.com/plugins/build/plugins" target="_blank" rel="noopener noreferrer">{t("AgentConnect.dotDocs")}</a>
       <p>{zh?"已实现 MCP 2.0 事件订阅、签名 Webhook 和 @ 唤醒队列。服务端已加入 MCP OAuth 2.1 授权与按群 consent；还需用户在 ChatGPT 中安装插件并完成真实账号验收。":"MCP 2.0 subscriptions, signed webhooks and @-mention wake delivery are implemented. OAuth 2.1 authorization and group consent are implemented; real dot account/plugin installation remains to be accepted."}</p>
       {events&&<p>{zh?"有效订阅":"Subscriptions"}: {events.active_subscriptions} · {zh?"待投递":"Queued"}: {events.pending_deliveries}</p>}
-      {canRun&&<button type="button" className="d-btn" disabled={busy} onClick={()=>void task(async()=>{
+      {canRun&&<button type="button" className="d-btn" disabled={busy||!events?.pending_deliveries} onClick={()=>void task(async()=>{
         const r=await cloudBridgesApi.flushEvents(token,slug);
         if(isActive())setNotice(zh?`已检查 ${r.attempted} 个事件，成功送达 ${r.delivered} 个`:`Checked ${r.attempted} events, acknowledged ${r.delivered}`);
         await reload();
-      })}>{zh?"重试待投递事件":"Retry pending events"}</button>}
+      })}>{t("ConnectorUsage.retry")}</button>}
+      {events?.pending_deliveries===0&&<p><small>{t("ConnectorUsage.noQueue")}</small></p>}
       <p><small>{zh?"实际 dot 订阅未完成前，不显示在线或已接通。":"No dot-online claim before OAuth and real subscription acceptance."}</small></p>
     </article>}
     {selected==="cue"&&<article className="cloud-bridge-card">

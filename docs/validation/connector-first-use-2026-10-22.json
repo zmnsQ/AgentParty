@@ -1,0 +1,115 @@
+{
+  "source": "real React components in isolated Chrome; synthetic API fixtures only",
+  "passed": 12,
+  "cases": [
+    {
+      "locale": "zh",
+      "width": 320,
+      "screen": "guide",
+      "horizontalOverflow": false,
+      "steps": 3,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "zh",
+      "width": 320,
+      "screen": "manager",
+      "horizontalOverflow": false,
+      "steps": 0,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "zh",
+      "width": 390,
+      "screen": "guide",
+      "horizontalOverflow": false,
+      "steps": 3,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "zh",
+      "width": 390,
+      "screen": "manager",
+      "horizontalOverflow": false,
+      "steps": 0,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "zh",
+      "width": 1280,
+      "screen": "guide",
+      "horizontalOverflow": false,
+      "steps": 3,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "zh",
+      "width": 1280,
+      "screen": "manager",
+      "horizontalOverflow": false,
+      "steps": 0,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "en",
+      "width": 320,
+      "screen": "guide",
+      "horizontalOverflow": false,
+      "steps": 3,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "en",
+      "width": 320,
+      "screen": "manager",
+      "horizontalOverflow": false,
+      "steps": 0,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "en",
+      "width": 390,
+      "screen": "guide",
+      "horizontalOverflow": false,
+      "steps": 3,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "en",
+      "width": 390,
+      "screen": "manager",
+      "horizontalOverflow": false,
+      "steps": 0,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "screen": "guide",
+      "horizontalOverflow": false,
+      "steps": 3,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    },
+    {
+      "locale": "en",
+      "width": 1280,
+      "screen": "manager",
+      "horizontalOverflow": false,
+      "steps": 0,
+      "unrequestedWrites": 0,
+      "manualRotateVisible": false
+    }
+  ],
+  "runtime_errors": []
+}

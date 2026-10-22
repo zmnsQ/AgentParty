@@ -3,7 +3,7 @@ import { useLocale } from "../i18n/locale";
 import { isTauriEnvironment } from "../lib/desktopUpdater";
 
 interface Grant { id:string;group:string;agent_name:string;client_name:string;scopes:string[];updated_at:number; }
-export function ConnectorGrants() {
+export function ConnectorGrants({slug}:{slug?:string}) {
   const {locale}=useLocale(),zh=locale==="zh";
   const [grants,setGrants]=useState<Grant[]>([]);
   const [error,setError]=useState<string|null>(null);
@@ -14,11 +14,11 @@ export function ConnectorGrants() {
     const controller=new AbortController();
     void fetch("/oauth/grants",{credentials:"same-origin",signal:controller.signal,cache:"no-store"})
       .then(async r=>{if(!r.ok)throw new Error("not_authenticated");return r.json() as Promise<{connections:Grant[]}>;})
-      .then(data=>{if(!controller.signal.aborted)setGrants(data.connections);})
+      .then(data=>{if(!controller.signal.aborted)setGrants(slug?data.connections.filter(grant=>grant.group===slug):data.connections);})
       .catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:"unknown_error");})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
-  },[]);
+  },[slug]);
   if(isTauriEnvironment())return null;
   const revoke=async(grant:Grant)=>{
     if(!confirm(zh?`撤销 ${grant.client_name} 对 ${grant.group} 的连接？`:

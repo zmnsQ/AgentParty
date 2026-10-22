@@ -565,7 +565,9 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       .bind(granted.slug,Date.now()).first<{n:number}>();
     const pending=await c.env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_outbox WHERE channel_slug=? AND state='pending'")
       .bind(granted.slug).first<{n:number}>();
-    return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0});
+    const perAgent=await c.env.DB.prepare("SELECT agent_name,COUNT(*) AS active_subscriptions FROM mcp_event_subscriptions WHERE channel_slug=? AND revoked_at IS NULL AND expires_at>? GROUP BY agent_name")
+      .bind(granted.slug,Date.now()).all<{agent_name:string;active_subscriptions:number}>();
+    return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0,agents:perAgent.results});
   }));
   registerGrokAutomationRoutes(app, { access });
 }

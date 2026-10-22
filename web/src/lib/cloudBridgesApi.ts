@@ -11,7 +11,7 @@ export interface GrokBridgeState {
   mode:"grok-automation-webhook";personal_bot_direct_api:false;automatic_result_import:false;
 }
 export interface CueAgent { id:string; name:string; conversation_id:string|null; }
-export interface EventBridgeState {active_subscriptions:number;pending_deliveries:number;}
+export interface EventBridgeState {active_subscriptions:number;pending_deliveries:number;agents?:Array<{agent_name:string;active_subscriptions:number}>;}
 export interface McpPolicy {enabled:boolean;allow_write:boolean;allow_events:boolean;owner_mfa_enabled:boolean;require_mfa:true;updated_at:number|null;}
 export interface McpPolicyResponse {policy:McpPolicy;can_manage:boolean;}
 
