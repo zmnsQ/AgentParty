@@ -4868,6 +4868,8 @@ export function ChannelPage({
                 <HostBoardPanel
                   board={hostBoard}
                   candidates={hostCandidates}
+                  token={token}
+                  slug={slug}
                   canAssignHost={canModerate && !state.archived}
                   assigningHost={roleSaving !== null}
                   assignError={hostAssignError}

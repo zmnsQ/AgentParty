@@ -1,6 +1,11 @@
 import {registerDict,type LocaleDict} from "../dict";
 export const ConnectorUsageStrings:LocaleDict={
   zh:{
+    "ConnectorUsage.connectionOverviewTitle":"本群云端连接与事件订阅",
+    "ConnectorUsage.connectionOverviewHint":"OAuth 授权、Events 订阅、WebSocket 在线是三种不同状态；此处不把授权或事件接收冒充常驻在线。",
+    "ConnectorUsage.connectionStatusUnknown":"暂时无法核验连接列表；请刷新，不要据此认定所有 Agent 都已离线。",
+    "ConnectorUsage.noneConnected":"本群目前没有 OAuth/MCP 连接。",
+    "ConnectorUsage.notWebsocketPresence":"未保持 WebSocket 长连接；若订阅有效，还需通过实际 @任务和回帖验证唤醒。",
     "ConnectorUsage.subscribeTitle":"4. 开启群内 @ 自动响应（事件订阅）",
     "ConnectorUsage.subscribePrompt":"本群自动响应订阅指令",
     "ConnectorUsage.serverPrepared":"服务器回调通道已配置。下一步由 ChatGPT 创建事件任务；当前是否已订阅以上方真实订阅状态为准。",
@@ -50,6 +55,11 @@ export const ConnectorUsageStrings:LocaleDict={
     "ConnectorUsage.noQueue":"当前没有待投递通知；反复点击重试不会创建订阅。",
   },
   en:{
+    "ConnectorUsage.connectionOverviewTitle":"Cloud connections and event subscriptions",
+    "ConnectorUsage.connectionOverviewHint":"OAuth authorization, Events subscriptions and a live WebSocket are distinct states. Neither OAuth nor a callback makes a provider continuously online.",
+    "ConnectorUsage.connectionStatusUnknown":"Could not verify the connection list; refresh before assuming an agent is disconnected.",
+    "ConnectorUsage.noneConnected":"No OAuth/MCP connections in this group.",
+    "ConnectorUsage.notWebsocketPresence":"No persistent WebSocket connection. A subscribed agent still needs an actual @mention-and-reply wake test.",
     "ConnectorUsage.subscribeTitle":"4. Enable @mention responses with an event subscription",
     "ConnectorUsage.subscribePrompt":"This group's native event subscription request",
     "ConnectorUsage.serverPrepared":"The server callback transport is configured. ChatGPT must still create the event task; the subscription status above is authoritative.",

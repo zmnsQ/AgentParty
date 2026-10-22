@@ -4,6 +4,7 @@ import "../i18n/strings/Studio";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocale } from "../i18n/locale";
 import { apiBase } from "../lib/base";
+import { listChannelAgents, type ChannelAgentInfo } from "../lib/api";
 import { cloudBridgesApi, type CueAgent, type EventBridgeState, type GrokBridgeState } from "../lib/cloudBridgesApi";
 import { ConnectorGrants } from "./ConnectorGrants";
 import { ChatGptQuickStart } from "./ChatGptQuickStart";
@@ -21,6 +22,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
   const {locale}=useLocale();const zh=locale==="zh";
   const [state,setState]=useState<GrokBridgeState|null>(null);
   const [events,setEvents]=useState<EventBridgeState|null>(null);
+  const [authorizedAgents,setAuthorizedAgents]=useState<ChannelAgentInfo[]|null>(null);
   const [cue,setCue]=useState<CueAgent[]>([]);
   const [name,setName]=useState("Grok Automation");
   const [endpoint,setEndpoint]=useState("");
@@ -36,11 +38,13 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
   scope.current={token,slug,base:apiBase()};
   const isActive=useCallback(()=>alive.current&&scope.current.token===token&&scope.current.slug===slug&&apiBase()===scope.current.base,[slug,token]);
   const reload=useCallback(async(signal?:AbortSignal)=>{
-    const [grok,eventState]=await Promise.all([
+    const [grok,eventState,connections]=await Promise.all([
       cloudBridgesApi.grok(token,slug,signal),
       canManage ? cloudBridgesApi.events(token,slug,signal) : Promise.resolve(null),
+      // Read-only status discovery: this is not a WebSocket heartbeat.
+      canManage ? listChannelAgents(token,slug).catch(()=>null) : Promise.resolve(null),
     ]);
-    if(isActive()&&!signal?.aborted){setState(grok);setEvents(eventState);}
+    if(isActive()&&!signal?.aborted){setState(grok);setEvents(eventState);setAuthorizedAgents(connections);}
   },[token,slug,canManage,isActive]);
   useEffect(()=>{alive.current=true;const controller=new AbortController();
     void reload(controller.signal).catch(e=>{if(isActive())setError(String(e));});
@@ -81,6 +85,31 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
     <p><a href="https://github.com/zmnsQ/AgentParty/blob/feat/agent-commons-provider-bridges-20261021/docs/agent-commons-onboarding.zh.md" target="_blank" rel="noopener noreferrer">{zh?"查看分平台接入与测试教程 ↗":"Per-platform connection and testing guide (Chinese) ↗"}</a></p>
     {error&&<p role="alert" className="commons-error">{error}</p>}
     {notice&&<p role="status" className="commons-success">{notice}</p>}
+    {canManage && <section className="cloud-bridge-card connector-presence-overview" aria-label={t("ConnectorUsage.connectionOverviewTitle")}>
+      <h3>{t("ConnectorUsage.connectionOverviewTitle")}</h3>
+      <p>{t("ConnectorUsage.connectionOverviewHint")}</p>
+      {authorizedAgents===null && <p role="status">{t("ConnectorUsage.connectionStatusUnknown")}</p>}
+      {authorizedAgents?.filter(item=>item.credential_kind==="oauth").length===0 && (
+        <p>{t("ConnectorUsage.noneConnected")}</p>
+      )}
+      {authorizedAgents && <dl className="connector-presence-list">
+        {authorizedAgents.filter(item=>item.credential_kind==="oauth").map(item=>{
+          const count=events?.agents?.find(sub=>sub.agent_name===item.name)?.active_subscriptions;
+          const authorized=item.oauth?.status==="authorized";
+          return <div key={item.name} className="connector-presence-item">
+            <dt>
+              <strong>{item.nickname??item.oauth?.client_name??item.name}</strong>
+              <code>{item.name}</code>
+            </dt>
+            <dd>{t(authorized?"ConnectorUsage.authorized":"ConnectorUsage.reconnect")}</dd>
+            <dd>{count===undefined
+              ?t("ConnectorUsage.unknown")
+              :count>0?t("ConnectorUsage.subscribed"):t("ConnectorUsage.notSubscribed")}</dd>
+            <dd>{t("ConnectorUsage.notWebsocketPresence")}</dd>
+          </div>;
+        })}
+      </dl>}
+    </section>}
     <p className="commons-note">{t("AgentConnect.testWarning")}</p>
     <div className="agent-connect-tabs" aria-label={t("AgentConnect.cloud")}>
       {(["dot","muse","cue","grok"] as const).map(provider=><button className="d-btn" type="button" key={provider}

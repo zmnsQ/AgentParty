@@ -3,7 +3,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import type { HostBoard, RecommendedAction } from "@agentparty/shared";
 import { LocaleProvider } from "../i18n/locale";
-import { buildHostCandidate, HostBoardPanel } from "./HostBoardPanel";
+import { buildHostCandidate, HostBoardPanel, hostCandidateStatus } from "./HostBoardPanel";
+import { ChannelStrings } from "../i18n/strings/Channel";
 
 let renderer: ReactTestRenderer | null = null;
 
@@ -39,6 +40,36 @@ const board = (recommendedActions: RecommendedAction[]): HostBoard => ({
 });
 
 describe("HostBoardPanel", () => {
+  test("separates OAuth authorization, event subscriptions and live WebSocket presence", () => {
+    const t=(key:string)=>ChannelStrings.zh[key]??key;
+    const chatgpt={name:"ac-oauth-chatgpt",label:"ChatGPT",online:false};
+    const muse={name:"ac-oauth-muse",label:"Muse Cloud",online:false};
+    const statuses=new Map([
+      [chatgpt.name,{authorized:true,subscriptions:1}],
+      [muse.name,{authorized:true,subscriptions:0}],
+    ]);
+    expect(hostCandidateStatus(chatgpt,statuses,t)).toContain("事件已订阅");
+    expect(hostCandidateStatus(muse,statuses,t)).toContain("未订阅事件");
+    expect(hostCandidateStatus(chatgpt,statuses,t)).toContain("无实时连接");
+    expect(hostCandidateStatus(muse,statuses,t)).toContain("无实时连接");
+    expect(hostCandidateStatus(chatgpt,null,t)).toContain("待核验");
+    expect(hostCandidateStatus({...chatgpt,online:true},statuses,t)).toBe("在线");
+    expect(hostCandidateStatus({name:"codex",label:"Codex",online:false},statuses,t)).toBe("离线");
+    expect(hostCandidateStatus(chatgpt,new Map([[chatgpt.name,{authorized:false,subscriptions:1}]]),t)).toContain("需重新授权");
+  });
+  test("warns that OAuth/MCP identity is not an always-on Host", () => {
+    act(()=>{renderer=create(<LocaleProvider><HostBoardPanel
+      board={board([action()])}
+      candidates={[{name:"ac-oauth-muse",label:"Muse Cloud",online:false}]}
+      canAssignHost
+      onAssignHost={async()=>true}
+    /></LocaleProvider>);});
+    const markup=JSON.stringify(renderer!.toJSON());
+    expect(markup).toContain("OAuth/MCP identity");
+    expect(markup).toContain("persistent WebSocket");
+    expect(markup).not.toContain("Muse Cloud · offline");
+  });
+
   test("labels a Host candidate with its human owner", () => {
     expect(buildHostCandidate(
       {

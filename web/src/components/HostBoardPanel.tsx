@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { listChannelAgents } from "../lib/api";
+import { cloudBridgesApi } from "../lib/cloudBridgesApi";
 import "../i18n/strings/WakeReceipt";
 import { hostLeaseLabel, presenceStateLabel, residencyLabel } from "../lib/presenceLabels";
 import { wakeKindLabel } from "../lib/wakeKindLabel";
@@ -14,6 +16,31 @@ export interface HostCandidate {
   name: string;
   label: string;
   online: boolean;
+}
+
+interface ConnectorState {
+  authorized: boolean;
+  subscriptions: number;
+}
+
+/**
+ * WebSocket presence measures a live session, whereas OAuth/MCP grants permit
+ * stateless tool calls. Never claim a cloud agent is online just because it has
+ * a grant or callback subscription.
+ */
+export function hostCandidateStatus(
+  candidate: HostCandidate,
+  connections: ReadonlyMap<string, ConnectorState> | null,
+  t: (key: string) => string,
+): string {
+  if (candidate.online) return t("Channel.hostBoard.candidateOnline");
+  if (!candidate.name.startsWith("ac-oauth-")) return t("Channel.hostBoard.candidateOffline");
+  const entry = connections?.get(candidate.name);
+  if (!entry) return t("Channel.hostBoard.candidateOauthUnverified");
+  if (!entry.authorized) return t("Channel.hostBoard.candidateOauthReauth");
+  return entry.subscriptions > 0
+    ? t("Channel.hostBoard.candidateOauthSubscribed")
+    : t("Channel.hostBoard.candidateOauthNoSubscription");
 }
 
 export function buildHostCandidate(
@@ -55,6 +82,8 @@ export function HostBoardPanel({
   canAssignHost = false,
   assigningHost = false,
   assignError = null,
+  token,
+  slug,
   onAssignHost,
 }: {
   board: HostBoard;
@@ -62,6 +91,9 @@ export function HostBoardPanel({
   canAssignHost?: boolean;
   assigningHost?: boolean;
   assignError?: string | null;
+  /** Provided only for a channel moderator: scoped, read-only connector status. */
+  token?: string;
+  slug?: string;
   onAssignHost?: (name: string) => Promise<boolean>;
 }) {
   const t = useT();
@@ -73,7 +105,31 @@ export function HostBoardPanel({
     )),
     [candidates],
   );
+  const [connectorState, setConnectorState] = useState<ReadonlyMap<string, ConnectorState> | null>(null);
+  useEffect(() => {
+    setConnectorState(null);
+    if (!token || !slug || !canAssignHost || !sortedCandidates.some(item => item.name.startsWith("ac-oauth-"))) return;
+    let canceled = false;
+    void Promise.all([
+      listChannelAgents(token, slug),
+      cloudBridgesApi.events(token, slug),
+    ]).then(([agents, state]) => {
+      if (canceled) return;
+      const counts = new Map((state.agents ?? []).map(item => [item.agent_name, item.active_subscriptions]));
+      setConnectorState(new Map(agents.filter(agent => agent.credential_kind === "oauth").map(agent => [
+        agent.name, {
+          authorized: agent.oauth?.status === "authorized",
+          subscriptions: counts.get(agent.name) ?? 0,
+        },
+      ])));
+    }).catch(() => {
+      // Keep "not verified"; an unreachable status endpoint is NOT an offline proof.
+      if (!canceled) setConnectorState(null);
+    });
+    return () => { canceled = true; };
+  }, [token, slug, canAssignHost, sortedCandidates]);
   const [selectedHost, setSelectedHost] = useState("");
+  const selectedCandidate = sortedCandidates.find(item => item.name === selectedHost);
   const [assignedHost, setAssignedHost] = useState<string | null>(null);
 
   useEffect(() => {
@@ -127,9 +183,7 @@ export function HostBoardPanel({
                 >
                   {sortedCandidates.map((candidate) => (
                     <option key={candidate.name} value={candidate.name}>
-                      {candidate.label} · {t(candidate.online
-                        ? "Channel.hostBoard.candidateOnline"
-                        : "Channel.hostBoard.candidateOffline")}
+                      {candidate.label} · {hostCandidateStatus(candidate, connectorState, t)}
                     </option>
                   ))}
                 </select>
@@ -144,6 +198,11 @@ export function HostBoardPanel({
                   ? t("Channel.hostBoard.assigning")
                   : t("Channel.hostBoard.assignButton")}
               </button>
+              {selectedCandidate?.name.startsWith("ac-oauth-") && !selectedCandidate.online && (
+                <p className="host-assignment-notice host-assignment-mcp-note" role="note">
+                  {t("Channel.hostBoard.candidateOauthNotice")}
+                </p>
+              )}
             </div>
           ) : (
             <p className="host-assignment-notice">{t("Channel.hostBoard.assignPermission")}</p>
