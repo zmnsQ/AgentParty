@@ -8,12 +8,15 @@ import {apiBase} from "../lib/base";
 import "../i18n/strings/ConnectorUsage";
 import "../styles/connector-usage.css";
 
-type TestKind="read"|"post"|"task";
+type TestKind="read"|"post"|"task"|"subscribe";
 export function connectorTestPrompt(kind:TestKind,slug:string,agentName:string,zh:boolean):string{
   const key=`onboarding-${zh?"zh":"en"}-${slug}-${agentName}`.slice(0,128);
   const identify=zh
     ?`使用已连接的 AgentCommons 插件。先调用 party_profile，确认群组 ID 是「${slug}」、身份是「${agentName}」；不匹配就停止。`
     :`Use the connected AgentCommons plugin. First call party_profile and verify group ID "${slug}" and agent identity "${agentName}". Stop on any mismatch.`;
+  if(kind==="subscribe")return identify+(zh
+    ?`在支持事件的 Work / Cloud 或 dot 会话中，通过原生 MCP Events 创建 message.created 订阅，channel_id 为「${slug}」，mention_only 为 true。只在新消息明确 @「${agentName}」时读取相关上下文；仅处理群主明确授权的任务，把结果回复到原消息，不转发私人历史、不自动给其他 Agent 派任务或批准代码发布。不要改成定时轮询。只有平台保存任务且服务器保存订阅后才报告成功；失败请报告错误类别，不要把授权成功说成订阅成功。`
+    :`In an event-capable Work/Cloud or dot conversation, create a native MCP Events subscription for message.created with channel_id "${slug}" and mention_only true. On an explicit @mention of "${agentName}", read relevant context, perform only the owner's expressly authorized task and reply to its message. Never expose private history, automatically delegate to other agents or approve code publication. Do not replace events with scheduled polling. Report success only after both the platform task and server subscription are saved; otherwise report the error category.`);
   if(kind==="read")return identify+(zh
     ?"读取本群最近 10 条消息，只告诉我连接是否正常及消息内容；没有消息请明确说明空群。不要发消息、改文件或通知其他 Agent。"
     :" Read the latest 10 messages and report whether access works. Say explicitly if the group is empty. Do not post, change files or notify other agents.");
@@ -48,8 +51,9 @@ export function ChatGptQuickStart({token,slug,canManage}:{token:string;slug:stri
   const readable=!!(authorized&&policy?.enabled&&policy.owner_mfa_enabled&&agent?.oauth?.scopes.includes("group.read"));
   const writable=!!(readable&&policy?.allow_write&&agent?.oauth?.scopes.includes("group.write"));
   const count=agent&&value?.events?.agents?value.events.agents.find(a=>a.agent_name===agent.name)?.active_subscriptions??0:null;
+  const subscribable=!!(readable&&policy?.allow_events&&agent?.oauth?.scopes.includes("group.events")&&value?.events?.callback_policy_configured);
   const copy=async(kind:TestKind)=>{
-    if(!agent||(kind==="read"?!readable:!writable))return;
+    if(!agent||(kind==="subscribe"?!subscribable:kind==="read"?!readable:!writable))return;
     const n=generation.current;
     const ok=await copyText(connectorTestPrompt(kind,slug,agent.name,zh));
     if(generation.current!==n)return;
@@ -87,7 +91,15 @@ export function ChatGptQuickStart({token,slug,canManage}:{token:string;slug:stri
       {copyFailed&&<p role="alert">{t("ConnectorUsage.copyFailed")}</p>}
       {copied&&<p role="status">{t("ConnectorUsage.copied")}</p>}
       <small>{t("ConnectorUsage.noAutoSend")}</small>
-      <details><summary>{t("ConnectorUsage.advanced")}</summary><p>{t("ConnectorUsage.advancedHelp")}</p></details>
+      <section className="connector-subscription-setup" aria-label={t("ConnectorUsage.subscribeTitle")}>
+        <h4>{t("ConnectorUsage.subscribeTitle")}</h4>
+        <p>{t(value.events?.callback_policy_configured?"ConnectorUsage.serverPrepared":"ConnectorUsage.serverNotReady")}</p>
+        <p>{t("ConnectorUsage.subscribeHow")}</p>
+        <textarea readOnly rows={5} aria-label={t("ConnectorUsage.subscribePrompt")} value={connectorTestPrompt("subscribe",slug,agent.name,zh)} onFocus={e=>e.currentTarget.select()}/>
+        <button className="d-btn" type="button" disabled={!subscribable} onClick={()=>void copy("subscribe")}>{t("ConnectorUsage.copySubscription")}</button>
+        {!subscribable&&<small>{t("ConnectorUsage.subscriptionBlocked")}</small>}
+        <small>{t("ConnectorUsage.subscribeExpected")}</small>
+      </section>
     </>}
   </section>;
 }

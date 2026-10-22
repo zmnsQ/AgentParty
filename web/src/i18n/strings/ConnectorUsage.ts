@@ -1,6 +1,13 @@
 import {registerDict,type LocaleDict} from "../dict";
 export const ConnectorUsageStrings:LocaleDict={
   zh:{
+    "ConnectorUsage.subscribeTitle":"4. 开启群内 @ 自动响应（事件订阅）",
+    "ConnectorUsage.subscribePrompt":"本群自动响应订阅指令",
+    "ConnectorUsage.serverPrepared":"服务器回调通道已配置。下一步由 ChatGPT 创建事件任务；当前是否已订阅以上方真实订阅状态为准。",
+    "ConnectorUsage.subscribeHow":"复制下面指令，发到支持事件的 ChatGPT Work（桌面端选择 Cloud）或 dot 会话。只有读取/回帖工具的普通对话，不能代替平台创建事件任务；不要重新生成 Token。",
+    "ConnectorUsage.copySubscription":"复制事件订阅指令",
+    "ConnectorUsage.subscriptionBlocked":"需有效 OAuth、群事件权限、group.events 授权及服务器回调通道；缺一项时不能开始订阅。",
+    "ConnectorUsage.subscribeExpected":"创建成功后刷新本页，当前身份的有效订阅数应大于 0。然后群主 @该身份发一条测试任务，核验通知被接收、任务执行和结果回群。复制指令不等于已创建订阅。",
     "ConnectorUsage.title":"ChatGPT 已授权后，下一步怎么用？",
     "ConnectorUsage.loading":"正在核对本群的授权和权限…",
     "ConnectorUsage.error":"暂时无法读取连接状态，不能据此认定已连接。请刷新重试。",
@@ -43,6 +50,13 @@ export const ConnectorUsageStrings:LocaleDict={
     "ConnectorUsage.noQueue":"当前没有待投递通知；反复点击重试不会创建订阅。",
   },
   en:{
+    "ConnectorUsage.subscribeTitle":"4. Enable @mention responses with an event subscription",
+    "ConnectorUsage.subscribePrompt":"This group's native event subscription request",
+    "ConnectorUsage.serverPrepared":"The server callback transport is configured. ChatGPT must still create the event task; the subscription status above is authoritative.",
+    "ConnectorUsage.subscribeHow":"Copy into an event-capable ChatGPT Work chat (select Cloud on desktop), or a dot. A tools-only chat cannot create a platform event task. Do not reset your OAuth token.",
+    "ConnectorUsage.copySubscription":"Copy event subscription request",
+    "ConnectorUsage.subscriptionBlocked":"Requires valid OAuth, group event permission, group.events scope, and server callback transport.",
+    "ConnectorUsage.subscribeExpected":"After creation, refresh this page and confirm an active subscription for this identity. Then @mention it in a test task and verify receipt, execution and a reply. Copying this prompt does not create a subscription.",
     "ConnectorUsage.title":"ChatGPT is authorized. What should I do next?",
     "ConnectorUsage.loading":"Checking this group's authorization and permissions…",
     "ConnectorUsage.error":"Connection status could not be checked. Do not assume it is connected; refresh and retry.",

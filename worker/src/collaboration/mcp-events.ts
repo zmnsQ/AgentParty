@@ -3,6 +3,7 @@ import type { TokenIdentity } from "../auth";
 import { sha256Hex } from "../auth";
 import { mcpPermission } from "./mcp-security";
 import { openCredential, sealCredential } from "./vault";
+import {hasPinnedCallbackTransport, validateCallbackTarget, postSignedCallback} from "./event-transport";
 
 const VERSION = "2026-07-28";
 const EVENT = "message.created";
@@ -48,7 +49,8 @@ export async function signMcpWebhook(secret: string, id: string, timestamp: stri
   return "v1," + btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", key, payload))));
 }
 /** Configuration readiness only. Never returns callback URLs, signing secrets or tokens. */
-export function mcpEventReadiness(env: AppEnv): {callback_policy_configured:boolean} {
+export function mcpEventReadiness(env: AppEnv): {callback_policy_configured:boolean;callback_transport?:string} {
+  if(hasPinnedCallbackTransport(env))return {callback_policy_configured:true,callback_transport:"dns-pinned-https"};
   try {
     const items:unknown=JSON.parse(env.COLLABORATION_EVENTS_ALLOWED_ORIGINS ?? "[]");
     const configured=Array.isArray(items)&&items.some(item=>{
@@ -59,19 +61,8 @@ export function mcpEventReadiness(env: AppEnv): {callback_policy_configured:bool
     return {callback_policy_configured:configured};
   } catch {return {callback_policy_configured:false};}
 }
-function safeUrl(input: unknown, env: AppEnv): string {
-  if (typeof input !== "string" || input.length > 1500 || /[\\%\s]/.test(input)) return failReason("invalid_callback_url");
-  const url = new URL(input);
-  if (url.protocol !== "https:" || url.username || url.password || url.hash ||
-    !url.hostname.includes(".") || url.hostname.includes(":") || /^[\d.]+$/.test(url.hostname) ||
-    /\.(?:localhost|local|internal|lan|home|arpa)$/.test(url.hostname) || url.hostname.endsWith(".")) {
-    return failReason("invalid_callback_url");
-  }
-  let allowlist: unknown;
-  try { allowlist = JSON.parse(env.COLLABORATION_EVENTS_ALLOWED_ORIGINS ?? "[]"); } catch { /* fail closed */ }
-  if (!Array.isArray(allowlist) || !allowlist.includes(url.origin)) return failReason("callback_origin_not_approved");
-  return url.toString();
-}
+const safeUrl=validateCallbackTarget;
+
 function rootUrl(env: AppEnv) {
   const url = new URL(env.AUTH_PUBLIC_ORIGIN ?? "");
   if (url.protocol !== "https:" || url.pathname !== "/" || url.username || url.password || url.search || url.hash)
@@ -120,7 +111,7 @@ async function validIdentity(db: D1Database, subscription: Pick<Subscription,
   ).bind(agent_token_hash,agent_name,owner_account,channel_slug,Date.now()).first();
   return item!==null;
 }
-async function verifyCallback(url: string, secret: string, subId: string): Promise<void> {
+async function verifyCallback(url: string, secret: string, subId: string, env:AppEnv): Promise<void> {
   const challenge = crypto.randomUUID();
   const body = JSON.stringify({ type: "verification", challenge });
   const timestamp = String(Math.floor(Date.now() / 1000));
@@ -129,7 +120,7 @@ async function verifyCallback(url: string, secret: string, subId: string): Promi
   const abort = new AbortController();
   const timer = setTimeout(()=>abort.abort(),TIMEOUT_MS);
   try {
-    const result = await fetch(url,{method:"POST",redirect:"manual",signal:abort.signal,
+    const result = await postSignedCallback(env,url,{method:"POST",redirect:"manual",signal:abort.signal,
       headers:{"content-type":"application/json","webhook-id":webhookId,"webhook-timestamp":timestamp,
         "webhook-signature":signature,"X-MCP-Subscription-Id":subId},body});
     if (!result.ok || !result.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return failReason("callback_verification_failed");
@@ -184,7 +175,7 @@ export async function mcpEventMethod(name: string, params: unknown, slug: string
       const expires = Date.now()+Math.min(ttlMs,7*86_400_000);
       // Verify before saving. A legitimate callback proves possession of the
       // destination and its signing secret; no private app data is sent first.
-      await verifyCallback(url,delivery.secret as string,subId);
+      await verifyCallback(url,delivery.secret as string,subId,env);
       const callback = await sealCredential(url,env.COLLABORATION_ENCRYPTION_KEY,encryptedContext(subId,"url"));
       const secret = await sealCredential(delivery.secret as string,env.COLLABORATION_ENCRYPTION_KEY,encryptedContext(subId,"secret"));
       const now = Date.now();
@@ -214,11 +205,14 @@ export async function mcpEventMethod(name: string, params: unknown, slug: string
     // Log categories only: never log callback URLs, signing secrets, nonce,
     // user messages, raw provider errors or access/refresh credentials.
     const localReasons=new Set(["invalid_secret","invalid_callback_url","invalid_event_arguments",
-      "invalid_delivery","invalid_ttl","callback_origin_not_approved","account_required"]);
+      "invalid_delivery","invalid_ttl","callback_origin_not_approved","account_required",
+      "callback_policy_unconfigured","callback_dns_failed","callback_dns_timeout","callback_address_blocked",
+      "callback_redirect_blocked","callback_network_failed","callback_timeout","callback_tls_peer_invalid",
+      "callback_response_too_large","callback_gateway_failed","callback_gateway_busy"]);
     const known=e instanceof Error&&localReasons.has(e.message);
     const reason=known?(e as Error).message:e instanceof Error&&e.name==="AbortError"?"timeout":"challenge_failed";
     if(name==="events/subscribe")console.warn("mcp_event_subscription_rejected",JSON.stringify({reason,event:EVENT}));
-    return error(name==="events/subscribe"&&!known?-32015:-32602,
+    return error(name==="events/subscribe"&&(!known||reason.startsWith("callback_"))?-32015:-32602,
       known?(e as Error).message:"Callback endpoint could not be verified",{reason});
   }
   return error(-32601,"Method not found");
@@ -245,13 +239,14 @@ export async function enqueueMcpEvent(env: AppEnv, input: EventInput): Promise<n
   }
   return count;
 }
-export async function deliverMcpEvents(env: AppEnv, slug: string): Promise<{attempted:number;delivered:number}> {
+export async function deliverMcpEvents(env: AppEnv, slug: string, batchSize=2): Promise<{attempted:number;delivered:number}> {
+  const limit=Number.isSafeInteger(batchSize)?Math.min(MAX_QUEUE_BATCH,Math.max(1,batchSize)):2;
   const now=Date.now();
   const pending=await env.DB.prepare(`SELECT o.*,s.callback_ciphertext,s.secret_ciphertext,s.agent_token_hash,
      s.agent_name,s.owner_account,s.expires_at,s.revoked_at FROM mcp_event_outbox o JOIN mcp_event_subscriptions s ON s.id=o.subscription_id
      WHERE o.channel_slug=? AND o.state='pending' AND o.next_attempt_at<=? AND o.lease_until<=?
      ORDER BY o.created_at LIMIT ?`)
-     .bind(slug,now,now,MAX_QUEUE_BATCH).all<Pending>();
+     .bind(slug,now,now,limit).all<Pending>();
   let attempted=0,delivered=0;
   for (const row of pending.results) {
     const token=crypto.randomUUID();
@@ -272,7 +267,7 @@ export async function deliverMcpEvents(env: AppEnv, slug: string): Promise<{atte
         const abort=new AbortController();
         const timer=setTimeout(()=>abort.abort(),TIMEOUT_MS);
         try {
-          const response=await fetch(approved,{method:"POST",redirect:"manual",signal:abort.signal,
+          const response=await postSignedCallback(env,approved,{method:"POST",redirect:"manual",signal:abort.signal,
             headers:{"content-type":"application/json","webhook-id":row.event_id,
               "webhook-timestamp":timestamp,"webhook-signature":signature,
               "X-MCP-Subscription-Id":row.subscription_id},body:row.payload_json});

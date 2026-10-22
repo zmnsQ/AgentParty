@@ -11,3 +11,9 @@
 .connector-usage details summary{cursor:pointer;min-height:44px;line-height:1.5;padding-block:10px;font-weight:600}
 .connector-open-chat{align-self:start;min-height:44px;text-decoration:none}.agentmanager-oauth p{line-height:1.6;margin:8px 0;overflow-wrap:anywhere}
 @media(max-width:720px){.connector-usage-heading{display:grid;grid-template-columns:minmax(0,1fr)}.connector-usage-heading button{min-height:44px}.connector-capabilities>div{grid-template-columns:minmax(0,1fr);gap:4px}.connector-first-steps textarea,.connector-usage select{font-size:16px}.connector-first-steps .d-btn,.connector-open-chat{width:100%;box-sizing:border-box;justify-self:stretch;text-align:center}.connector-first-steps>li{padding:12px!important}}
+
+.connector-subscription-setup{display:grid;gap:12px;min-width:0;padding:14px;border:1px solid var(--t-faint);border-radius:6px}
+.connector-subscription-setup h4{margin:0}
+.connector-subscription-setup textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0;resize:vertical;padding:10px;background:var(--t-panel);color:inherit;border:1px solid var(--t-faint);font:inherit;line-height:1.5}
+.connector-subscription-setup .d-btn{white-space:normal;min-height:44px}
+@media(max-width:720px){.connector-subscription-setup{padding:12px}.connector-subscription-setup textarea{font-size:16px}}

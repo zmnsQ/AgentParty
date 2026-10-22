@@ -127,6 +127,7 @@ import {
 import { openapiDocument } from "./openapi";
 import { registerCollaborationRoutes } from "./collaboration/routes";
 import { registerConnectorOauth, oauthRestPermission } from "./collaboration/oauth";
+import {registerEventDrain} from "./collaboration/event-drain";
 
 
 declare const __AGENTPARTY_BUILD_VERSION__: string | undefined;
@@ -181,6 +182,9 @@ export type AppEnv = Env & {
   COLLABORATION_HERMES_ALLOWED_ORIGINS?: string;
   COLLABORATION_GROK_TRIGGER_ORIGINS?: string;
   COLLABORATION_EVENTS_ALLOWED_ORIGINS?: string;
+  COLLABORATION_EVENTS_EGRESS_URL?: string;
+  COLLABORATION_EVENTS_EGRESS_TOKEN?: string;
+  COLLABORATION_EVENTS_EGRESS_POLICY?: string;
   COLLABORATION_OAUTH_REDIRECT_ORIGINS?: string;
 };
 
@@ -2872,6 +2876,7 @@ function isBlockedWebhookHost(rawHost: string): boolean {
 
 const app = new Hono<AppContext>();
 registerConnectorOauth(app);
+registerEventDrain(app);
 const DESKTOP_CORS_ORIGINS = new Set([
   "tauri://localhost",
   "http://tauri.localhost",

@@ -57,7 +57,7 @@ describe("MCP 2.0 dot event subscriptions and signed delivery",()=>{
     const {slug,identity}=await group();const runtime={...env,COLLABORATION_EVENTS_ALLOWED_ORIGINS:"[]"};
     expect(mcpEventReadiness(runtime as never)).toEqual({callback_policy_configured:false});
     const output=await(await handleChannelMcp(rpc("events/subscribe",subscribe(slug)),slug,identity,noForward,runtime as never)).json() as any;
-    expect(output.error).toMatchObject({code:-32602,message:"callback_origin_not_approved",data:{reason:"callback_origin_not_approved"}});
+    expect(output.error).toMatchObject({code:-32015,message:"callback_origin_not_approved",data:{reason:"callback_origin_not_approved"}});
     expect(JSON.stringify(output)).not.toContain(SECRET);expect(JSON.stringify(output)).not.toContain(CALLBACK);
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_subscriptions WHERE channel_slug=?").bind(slug).first()).toEqual({n:0});
   });
@@ -85,7 +85,7 @@ describe("MCP 2.0 dot event subscriptions and signed delivery",()=>{
     for (const url of ["http://events.chatgpt.test/dot/callback","https://127.0.0.1/cb",
       "https://evil.test/cb","https://events.chatgpt.test.evil.com/cb","https://events.chatgpt.test:9999/cb"]) {
       const r=await(await mcp(identity,slug,"events/subscribe",subscribe(slug,true,SECRET,url))).json() as any;
-      expect(r.error.code).toBe(-32602);
+      expect(r.error.code).toBe(r.error.data?.reason==="callback_origin_not_approved"?-32015:-32602);
     }
     const wrong=await(await mcp(identity,slug,"events/subscribe",subscribe("another-group"))).json() as any;
     expect(wrong.error.code).toBe(-32602);

@@ -38,7 +38,7 @@ describe("authorized plugin first-use guidance",()=>{
     expect(body).toContain("OAuth authorized");expect(body).toContain("Not subscribed · no automatic response");
     expect(body).toContain("Verify identity and read access");expect(body).toContain("Send one message back");
     expect(body).toContain("Copying does not count as a passed test");expect(body).not.toContain("credential missing");
-    expect(root.findAllByType("textarea")).toHaveLength(3);
+    expect(root.findAllByType("textarea")).toHaveLength(4);
     expect(root.findByProps({href:"https://chatgpt.com/"}).props.rel).toContain("noopener");
   });
   test("copies a read-only scoped prompt, without making a write request or subscribing",async()=>{
@@ -77,6 +77,18 @@ describe("authorized plugin first-use guidance",()=>{
     expect(text(root)).toContain("operator configures callback security");
     expect(copies(root).map(b=>b.props.disabled)).toEqual([false,false,false]);
     expect(calls.every(c=>c.method==="GET")).toBe(true);
+  });
+  test("copies an explicit native subscription request without creating a scheduled poll or writing to a group",async()=>{
+    const root=await render();const button=root.findAllByType("button").find(b=>text(b)==="Copy event subscription request")!;
+    expect(button.props.disabled).toBe(false);
+    await act(async()=>{await button.props.onClick();});
+    expect(copied[0]).toContain("native MCP Events");expect(copied[0]).toContain("mention_only true");
+    expect(copied[0]).toContain(slug);expect(copied[0]).toContain(name);expect(copied[0]).toContain("Do not replace events with scheduled polling");
+    expect(calls.every(c=>c.method==="GET")).toBe(true);
+  });
+  test("blocks subscription guidance when server transport is not configured",async()=>{
+    serverMissing=true;const root=await render();
+    expect(root.findAllByType("button").find(b=>text(b)==="Copy event subscription request")!.props.disabled).toBe(true);
   });
   test("all guidance translations and exact group-scoped prompts exist in both languages",()=>{
     expect(Object.keys(ConnectorUsageStrings.en).sort()).toEqual(Object.keys(ConnectorUsageStrings.zh).sort());
