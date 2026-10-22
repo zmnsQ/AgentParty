@@ -10063,7 +10063,10 @@ app.get("/api/channels/:slug/ws", async (c) => {
  */
 async function serveBeforeShutdown(request: Request, env: AppEnv, ctx: ExecutionContext): Promise<Response> {
   const { pathname } = new URL(request.url);
-  if (pathname.startsWith("/api/") || pathname === "/openapi.json") return app.fetch(request, env, ctx);
+  // OAuth 2.1 discovery, consent and token endpoints must reach the Worker
+  // before the SPA fallback. A static 200 index.html here breaks OAuth DCR.
+  const authProtocol = pathname.startsWith("/oauth/") || pathname.startsWith("/.well-known/oauth-");
+  if (pathname.startsWith("/api/") || pathname === "/openapi.json" || authProtocol) return app.fetch(request, env, ctx);
   if (request.method === "GET" || request.method === "HEAD") {
     const asset = await env.ASSETS.fetch(request);
     if (asset.status !== 404) return asset;

@@ -1,5 +1,6 @@
-import {env,SELF} from "cloudflare:test";
+import {env,SELF,createExecutionContext,waitOnExecutionContext} from "cloudflare:test";
 import {describe,expect,it} from "vitest";
+import worker, {type AppEnv} from "../src/index";
 import {createChannel,seedToken,uniq} from "./helpers";
 import {sha256Hex} from "../src/auth";
 const SITE="https://commons.test";
@@ -52,6 +53,34 @@ async function exchange(c:Awaited<ReturnType<typeof setup>>,code:string,verifier
       redirect_uri:CALLBACK,code_verifier:verifier,resource:c.resource}).toString()});
 }
 describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
+  it("routes OAuth well-known and consent paths to the Worker even when SPA assets return HTTP 200",async()=>{
+    const assets={
+      fetch:async()=>new Response("<html>SPA fallback</html>",{
+        status:200,headers:{"content-type":"text/html;charset=utf-8"}
+      })
+    };
+    const serverEnv={...env,AUTH_PUBLIC_ORIGIN:SITE,ASSETS:assets} as unknown as AppEnv;
+    const invoke=async(path:string)=>{
+      const ctx=createExecutionContext();
+      const response=await worker.fetch(new Request("http://commons.test"+path),serverEnv,ctx);
+      await waitOnExecutionContext(ctx);
+      return response;
+    };
+    const metadata=await invoke("/.well-known/oauth-authorization-server");
+    expect(metadata.status).toBe(200);
+    expect(metadata.headers.get("content-type")).toContain("application/json");
+    expect(await metadata.json()).toMatchObject({issuer:SITE,token_endpoint:SITE+"/oauth/token"});
+    const protectedResource=await invoke("/.well-known/oauth-protected-resource/api/channels/demo/mcp");
+    expect(await protectedResource.json()).toMatchObject({
+      resource:SITE+"/api/channels/demo/mcp",authorization_servers:[SITE]
+    });
+    const grants=await invoke("/oauth/grants");
+    expect(grants.status).toBe(401);
+    expect(await grants.json()).toMatchObject({error:"login_required"});
+    const webpage=await invoke("/auth/setup");
+    expect(webpage.headers.get("content-type")).toContain("text/html");
+    expect(await webpage.text()).toContain("SPA fallback");
+  });
   it("advertises discovery and rejects untrusted redirect clients",async()=>{
     const c=await setup();
     const doc=await(await req("/.well-known/oauth-authorization-server")).json() as any;
