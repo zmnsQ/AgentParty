@@ -9,8 +9,10 @@ const CALLBACK="https://chatgpt.com/connector_platform_oauth_redirect";
 async function req(path:string,init:RequestInit={}){
   return SELF.fetch("http://commons.test"+path,{redirect:"manual",...init});
 }
+let syntheticClientIp=0;
 async function register(redirect=CALLBACK){
-  return req("/oauth/register",{method:"POST",headers:{"content-type":"application/json"},
+  // Isolate test clients; do not weaken the production DCR rate limit.
+  return req("/oauth/register",{method:"POST",headers:{"content-type":"application/json","cf-connecting-ip":`192.0.2.${++syntheticClientIp}`},
     body:JSON.stringify({client_name:"ChatGPT dot",redirect_uris:[redirect],token_endpoint_auth_method:"none"})});
 }
 async function setup(){
@@ -288,6 +290,101 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     const refresh=await req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},
       body:new URLSearchParams({grant_type:"refresh_token",client_id:c.clientId,resource:c.resource,refresh_token:creds.refresh_token}).toString()});
     expect(refresh.status).toBe(400);
+  });
+
+  async function viewOnly(c:Awaited<ReturnType<typeof setup>>,scope="group.read") {
+    const query=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"renewal-test",scope,resource:c.resource});
+    const response=await req("/oauth/authorize?"+query,{headers:{cookie:c.cookie}});
+    expect(response.status).toBe(200);
+    const html=await response.text();
+    return {id:matchHidden(html,"request_id"),nonce:matchHidden(html,"nonce")};
+  }
+  const postForm=(cookie:string,form:{id:string;nonce:string},extraHeaders:Record<string,string>={})=>req("/oauth/authorize",{
+    method:"POST",headers:{origin:SITE,cookie,"sec-fetch-site":"same-origin",
+      "content-type":"application/x-www-form-urlencoded",...extraHeaders},
+    body:new URLSearchParams({request_id:form.id,nonce:form.nonce,decision:"approve"}).toString(),
+  });
+  async function freshPage(response:Response,cookie:string){
+    expect(response.status).toBe(303);
+    const location=new URL(response.headers.get("location")!);
+    expect(location.origin).toBe(SITE);expect(location.pathname).toBe("/oauth/authorize");
+    expect(location.searchParams.has("code")).toBe(false);
+    const page=await req(location.pathname+location.search,{headers:{cookie}});
+    expect(page.status).toBe(200);
+    const html=await page.text();expect(html).toContain("Access has not been granted");
+    return {id:matchHidden(html,"request_id"),nonce:matchHidden(html,"nonce")};
+  }
+  it("renews an expired authenticated confirmation without approving it; a new explicit consent is required",async()=>{
+    const c=await setup(),old=await viewOnly(c);
+    await env.DB.prepare("UPDATE connector_oauth_pending SET expires_at=? WHERE id=?").bind(Date.now()-1,old.id).run();
+    const result=await postForm(c.cookie,old);
+    expect(result.status).toBe(303);
+    expect(new URL(result.headers.get("location")!).searchParams.get("consent_retry")).toBe("expired");
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_codes WHERE pending_id=?").bind(old.id).first()).toEqual({n:0});
+    const fresh=await freshPage(result,c.cookie);
+    expect(fresh.id).not.toBe(old.id);expect(fresh.nonce).not.toBe(old.nonce);
+    expect((await postForm(c.cookie,old)).status).toBe(403);
+    const accepted=await postForm(c.cookie,fresh);expect(accepted.status).toBe(302);
+    const code=new URL(accepted.headers.get("location")!).searchParams.get("code")!;
+    const exchanged=await exchange(c,code);expect(exchanged.status).toBe(200);
+    expect((await exchanged.json() as {scope:string}).scope).toBe("group.read");
+  });
+  it("requires fresh consent after the same account signs in again; it never transfers an old approval",async()=>{
+    const c=await setup(),old=await viewOnly(c);
+    const newRaw=crypto.randomUUID().replaceAll("-","").repeat(2),newId=crypto.randomUUID();
+    await env.DB.prepare("UPDATE browser_sessions SET revoked_at=? WHERE account=?").bind(Date.now(),c.account).run();
+    await env.DB.prepare("INSERT INTO browser_sessions(id,cookie_hash,account,stage,auth_version,created_at,expires_at) VALUES(?,?,?,'ready',0,?,?)")
+      .bind(newId,await sha256Hex(newRaw),c.account,Date.now(),Date.now()+60_000).run();
+    const cookie="__Host-ap_session="+newRaw;
+    const result=await postForm(cookie,old);expect(result.status).toBe(303);
+    expect(new URL(result.headers.get("location")!).searchParams.get("consent_retry")).toBe("session_changed");
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_codes WHERE pending_id=?").bind(old.id).first()).toEqual({n:0});
+    const fresh=await freshPage(result,cookie);
+    expect(await env.DB.prepare("SELECT browser_session_id FROM connector_oauth_pending WHERE id=?").bind(fresh.id).first())
+      .toEqual({browser_session_id:newId});
+    expect((await postForm(cookie,fresh)).status).toBe(302);
+  });
+  it("never renews a form for another account or with the wrong nonce",async()=>{
+    const c=await setup(),old=await viewOnly(c),outsider=await setup();
+    await env.DB.prepare("UPDATE connector_oauth_pending SET expires_at=? WHERE id=?").bind(Date.now()-1,old.id).run();
+    for(const attempt of [()=>postForm(outsider.cookie,old),()=>postForm(c.cookie,{...old,nonce:"0".repeat(64)})]){
+      const r=await attempt();expect(r.status).toBe(403);expect(r.headers.get("location")).toBeNull();
+    }
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_pending WHERE id=?").bind(old.id).first()).toEqual({n:1});
+  });
+  it("does not renew consent when the owner closed the group MCP policy",async()=>{
+    const c=await setup(),old=await viewOnly(c);
+    await env.DB.prepare("UPDATE connector_oauth_pending SET expires_at=? WHERE id=?").bind(Date.now()-1,old.id).run();
+    await env.DB.prepare("UPDATE channel_mcp_security SET enabled=0 WHERE channel_slug=?").bind(c.slug).run();
+    const response=await postForm(c.cookie,old);expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({error:"group_mcp_policy_denied"});
+  });
+  it("atomically saves the authorization code and consumes consent; an INSERT fault leaves the form retryable",async()=>{
+    const c=await setup(),form=await viewOnly(c);
+    const trigger="qa_consent_fault_"+crypto.randomUUID().replaceAll("-","");
+    await env.DB.exec(`CREATE TRIGGER ${trigger} BEFORE INSERT ON connector_oauth_codes WHEN NEW.pending_id='${form.id}' BEGIN SELECT RAISE(ABORT, 'synthetic fault'); END;`);
+    try {
+      const failed=await postForm(c.cookie,form);expect(failed.status).toBe(503);
+      expect(await failed.json()).toMatchObject({error:"authorization_save_failed"});
+      expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_pending WHERE id=?").bind(form.id).first()).toEqual({n:1});
+      expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_codes WHERE pending_id=?").bind(form.id).first()).toEqual({n:0});
+    }finally{await env.DB.exec(`DROP TRIGGER ${trigger}`);}
+    expect((await postForm(c.cookie,form)).status).toBe(302);
+  });
+  it("permits exactly one concurrent approval and never returns a second authorization code",async()=>{
+    const c=await setup(),form=await viewOnly(c);
+    const responses=await Promise.all([postForm(c.cookie,form),postForm(c.cookie,form)]);
+    expect(responses.map(x=>x.status).sort()).toEqual([302,403]);
+    expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_codes WHERE pending_id=?").bind(form.id).first()).toEqual({n:1});
+  });
+  it("gives browsers a localized recovery page for an already-used form, without re-exposing OAuth parameters",async()=>{
+    const c=await setup(),form=await viewOnly(c);expect((await postForm(c.cookie,form)).status).toBe(302);
+    const replay=await postForm(c.cookie,form,{accept:"text/html","accept-language":"zh-CN"});
+    expect(replay.status).toBe(403);expect(replay.headers.get("content-type")).toContain("text/html");
+    const html=await replay.text();expect(html).toContain("这次授权确认已失效");
+    expect(html).toContain("本页面没有授予任何新的访问权限");
+    expect(html).not.toContain(form.nonce);expect(html).not.toContain(form.id);expect(html).not.toContain(c.clientId);
   });
 
 });

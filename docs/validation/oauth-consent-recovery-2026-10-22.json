@@ -1,0 +1,28 @@
+{
+  "runtime": "Wrangler 4.147.0 D1 + production OAuth handlers + isolated Chrome native forms",
+  "data": "synthetic accounts only; no external identity provider called",
+  "passed": 3,
+  "cases": [
+    {
+      "scenario": "fresh",
+      "callback_received": true,
+      "token_status": 200,
+      "token_issued": true,
+      "scope": "group.read"
+    },
+    {
+      "scenario": "expired",
+      "callback_received": true,
+      "token_status": 200,
+      "token_issued": true,
+      "scope": "group.read"
+    },
+    {
+      "scenario": "different-session",
+      "callback_received": true,
+      "token_status": 200,
+      "token_issued": true,
+      "scope": "group.read"
+    }
+  ]
+}

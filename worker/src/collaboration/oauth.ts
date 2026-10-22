@@ -100,7 +100,8 @@ async function validCodeChallenge(input:string,challenge:string):Promise<boolean
 }
 type ConsentLocale = "en" | "zh";
 function consentPage(params:{
-  id:string;nonce:string;clientName:string;group:string;scopes:string[];account:string
+  id:string;nonce:string;clientName:string;group:string;scopes:string[];account:string;
+  renewal?:"expired"|"session_changed"
 }, locale:ConsentLocale):Response {
   const zh = locale==="zh";
   const phrases = zh ? {
@@ -142,12 +143,17 @@ function consentPage(params:{
     "group.events":"Subscribe to this group’s event notifications",
   };
   const scopes=params.scopes.map(scope=>`<li><span>${escape(scopeLabels[scope]??scope)}</span><code>${escape(scope)}</code></li>`).join("");
+  const renewed = params.renewal ? (zh
+    ? "之前的确认页已过期或登录会话已更新。下面是新的授权确认，请重新核对群组与权限；尚未授予访问权限。"
+    : "The previous confirmation expired or your sign-in session changed. Review this fresh request and confirm again. Access has not been granted.") : "";
+  const expiryHint = zh ? "这张确认页有效 10 分钟。只有点击允许并通过服务器校验后，插件才能获得所列权限。"
+    : "This confirmation is valid for 10 minutes. The plugin receives the listed permissions only after you approve and the server validates the request.";
   const html=`<!DOCTYPE html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="same-origin">
 <meta name="author" content="zmnsQ"><link rel="stylesheet" href="/commons-consent.css"><title>${phrases.title}</title></head><body class="commons-consent">
-<main><h1>${phrases.heading}</h1><p>${phrases.github}: <strong>${escape(params.account)}</strong></p>
+<main><h1>${phrases.heading}</h1>${renewed?`<p role="status">${renewed}</p>`:""}<p>${phrases.github}: <strong>${escape(params.account)}</strong></p>
 <p><strong>${escape(params.clientName)}</strong> ${phrases.wants} <strong>#${escape(params.group)}</strong>.</p>
-<p>${phrases.scope}:</p><ul>${scopes}</ul><p>${phrases.explanation}</p>
+<p>${phrases.scope}:</p><ul>${scopes}</ul><p>${phrases.explanation}</p><p>${expiryHint}</p>
 <form method="POST" action="/oauth/authorize">
 <input type="hidden" name="request_id" value="${escape(params.id)}">
 <input type="hidden" name="nonce" value="${escape(params.nonce)}">
@@ -164,6 +170,14 @@ ${phrases.upstream}</p><p><a href="https://github.com/leeguooooo/AgentParty/blob
   return new Response(html,{headers:{"content-type":"text/html; charset=utf-8",
     "content-security-policy":"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';",
     "referrer-policy":"same-origin","cache-control":"no-store"}});
+}
+function consentUnavailable(request:Request):Response {
+  if(!request.headers.get("accept")?.includes("text/html"))return simple("invalid_or_expired_consent",403);
+  const zh=(request.headers.get("accept-language")??"").trim().toLowerCase().startsWith("zh");
+  const title=zh?"这次授权确认已失效":"This authorization confirmation is no longer valid";
+  const help=zh?"此确认单已使用或已失效，不能再次批准。请关闭此页面，回到 ChatGPT 中该插件重新点击连接；无需删除群组或重新创建 GitHub 登录应用。"
+    :"This one-use confirmation has already been used or is no longer available. Close this page and reconnect the plugin from ChatGPT. You do not need to delete the group or recreate your GitHub sign-in app.";
+  return new Response(`<!doctype html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>${title}</title><link rel="stylesheet" href="/commons-consent.css"></head><body class="commons-consent"><main><h1>${title}</h1><p role="alert">${help}</p><p>${zh?"本页面没有授予任何新的访问权限。":"This page has not granted any new access."}</p><a href="/">${zh?"返回 Agent Commons":"Return to Agent Commons"}</a><footer>Agent Commons · zmnsQ · ${zh?"基于 AgentParty 二次开发":"Based on AgentParty"}</footer></main></body></html>`,{status:403,headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","referrer-policy":"no-referrer","content-security-policy":"default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none';"}});
 }
 function redirectResult(clientUrl:string,value:Record<string,string>):Response{
   const out=new URL(clientUrl);
@@ -340,30 +354,77 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,await sha256Hex(nonce),current.id,current.account,clientId,
       slug,redirect,p.state,p.code_challenge,JSON.stringify(approvedScopes),resource,Date.now()+EXPIRY_MS).run();
     const language=(c.req.header("accept-language")??"").trim().toLowerCase().startsWith("zh")?"zh":"en";
-    return consentPage({id,nonce,clientName:target.name,group:slug,scopes:approvedScopes,account:current.account},language);
+    const renewal=p.consent_retry==="expired"||p.consent_retry==="session_changed"?p.consent_retry:undefined;
+    return consentPage({id,nonce,clientName:target.name,group:slug,scopes:approvedScopes,account:current.account,renewal},language);
   });
   app.post("/oauth/authorize",async c=>{
     if(!isExpectedOrigin(c.req.raw,c.env))return simple("invalid_origin",403);
     let params:URLSearchParams;try{params=await parseBody(c.req.raw);}catch{return simple("invalid_request");}
     const id=params.get("request_id")??"",nonce=params.get("nonce")??"",decision=params.get("decision");
-    if(!/^request_[a-f0-9]{64}$/.test(id)||!/^[a-f0-9]{64}$/.test(nonce)||!["approve","deny"].includes(decision??""))return simple("invalid_request");
+    if(["request_id","nonce","decision"].some(key=>params.getAll(key).length!==1)||
+      !/^request_[a-f0-9]{64}$/.test(id)||!/^[a-f0-9]{64}$/.test(nonce)||!["approve","deny"].includes(decision??""))return simple("invalid_request");
     const current=await readBrowserSession(c.env.DB,c.req.raw);
     if(!current||current.stage!=="ready")return simple("login_required",401);
     if(current.enabled!==1)return simple("mfa_required",403);
-    const pending=await c.env.DB.prepare(`DELETE FROM connector_oauth_pending WHERE id=? AND nonce_hash=? AND browser_session_id=?
-      AND account=? AND expires_at>? RETURNING *`)
-      .bind(id,await sha256Hex(nonce),current.id,current.account,Date.now()).first<Pending>();
-    if(!pending)return simple("invalid_or_expired_consent",403);
-    const issuer=uri(c.env);
-    if(decision==="deny")return redirectResult(pending.redirect_uri,{error:"access_denied",state:pending.state,iss:issuer});
+    const nonceHash=await sha256Hex(nonce);
+    // Validate before consuming. A failed code INSERT must never destroy the
+    // only confirmation record, and a session change must require NEW consent.
+    const pending=await c.env.DB.prepare(`SELECT * FROM connector_oauth_pending
+      WHERE id=? AND nonce_hash=? AND account=?`)
+      .bind(id,nonceHash,current.account).first<Pending>();
+    if(!pending)return consentUnavailable(c.req.raw);
+    const target=await client(c.env.DB,pending.client_id);
+    if(!target||!JSON.parse(target.redirects_json).includes(pending.redirect_uri)||
+      channelFromResource(pending.resource,c.env)!==pending.channel_slug)return simple("invalid_authorization_request");
     if(!await groupOwned(c.env.DB,pending.channel_slug,current.account))return simple("group_owner_required",403);
     for(const scope of JSON.parse(pending.scopes_json) as string[])
       if(!await mcpPermission(c.env.DB,pending.channel_slug,scope))return simple("group_mcp_policy_denied",403);
-    const code="acco_"+random();
-    await c.env.DB.prepare(`INSERT INTO connector_oauth_codes(code_hash,pending_id,client_id,account,channel_slug,redirect_uri,
-      code_challenge,scopes_json,resource,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)`)
-      .bind(await sha256Hex(code),pending.id,pending.client_id,current.account,pending.channel_slug,
-        pending.redirect_uri,pending.code_challenge,pending.scopes_json,pending.resource,Date.now()+EXPIRY_MS).run();
+    const issuer=uri(c.env),now=Date.now();
+    if(pending.browser_session_id!==current.id||pending.expires_at<=now){
+      // Do NOT transfer the old approval to a new session or extend the old
+      // nonce. Remove it once, then restart at GET to show fresh human consent.
+      // The state, redirect, client, scopes, resource and PKCE come exclusively
+      // from the server record authenticated by both nonce and current account.
+      const removed=await c.env.DB.prepare(`DELETE FROM connector_oauth_pending
+        WHERE id=? AND nonce_hash=? AND account=? AND browser_session_id=? AND expires_at=?`)
+        .bind(id,nonceHash,current.account,pending.browser_session_id,pending.expires_at).run();
+      if(removed.meta.changes!==1)return consentUnavailable(c.req.raw);
+      const next=new URL("/oauth/authorize",issuer);
+      next.search=new URLSearchParams({client_id:pending.client_id,redirect_uri:pending.redirect_uri,
+        response_type:"code",resource:pending.resource,scope:(JSON.parse(pending.scopes_json) as string[]).join(" "),
+        state:pending.state,code_challenge:pending.code_challenge,code_challenge_method:"S256",
+        consent_retry:pending.browser_session_id!==current.id?"session_changed":"expired"}).toString();
+      return new Response(null,{status:303,headers:{location:next.toString(),"cache-control":"no-store","referrer-policy":"no-referrer"}});
+    }
+    if(decision==="deny"){
+      const removed=await c.env.DB.prepare(`DELETE FROM connector_oauth_pending
+        WHERE id=? AND nonce_hash=? AND browser_session_id=? AND account=? AND expires_at>?`)
+        .bind(id,nonceHash,current.id,current.account,Date.now()).run();
+      if(removed.meta.changes!==1)return consentUnavailable(c.req.raw);
+      return redirectResult(pending.redirect_uri,{error:"access_denied",state:pending.state,iss:issuer});
+    }
+    const code="acco_"+random(),codeHash=await sha256Hex(code);
+    // D1 batch is transactional: the code and one-use receipt either both
+    // commit or neither does. The guarded INSERT also prevents duplicate POSTs.
+    let saved:D1Result[];
+    try{
+      const checkedAt=Date.now();
+      saved=await c.env.DB.batch([
+        c.env.DB.prepare(`INSERT INTO connector_oauth_codes(code_hash,pending_id,client_id,account,channel_slug,redirect_uri,
+          code_challenge,scopes_json,resource,expires_at)
+          SELECT ?,p.id,p.client_id,p.account,p.channel_slug,p.redirect_uri,p.code_challenge,p.scopes_json,p.resource,?
+          FROM connector_oauth_pending p JOIN browser_sessions s ON s.id=p.browser_session_id
+          JOIN browser_account_security a ON a.account=s.account
+          WHERE p.id=? AND p.nonce_hash=? AND p.browser_session_id=? AND p.account=? AND p.expires_at>?
+          AND s.stage='ready' AND s.revoked_at IS NULL AND s.expires_at>? AND s.account=p.account
+          AND s.auth_version=a.version AND a.enabled=1`)
+          .bind(codeHash,checkedAt+EXPIRY_MS,id,nonceHash,current.id,current.account,checkedAt,checkedAt),
+        c.env.DB.prepare(`DELETE FROM connector_oauth_pending WHERE id=? AND nonce_hash=? AND browser_session_id=?
+          AND account=? AND EXISTS(SELECT 1 FROM connector_oauth_codes WHERE code_hash=? AND pending_id=?)`)
+          .bind(id,nonceHash,current.id,current.account,codeHash,id),
+      ]);
+    }catch{return simple("authorization_save_failed",503);}
+    if(saved[0]?.meta.changes!==1||saved[1]?.meta.changes!==1)return consentUnavailable(c.req.raw);
     return redirectResult(pending.redirect_uri,{code,state:pending.state,iss:issuer});
   });
   app.post("/oauth/token",async c=>{
