@@ -109,3 +109,22 @@
   .cloud-bridge-card { padding: 12px; }
   .cloud-bridge-card code { font-size: 11px; }
 }
+
+/* Authoritative OAuth/Events status is independent from realtime WebSocket presence. */
+.connector-presence-list { display:grid; gap:8px; margin:0; padding:0; }
+.connector-presence-item {
+  min-width:0; padding:12px; display:grid;
+  grid-template-columns:minmax(0, 1.3fr) minmax(0, 1fr);
+  gap:5px 12px; border:1px solid var(--t-faint);
+  border-radius:8px; background:var(--t-panel);
+}
+.connector-presence-item dt { display:flex; flex-direction:column; min-width:0; grid-row:1 / 4; }
+.connector-presence-item strong { overflow-wrap:anywhere; }
+.connector-presence-item code { display:block; opacity:.65; font-size:11px; overflow-wrap:anywhere; }
+.connector-presence-item dd { min-width:0; margin:0; overflow-wrap:anywhere; font-size:12px; }
+.host-assignment-mcp-note { grid-column:1 / -1; }
+@media (max-width: 640px) {
+  .connector-presence-item { grid-template-columns:minmax(0,1fr); gap:8px; }
+  .connector-presence-item dt { grid-row:auto; }
+  .connector-presence-item dd { padding-left:0; }
+}
