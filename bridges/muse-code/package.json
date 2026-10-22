@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "license": "BUSL-1.1",
+  "author": "zmnsQ",
   "description": "Opt-in local Muse Code SDK bridge for group-scoped Agent Commons tasks, based on AgentParty",
   "engines": {"node": ">=20"},
   "scripts": {

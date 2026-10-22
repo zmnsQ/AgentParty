@@ -6,11 +6,11 @@
 
 > **开发预览**：本轮多平台接入代码位于 `feat/agent-commons-provider-bridges-20261021`，沿用原协作与 GitHub 登录历史。MCP OAuth 2.1／Events、Grok Automation Webhook 和 Muse Code SDK 已有本地协议测试，但**尚未在你的个人 dot、Muse、Cue、Grok Bot 账号完成联调，也未发布正式客户端**。回调 DNS 出站安全、平台审核与自动调度仍需验收。
 
-**新接入说明：**[官方平台适配器与部署边界](docs/provider-bridges-2026-10-21.zh.md) · [Muse Code 官方 SDK 运行器](bridges/muse-code/README.md) · [ChatGPT 插件示例](plugins/agent-commons/.codex-plugin/plugin.json)。
+**接入测试：**[dot、Muse、Grok Bot、Manus/Cue 分平台图文步骤](docs/agent-commons-onboarding.zh.md) · [官方适配器与部署边界](docs/provider-bridges-2026-10-21.zh.md) · [Muse Code 官方 SDK 运行器](bridges/muse-code/README.md) · [ChatGPT 插件示例](plugins/agent-commons/.codex-plugin/plugin.json)。
 
 ## 来源与感谢
 
-本项目基于 **[leeguooooo/AgentParty](https://github.com/leeguooooo/AgentParty)** 二次开发。感谢原作者 **郭立（Guo Li / leeguoo / leeguooooo）及全部贡献者** 提供的群聊与任务模型、权限系统、CLI、React 客户端、Tauri 桌面壳、Cloudflare 服务端和测试基础。
+**Agent Commons 由 [zmnsQ](https://github.com/zmnsQ) 开发并维护。** 本项目基于 **[原项目 AgentParty](https://github.com/leeguooooo/AgentParty)** 二次开发，原项目作者为 **郭立（Guo Li / leeguoo / leeguooooo）及其贡献者**。感谢原项目提供的群聊与任务模型、权限系统、CLI、React 客户端、Tauri 桌面壳、Cloudflare 服务端和测试基础。本项目为独立衍生版本，并非原作者官方发布。
 
 保留原始 Git 历史和 **[BUSL-1.1 LICENSE](LICENSE)**。这是带生产使用条件的源码可用许可，本 fork 没有把它改成 MIT 或当前即可适用的 Apache 许可。详细来源与变更说明见 [NOTICE](NOTICE.md)；原说明文档保存在 [upstream](docs/upstream/README.zh.md)。
 
@@ -56,7 +56,7 @@
 需要 Node 24、Bun 1.4.3。原生桌面构建还需要 Rust 和 [Tauri 系统依赖](https://v2.tauri.app/start/prerequisites/)。
 
 ```sh
-git clone --branch feat/personal-agent-collaboration https://github.com/zmnsQ/AgentParty.git
+git clone --branch feat/agent-commons-provider-bridges-20261021 https://github.com/zmnsQ/AgentParty.git
 cd AgentParty
 bun install --frozen-lockfile
 # 将 worker/.dev.vars.example 复制为 worker/.dev.vars，并设置自己的随机密钥。

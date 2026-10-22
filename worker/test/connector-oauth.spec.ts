@@ -81,6 +81,25 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     expect(webpage.headers.get("content-type")).toContain("text/html");
     expect(await webpage.text()).toContain("SPA fallback");
   });
+  it.each([
+    { header: "en-US,en;q=0.9", mark: "Current project author:", upstream: "originally created by" },
+    { header: "zh-CN,zh;q=0.9", mark: "现项目作者：", upstream: "原作者：郭立" },
+  ])("identifies zmnsQ and upstream AgentParty on localized OAuth consent: $header",async({header,mark,upstream})=>{
+    const c=await setup();
+    const qs=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"author-credit",
+      scope:"group.read",resource:c.resource});
+    const result=await req("/oauth/authorize?"+qs,{headers:{cookie:c.cookie,"accept-language":header}});
+    expect(result.status).toBe(200);
+    const body=await result.text();
+    expect(body).toContain(mark);
+    expect(body).toContain(upstream);
+    expect(body).toContain('href="https://github.com/zmnsQ"');
+    expect(body).toContain('href="https://github.com/leeguooooo/AgentParty"');
+    expect(body).toContain('href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE"');
+    expect(body).toContain("zmnsQ");
+    expect(body).toContain("BUSL-1.1");
+  });
   it("advertises discovery and rejects untrusted redirect clients",async()=>{
     const c=await setup();
     const doc=await(await req("/.well-known/oauth-authorization-server")).json() as any;

@@ -143,3 +143,143 @@
   .commons-diff { grid-template-columns: 1fr; }
   .commons-diff > div + div { border-left: 0; border-top: 1px solid var(--t-faint); }
 }
+
+/* Agent Commons collaboration: align cards, navigation and actions on phones. */
+.commons-hub,
+.commons-panel,
+.commons-hub > *,
+.commons-hero > div,
+.commons-agent-layout > *,
+.commons-bridges,
+.commons-provider-grid > *,
+.commons-repo-tabs > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.commons-hub .d-btn { white-space: normal; text-align: center; }
+.commons-hero > div { flex: 1 1 auto; }
+.commons-hero .original-project-credit { width: 100%; }
+.commons-nav [role=tablist] { min-width: 0; max-width: 100%; }
+.commons-tab { min-height: 38px; }
+.commons-tab > span { flex: none; }
+.commons-proposal-card > span:first-child { flex: 1 1 0; min-width: 0; }
+.commons-proposal-card > .commons-badge { flex: none; }
+.commons-review,
+.commons-change,
+.commons-diff { min-width: 0; max-width: 100%; }
+.commons-review-meta code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+.commons-hub .commons-mcp input, .commons-hub .commons-endpoint { min-width: 0; max-width: 100%; }
+.commons-hub .commons-agent-card { width: 100%; }
+.commons-file > .commons-actions { min-width: 0; }
+@media (max-width: 720px) {
+  /* The overlay must fit iPhone safe areas and scroll within the actual viewport. */
+  .channel-panel-overlay:has(.commons-hub) {
+    box-sizing: border-box;
+    padding: max(8px, env(safe-area-inset-top, 0px))
+      max(8px, env(safe-area-inset-right, 0px))
+      max(8px, env(safe-area-inset-bottom, 0px))
+      max(8px, env(safe-area-inset-left, 0px));
+  }
+  .channel-panel-card:has(.commons-hub) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    margin: 0;
+  }
+  .channel-panel-card:has(.commons-hub) .channel-panel-body {
+    padding: 10px 12px max(16px, env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+  }
+  .commons-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 13px 12px;
+  }
+  .commons-hero > div { width: 100%; }
+  .commons-hero p { font-size: 15px; line-height: 1.35; }
+  .commons-group {
+    justify-self: start;
+    max-width: 100%;
+    font-size: 11px;
+  }
+  .commons-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+    margin: 14px 0 10px;
+    padding: 0 0 4px;
+  }
+  .commons-nav [role=tablist] {
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+  .commons-tab {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 10px 12px;
+    white-space: nowrap;
+    font-size: 12px;
+    scroll-snap-align: start;
+  }
+  .commons-nav > .d-btn { min-height: 44px; white-space: nowrap; }
+  .commons-hub .d-btn,
+  .commons-hub .commons-repo-card,
+  .commons-hub .commons-agent-card { min-height: 44px; }
+  .commons-hub input:not([type=checkbox]):not([type=file]),
+  .commons-hub select,
+  .commons-hub textarea {
+    font-size: 16px; /* Prevent iOS Safari zoom on form focus. */
+    min-height: 44px;
+  }
+  .commons-check { align-items: flex-start; }
+  .commons-check input[type=checkbox] { width: 18px; height: 18px; margin-top: 3px; }
+  .commons-form { padding: 12px; }
+  .commons-agent-detail { padding: 0 10px 12px; }
+  .commons-section-head { gap: 8px; }
+  .commons-section-head > * { min-width: 0; }
+  .commons-file { gap: 10px; }
+  .commons-file > .commons-actions {
+    width: 100%;
+    padding-left: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .commons-file > .commons-actions > .d-btn { width: 100%; }
+  .commons-review { padding: 0 10px 14px; }
+  .commons-review-meta > div { grid-template-columns: minmax(0, 1fr); }
+  .commons-diff { grid-template-columns: minmax(0, 1fr); }
+  .commons-approval .commons-actions { width: 100%; }
+  .commons-attribution { overflow-wrap: anywhere; }
+}
+@media (max-width: 430px) {
+  .commons-agent-list { grid-template-columns: minmax(0, 1fr); }
+  .commons-agent-card { grid-template-columns: 38px minmax(0, 1fr); }
+  .commons-repo-tabs,
+  .commons-provider-grid { grid-template-columns: minmax(0, 1fr); }
+  .commons-proposal-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .commons-proposal-card > .commons-badge { justify-self: start; }
+  .commons-prompt .d-btn { justify-self: stretch; width: 100%; }
+  .commons-agent-detail .commons-actions,
+  .commons-review .commons-actions { width: 100%; }
+  .commons-agent-detail .commons-actions .d-btn,
+  .commons-review .commons-actions .d-btn { flex: 1 1 100%; }
+  .commons-mcp > .d-btn { width: 100%; }
+  .commons-review h3, .commons-hub h2 { overflow-wrap: anywhere; }
+}

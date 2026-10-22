@@ -199,7 +199,9 @@ describe("collaboration hub and access", () => {
   test("makes an unsupported server visible and preserves original project attribution", async () => {
     await mount(<CollaborationHub token="token" slug="demo" client={client({ summary: async () => { throw new CollaborationApiError("missing route", 404, "not_found"); } })} />);
     expect(text(renderer!.root)).toContain("does not provide the Commons collaboration API");
-    expect(text(renderer!.root)).toContain("independent derivative of AgentParty");
+    expect(text(renderer!.root)).toContain("Agent Commons · Created and maintained by zmnsQ");
+    expect(text(renderer!.root)).toContain("Based on AgentParty");
+    expect(text(renderer!.root)).toContain("Guo Li");
     expect(text(renderer!.root)).toContain("BUSL-1.1");
   });
 

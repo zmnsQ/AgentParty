@@ -307,11 +307,11 @@ export function registerBrowserAuth(app: Hono<AppContext>, deps: { enroll(db: D1
       || !/^[1-9][0-9]{0,15}$/.test(c.env.AUTH_GITHUB_APP_OWNER_ID ?? '')) return fail('setup_not_authorized', 403);
     const root = origin(c.env); const state = await createState(c, 'registration');
     return c.json({ action: `https://github.com/settings/apps/new?state=${state.state}`, manifest: {
-      name: `Commons Login ${c.env.AUTH_GITHUB_APP_OWNER_ID}`,
+      name: 'Agent Commons Login (zmnsQ)',
       url: root, redirect_url: `${root}${PREFIX}/registration/callback`, callback_urls: [`${root}${PREFIX}/callback`],
       hook_attributes: { url: `${root}/api/auth/github/webhook-disabled`, active: false },
       public: false, default_permissions: {}, default_events: [], request_oauth_on_install: false,
-      description: 'Private GitHub sign-in for AgentParty Commons, derived from AgentParty. No repository permissions requested.',
+      description: 'Agent Commons by zmnsQ, based on AgentParty by Guo Li (leeguoo) and contributors. 私有身份登录，基于原项目二次开发；不申请仓库权限。',
     } });
   }));
   app.get(`${PREFIX}/registration/callback`, wrap(async c => {

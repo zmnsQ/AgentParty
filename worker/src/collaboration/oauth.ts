@@ -97,20 +97,59 @@ async function validCodeChallenge(input:string,challenge:string):Promise<boolean
   let delta=0;for(let i=0;i<out.length;i++)delta|=out.charCodeAt(i)^challenge.charCodeAt(i);
   return delta===0;
 }
-function consentPage(params:{id:string;nonce:string;clientName:string;group:string;scopes:string[];account:string}):Response{
+type ConsentLocale = "en" | "zh";
+function consentPage(params:{
+  id:string;nonce:string;clientName:string;group:string;scopes:string[];account:string
+}, locale:ConsentLocale):Response {
+  const zh = locale==="zh";
+  const phrases = zh ? {
+    title:"Agent Commons — 授权云端 Agent",
+    heading:"授权 Agent Commons 群组连接",
+    github:"当前 GitHub 账号",
+    wants:"申请访问群组",
+    scope:"申请的操作权限",
+    explanation:"授权后将为这个群组创建独立、可随时撤销的 Agent 身份，不会提供你的 GitHub 仓库凭据或私人 ChatGPT 对话。",
+    approve:"允许访问此群组",
+    deny:"拒绝授权",
+    current:"现项目作者：",
+    derived:"本项目基于原项目",
+    upstream:"二次开发，原作者：郭立（Guo Li / leeguoo）及贡献者。这是独立衍生项目，非原作者官方版本。",
+    license:"原项目 BUSL-1.1 许可证",
+    source:"Agent Commons 项目源码",
+  } : {
+    title:"Agent Commons — Connect an agent",
+    heading:"Authorize an Agent Commons connection",
+    github:"Authenticated GitHub account",
+    wants:"requests access to group",
+    scope:"Requested operations",
+    explanation:"Granting access creates a dedicated, revocable agent identity for this group. It does not give the agent your GitHub repository credentials or personal ChatGPT conversations.",
+    approve:"Allow access to this group",
+    deny:"Deny",
+    current:"Current project author: ",
+    derived:"This project is independently developed based on",
+    upstream:"originally created by Guo Li (leeguoo) and contributors. This is not an official upstream release.",
+    license:"Original BUSL-1.1 license",
+    source:"Agent Commons source",
+  };
   const scopes=params.scopes.map(scope=>`<li>${escape(scope)}</li>`).join("");
-  const html=`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Agent Commons — Connect an agent</title></head><body>
-<main><h1>Authorize an Agent Commons connection</h1><p>Authenticated GitHub account: <strong>${escape(params.account)}</strong></p>
-<p><strong>${escape(params.clientName)}</strong> requests access to the group <strong>#${escape(params.group)}</strong>.</p>
-<p>Allowed operations:</p><ul>${scopes}</ul>
-<p>Granting access creates a dedicated, revocable agent identity for this group. It does not provide your GitHub repository credentials or personal ChatGPT conversations.</p>
+  const html=`<!DOCTYPE html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<meta name="author" content="zmnsQ"><title>${phrases.title}</title></head><body>
+<main><h1>${phrases.heading}</h1><p>${phrases.github}: <strong>${escape(params.account)}</strong></p>
+<p><strong>${escape(params.clientName)}</strong> ${phrases.wants} <strong>#${escape(params.group)}</strong>.</p>
+<p>${phrases.scope}:</p><ul>${scopes}</ul><p>${phrases.explanation}</p>
 <form method="POST" action="/oauth/authorize">
 <input type="hidden" name="request_id" value="${escape(params.id)}">
 <input type="hidden" name="nonce" value="${escape(params.nonce)}">
-<button name="decision" value="approve" type="submit">Allow access to this group</button>
-<button name="decision" value="deny" type="submit">Deny</button></form>
-<footer><p>Agent Commons is independently developed from <a href="https://github.com/leeguooooo/AgentParty">AgentParty</a> by Guo Li (leeguoo) and contributors. <a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE">BUSL-1.1 license</a>.</p></footer></main></body></html>`;
-  return new Response(html,{headers:{"content-type":"text/html; charset=utf-8","content-security-policy":"default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';","referrer-policy":"no-referrer","cache-control":"no-store"}});
+<button name="decision" value="approve" type="submit">${phrases.approve}</button>
+<button name="decision" value="deny" type="submit">${phrases.deny}</button></form>
+<footer><p><strong>${phrases.current}<a href="https://github.com/zmnsQ" rel="author noopener noreferrer">zmnsQ</a></strong></p>
+<p>${phrases.derived} <a href="https://github.com/leeguooooo/AgentParty">AgentParty</a>,
+${phrases.upstream}</p><p><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE">${phrases.license}</a>
+· <a href="https://github.com/zmnsQ/AgentParty">${phrases.source}</a></p></footer></main></body></html>`;
+  return new Response(html,{headers:{"content-type":"text/html; charset=utf-8",
+    "content-security-policy":"default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';",
+    "referrer-policy":"no-referrer","cache-control":"no-store"}});
 }
 function redirectResult(clientUrl:string,value:Record<string,string>):Response{
   const out=new URL(clientUrl);
@@ -274,7 +313,8 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       (id,nonce_hash,browser_session_id,account,client_id,channel_slug,redirect_uri,state,code_challenge,scopes_json,resource,expires_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,await sha256Hex(nonce),current.id,current.account,clientId,
       slug,redirect,p.state,p.code_challenge,JSON.stringify(scopes),resource,Date.now()+EXPIRY_MS).run();
-    return consentPage({id,nonce,clientName:target.name,group:slug,scopes,account:current.account});
+    const language=(c.req.header("accept-language")??"").trim().toLowerCase().startsWith("zh")?"zh":"en";
+    return consentPage({id,nonce,clientName:target.name,group:slug,scopes,account:current.account},language);
   });
   app.post("/oauth/authorize",async c=>{
     if(!isExpectedOrigin(c.req.raw,c.env))return simple("invalid_origin",403);

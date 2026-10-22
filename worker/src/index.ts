@@ -2956,7 +2956,7 @@ registerBrowserAuth(app, { enroll: enrollInstanceMember });
 
 app.get("/api/health", (c) => {
   c.header("cache-control", "no-store");
-  return c.json({ ok: true, ...DEPLOYMENT_METADATA, product: "Agent Commons", original_project: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" } });
+  return c.json({ ok: true, ...DEPLOYMENT_METADATA, product: "Agent Commons", author: "zmnsQ", project_source: "https://github.com/zmnsQ/AgentParty", original_project: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" } });
 });
 
 // CLI↔worker 版本协商源点（#137）：服务端 version/commit/deployed_at + 声明的最低客户端版本 + 是否硬拒。
@@ -3021,6 +3021,8 @@ app.get("/api/config", (c) => {
     },
     cli_client_id: CLI_CLIENT_ID,
     product_name: "Agent Commons",
+    project_author: "zmnsQ",
+    project_source: "https://github.com/zmnsQ/AgentParty",
     based_on: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" },
   });
 });

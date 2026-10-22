@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useLocale } from '../i18n/locale';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { OriginalProjectCredit } from './OriginalProjectCredit';
 import { browserAuthRequest, githubLoginUrl, securityError } from '../lib/browserAuth';
 import './browser-auth.css';
+
+/** Current author and original-project attribution, localized on every auth page. */
+function AuthPageFooter() {
+  return <footer className="browser-auth-attribution">
+    <LanguageSwitcher />
+    <OriginalProjectCredit compact />
+  </footer>;
+}
 
 export function SecondFactorGate({ onVerified, onCancel }: { onVerified(): Promise<unknown>; onCancel(): Promise<unknown> }) {
   const { locale } = useLocale(); const zh = locale === 'zh';
@@ -16,7 +26,7 @@ export function SecondFactorGate({ onVerified, onCancel }: { onVerified(): Promi
       <button className="d-btn d-btn--primary" disabled={busy || !code.trim()}>{busy ? (zh ? '正在验证…' : 'Verifying…') : (zh ? '验证并登录' : 'Verify and sign in')}</button>
       <button type="button" className="d-btn" disabled={busy} onClick={()=>{ setRecovery(!recovery);setCode('');setError(null); }}>{recovery ? (zh ? '改用验证器' : 'Use authenticator') : (zh ? '无法使用验证器？使用恢复码' : 'Use a recovery code instead')}</button>
       <button type="button" className="d-btn" disabled={busy} onClick={async()=>{setBusy(true);try{await onCancel();}catch(e){setError(e);}finally{setBusy(false);}}}>{zh ? '取消登录' : 'Cancel sign-in'}</button>
-    </form></section></main>;
+    </form><AuthPageFooter /></section></main>;
 }
 interface SecurityStatus { enabled: boolean; recovery_remaining: number; recent_login: boolean; login: string; }
 export function BrowserSecurity() {
@@ -50,6 +60,7 @@ export function BrowserSecurity() {
       {status.enabled&&!action&&<div className="browser-auth-stack"><p>{zh?`剩余 ${status.recovery_remaining} 个恢复码。`:`${status.recovery_remaining} recovery codes remaining.`}</p><button className="d-btn" disabled={busy} onClick={()=>{setAction('recovery-codes');setCodes([]);setRecovery(false);}}>{zh?'重新生成恢复码':'Regenerate recovery codes'}</button><button className="d-btn" disabled={busy} onClick={()=>{setAction('disable');setCodes([]);setRecovery(false);}}>{zh?'关闭二步验证':'Disable two-step verification'}</button></div>}
       <p className="browser-auth-muted">{zh?'开启、关闭或重置恢复码后，其他浏览器和已配对桌面会话会退出，需要重新登录。':'Enabling, disabling or resetting recovery codes signs out other browser and paired desktop sessions.'}</p>
     </>}
+    <AuthPageFooter />
   </section></main>;
 }
 export function GithubAuthSetup() {
@@ -61,5 +72,6 @@ export function GithubAuthSetup() {
     {!key&&<p className="banner" role="status">{zh?'请使用部署管理员提供的一次性初始化入口。普通登录不需要此步骤。':'Open the one-time setup entry provided by the administrator. Normal sign-in does not require this step.'}</p>}
     {error!==null&&<p className="banner banner--red" role="alert">{securityError(error,zh)}</p>}
     <button className="d-btn d-btn--primary" disabled={busy||!key} onClick={async()=>{setBusy(true);setError(null);try{const data=await browserAuthRequest<{action:string;manifest:Record<string,unknown>}>('/registration/start',{setup_key:key});const target=new URL(data.action);if(target.origin!=='https://github.com'||target.pathname!=='/settings/apps/new')throw new Error('invalid_setup_destination');const form=document.createElement('form');form.method='POST';form.action=target.toString();const field=document.createElement('input');field.type='hidden';field.name='manifest';field.value=JSON.stringify(data.manifest);form.appendChild(field);document.body.appendChild(form);form.submit();}catch(e){setError(e);setBusy(false);}}}>{busy?(zh?'正在前往 GitHub…':'Opening GitHub…'):(zh?'在 GitHub 创建登录应用':'Create sign-in app on GitHub')}</button><p><a href="/">{zh?'返回登录页':'Return to sign-in'}</a></p>
+    <AuthPageFooter />
   </section></main>;
 }

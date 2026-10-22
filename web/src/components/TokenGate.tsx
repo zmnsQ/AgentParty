@@ -95,11 +95,11 @@ export function TokenGate({ error, providers, onSso, onSubmit, github }: Props) 
       </div>
       <p className="gate-byline">
         {t("TokenGate.bylineBy")}
-        <a href={locale === "zh" ? "https://leeguoo.com/about" : "https://leeguoo.com/about/en"} rel="author">
+        <a href="https://github.com/zmnsQ" rel="author noopener noreferrer" target="_blank">
           {t("TokenGate.bylineAuthor")}
         </a>
         {t("TokenGate.bylineAlias")}
-        <a href={locale === "zh" ? "https://blog.leeguoo.com/zh/" : "https://blog.leeguoo.com/en/"}>
+        <a href="https://github.com/leeguooooo/AgentParty" rel="noopener noreferrer" target="_blank">
           {t("TokenGate.bylineBlog")}
         </a>
       </p>

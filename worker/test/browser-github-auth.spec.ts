@@ -274,6 +274,11 @@ describe('GitHub browser login and second-factor boundaries', () => {
     const r=await call(e,`${P}/registration/start`,'',{setup_key:'a'.repeat(64)});expect(r.status).toBe(200);
     const data=await r.json() as {manifest:Record<string,unknown>;action:string};
     expect(data.manifest).toMatchObject({public:false,default_permissions:{},default_events:[],hook_attributes:{active:false}});
+    expect(data.manifest).toMatchObject({
+      name:"Agent Commons Login (zmnsQ)",
+      description:expect.stringContaining("Agent Commons by zmnsQ"),
+    });
+    expect(data.manifest.description).toContain("AgentParty");
     expect(data.action).toMatch(/^https:\/\/github.com\/settings\/apps\/new\?state=/);
     expect(r.headers.get('set-cookie')).toContain('__Host-ap_setup=');
   });
