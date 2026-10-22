@@ -8,11 +8,11 @@ let renderer:ReactTestRenderer|null=null;
 const oldFetch=globalThis.fetch,oldStorage=Object.getOwnPropertyDescriptor(globalThis,"localStorage");
 const oldClipboard=Object.getOwnPropertyDescriptor(globalThis.navigator,"clipboard");
 const slug="ch-00000000000000000000000000000001",name="ac-oauth-0011223344556677889900112";
-let readOnly=false,expired=false,disabled=false,empty=false,failed=false,otherSubscribed=false;
+let readOnly=false,expired=false,disabled=false,empty=false,failed=false,otherSubscribed=false,serverMissing=false;
 const copied:string[]=[],calls:Array<{url:string;method:string}>=[];
 const text=(node:ReactTestInstance):string=>node.children.map(v=>typeof v==="string"?v:text(v)).join(" ");
 beforeEach(()=>{
-  readOnly=false;expired=false;disabled=false;empty=false;failed=false;otherSubscribed=false;copied.length=0;calls.length=0;
+  readOnly=false;expired=false;disabled=false;empty=false;failed=false;otherSubscribed=false;serverMissing=false;copied.length=0;calls.length=0;
   Object.defineProperty(globalThis,"IS_REACT_ACT_ENVIRONMENT",{configurable:true,value:true});
   Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:(key:string)=>key==="ap_locale"?"en":null,setItem:()=>{}}});
   Object.defineProperty(globalThis.navigator,"clipboard",{configurable:true,value:{writeText:async(s:string)=>{copied.push(s);}}});
@@ -21,7 +21,7 @@ beforeEach(()=>{
     if(failed)return Response.json({error:{code:"unavailable"}},{status:503});
     if(url.endsWith("/agents"))return Response.json({agents:empty?[]:[{name,owner:"fixture-account",channel_scope:slug,created_at:1,credential_kind:"oauth",oauth:{provider:"chatgpt",client_name:"ChatGPT",status:expired?"reconnect_required":"authorized",scopes:readOnly?["group.read"]:["group.events","group.read","group.write"]}}]});
     if(url.endsWith("/mcp-security"))return Response.json({can_manage:true,policy:{enabled:!disabled,allow_write:!readOnly,allow_events:true,owner_mfa_enabled:true,require_mfa:true,updated_at:1}});
-    if(url.endsWith("/events/status"))return Response.json({active_subscriptions:otherSubscribed?1:0,pending_deliveries:0,agents:otherSubscribed?[{agent_name:"another-agent",active_subscriptions:1}]:[]});
+    if(url.endsWith("/events/status"))return Response.json({callback_policy_configured:!serverMissing,active_subscriptions:otherSubscribed?1:0,pending_deliveries:0,agents:otherSubscribed?[{agent_name:"another-agent",active_subscriptions:1}]:[]});
     throw new Error("Unexpected request "+url);
   }) as typeof fetch;
 });
@@ -71,6 +71,12 @@ describe("authorized plugin first-use guidance",()=>{
   });
   test("a status failure is visible and does not claim connection succeeded",async()=>{
     failed=true;const root=await render();expect(text(root)).toContain("Connection status could not be checked");expect(copies(root)).toHaveLength(0);
+  });
+  test("server event configuration failure is actionable and does not disable existing read or reply",async()=>{
+    serverMissing=true;const root=await render();expect(text(root)).toContain("Event callbacks not configured");
+    expect(text(root)).toContain("operator configures callback security");
+    expect(copies(root).map(b=>b.props.disabled)).toEqual([false,false,false]);
+    expect(calls.every(c=>c.method==="GET")).toBe(true);
   });
   test("all guidance translations and exact group-scoped prompts exist in both languages",()=>{
     expect(Object.keys(ConnectorUsageStrings.en).sort()).toEqual(Object.keys(ConnectorUsageStrings.zh).sort());

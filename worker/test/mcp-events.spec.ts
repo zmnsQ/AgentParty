@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, expect, it } from "vitest";
 import { fetchMock } from "./fetch-mock";
 import { api, createChannel, seedToken, uniq, WsClient, completeCapabilityHello } from "./helpers";
 import { sha256Hex } from "../src/auth";
-import { signMcpWebhook, enqueueMcpEvent, deliverMcpEvents } from "../src/collaboration/mcp-events";
+import { signMcpWebhook, enqueueMcpEvent, deliverMcpEvents, mcpEventReadiness } from "../src/collaboration/mcp-events";
 import { handleChannelMcp } from "../src/collaboration/mcp";
 import type { TokenIdentity } from "../src/auth";
 import { enableMcpFixture } from "./mcp-test-helpers";
@@ -46,6 +46,28 @@ const subscribe=(slug:string,mentionOnly=true,secret=SECRET,url=CALLBACK)=>({
   delivery:{mode:"webhook",url,secret},ttlMs:86_400_000,cursor:null,
 });
 describe("MCP 2.0 dot event subscriptions and signed delivery",()=>{
+  it("accepts ttlMs null and grants a bounded subscription expiry instead of failing task creation",async()=>{
+    const {slug,identity}=await group();verifyFixture();const before=Date.now();
+    const output=await(await mcp(identity,slug,"events/subscribe",{...subscribe(slug),ttlMs:null})).json() as any;
+    expect(output.error).toBeUndefined();expect(output.result.id).toMatch(/^sub_/);
+    const expiry=Date.parse(output.result.refreshBefore);
+    expect(expiry).toBeGreaterThan(before+23*3600_000);expect(expiry).toBeLessThanOrEqual(Date.now()+86_400_000);
+  });
+  it("reports unconfigured callback policy without attempting a callback or leaking destination/secret",async()=>{
+    const {slug,identity}=await group();const runtime={...env,COLLABORATION_EVENTS_ALLOWED_ORIGINS:"[]"};
+    expect(mcpEventReadiness(runtime as never)).toEqual({callback_policy_configured:false});
+    const output=await(await handleChannelMcp(rpc("events/subscribe",subscribe(slug)),slug,identity,noForward,runtime as never)).json() as any;
+    expect(output.error).toMatchObject({code:-32602,message:"callback_origin_not_approved",data:{reason:"callback_origin_not_approved"}});
+    expect(JSON.stringify(output)).not.toContain(SECRET);expect(JSON.stringify(output)).not.toContain(CALLBACK);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_subscriptions WHERE channel_slug=?").bind(slug).first()).toEqual({n:0});
+  });
+  it("readiness is only a configuration boolean, never approval of an arbitrary callback",()=>{
+    for(const value of [undefined,"[]","broken",JSON.stringify(["*"]),JSON.stringify(["http://example.test"])])
+      expect(mcpEventReadiness({...env,COLLABORATION_EVENTS_ALLOWED_ORIGINS:value} as never)).toEqual({callback_policy_configured:false});
+    expect(mcpEventReadiness({...env,COLLABORATION_EVENTS_ALLOWED_ORIGINS:JSON.stringify(["https://events.chatgpt.test"])} as never))
+      .toEqual({callback_policy_configured:true});
+  });
+
   it("negotiates 2.0 events without changing the existing 2025 tools contract",async()=>{
     const {slug,identity}=await group();
     const d=await(await mcp(identity,slug,"server/discover")).json() as any;

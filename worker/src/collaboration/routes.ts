@@ -12,7 +12,7 @@ import { handleChannelMcp } from "./mcp";
 import { mcpSecurity, verifiedMfaOwner } from "./mcp-security";
 import { registerProposalRoutes } from "./proposals";
 import { registerGrokAutomationRoutes } from "./grok-automation";
-import { deliverMcpEvents } from "./mcp-events";
+import { deliverMcpEvents, mcpEventReadiness } from "./mcp-events";
 import { GitHubReadError, inspectRepository, listPullRequests, listRepositoryCommits, validCredential, validRepositoryName, validBranch } from "./github";
 import { openCredential, sealCredential, VaultError } from "./vault";
 import {
@@ -567,7 +567,7 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
       .bind(granted.slug).first<{n:number}>();
     const perAgent=await c.env.DB.prepare("SELECT agent_name,COUNT(*) AS active_subscriptions FROM mcp_event_subscriptions WHERE channel_slug=? AND revoked_at IS NULL AND expires_at>? GROUP BY agent_name")
       .bind(granted.slug,Date.now()).all<{agent_name:string;active_subscriptions:number}>();
-    return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0,agents:perAgent.results});
+    return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0,agents:perAgent.results,...mcpEventReadiness(c.env)});
   }));
   registerGrokAutomationRoutes(app, { access });
 }

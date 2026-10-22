@@ -47,6 +47,18 @@ export async function signMcpWebhook(secret: string, id: string, timestamp: stri
   const payload = encoder.encode(`${id}.${timestamp}.${body}`);
   return "v1," + btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", key, payload))));
 }
+/** Configuration readiness only. Never returns callback URLs, signing secrets or tokens. */
+export function mcpEventReadiness(env: AppEnv): {callback_policy_configured:boolean} {
+  try {
+    const items:unknown=JSON.parse(env.COLLABORATION_EVENTS_ALLOWED_ORIGINS ?? "[]");
+    const configured=Array.isArray(items)&&items.some(item=>{
+      if(typeof item!=="string")return false;
+      try { const u=new URL(item);return u.protocol==="https:"&&u.origin===item&&!u.username&&!u.password; }
+      catch {return false;}
+    });
+    return {callback_policy_configured:configured};
+  } catch {return {callback_policy_configured:false};}
+}
 function safeUrl(input: unknown, env: AppEnv): string {
   if (typeof input !== "string" || input.length > 1500 || /[\\%\s]/.test(input)) return failReason("invalid_callback_url");
   const url = new URL(input);
@@ -165,7 +177,9 @@ export async function mcpEventMethod(name: string, params: unknown, slug: string
       const owner = identity.account ?? identity.owner;
       if (!owner) return failReason("account_required");
       const subId = "sub_" + (await sha256Hex(JSON.stringify([slug,owner,identity.name,EVENT,filter,url]))).slice(0,52);
-      const ttlMs = params.ttlMs === undefined ? 86_400_000 : params.ttlMs;
+      // MCP Events permits null (a request for no expiry). We grant a finite
+      // default instead of rejecting the subscription or issuing unbounded access.
+      const ttlMs = params.ttlMs == null ? 86_400_000 : params.ttlMs;
       if (typeof ttlMs !== "number" || !Number.isSafeInteger(ttlMs) || ttlMs < 60_000) return failReason("invalid_ttl");
       const expires = Date.now()+Math.min(ttlMs,7*86_400_000);
       // Verify before saving. A legitimate callback proves possession of the
@@ -197,11 +211,15 @@ export async function mcpEventMethod(name: string, params: unknown, slug: string
       return {};
     }
   } catch(e) {
-    // Scrub remote callback bodies and errors. Categorize only local validation.
-    const known = e instanceof Error && /^(invalid_|callback_origin_not_approved|account_required)/.test(e.message);
-    return error(name==="events/subscribe" && !known ? -32015 : -32602,
-      known ? (e as Error).message : "Callback endpoint could not be verified",
-      name==="events/subscribe" && !known ? {reason:"challenge_failed"} : undefined);
+    // Log categories only: never log callback URLs, signing secrets, nonce,
+    // user messages, raw provider errors or access/refresh credentials.
+    const localReasons=new Set(["invalid_secret","invalid_callback_url","invalid_event_arguments",
+      "invalid_delivery","invalid_ttl","callback_origin_not_approved","account_required"]);
+    const known=e instanceof Error&&localReasons.has(e.message);
+    const reason=known?(e as Error).message:e instanceof Error&&e.name==="AbortError"?"timeout":"challenge_failed";
+    if(name==="events/subscribe")console.warn("mcp_event_subscription_rejected",JSON.stringify({reason,event:EVENT}));
+    return error(name==="events/subscribe"&&!known?-32015:-32602,
+      known?(e as Error).message:"Callback endpoint could not be verified",{reason});
   }
   return error(-32601,"Method not found");
 }

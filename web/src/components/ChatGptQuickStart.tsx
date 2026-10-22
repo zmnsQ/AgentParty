@@ -71,8 +71,9 @@ export function ChatGptQuickStart({token,slug,canManage}:{token:string;slug:stri
       <dl className="connector-capabilities" aria-label={t("ConnectorUsage.status")}>
         <div><dt>{t("ConnectorUsage.read")}</dt><dd>{t(readable?"ConnectorUsage.allowed":"ConnectorUsage.blocked")}</dd></div>
         <div><dt>{t("ConnectorUsage.write")}</dt><dd>{t(writable?"ConnectorUsage.allowed":"ConnectorUsage.blocked")}</dd></div>
-        <div><dt>{t("ConnectorUsage.wake")}</dt><dd>{t(count===null?"ConnectorUsage.unknown":count>0?"ConnectorUsage.subscribed":"ConnectorUsage.notSubscribed")}</dd></div>
+        <div><dt>{t("ConnectorUsage.wake")}</dt><dd>{t(value.events?.callback_policy_configured===false?"ConnectorUsage.serverBlocked":count===null?"ConnectorUsage.unknown":count>0?"ConnectorUsage.subscribed":"ConnectorUsage.notSubscribed")}</dd></div>
       </dl>
+      {value.events?.callback_policy_configured===false&&<p className="commons-note" role="status">{t("ConnectorUsage.serverNotReady")}</p>}
       <a className="d-btn connector-open-chat" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">{t("ConnectorUsage.open")}</a>
       <ol className="connector-first-steps">
         {(["read","post","task"] as const).map((kind,i)=><li key={kind}>
