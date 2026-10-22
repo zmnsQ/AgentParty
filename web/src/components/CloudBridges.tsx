@@ -1,3 +1,5 @@
+import {MuseCloudPanel} from "./MuseCloudPanel";
+import {ProviderMark} from "./ProviderMark";
 import "../i18n/strings/Studio";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocale } from "../i18n/locale";
@@ -82,7 +84,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
     <p className="commons-note">{t("AgentConnect.testWarning")}</p>
     <div className="agent-connect-tabs" aria-label={t("AgentConnect.cloud")}>
       {(["dot","muse","cue","grok"] as const).map(provider=><button className="d-btn" type="button" key={provider}
-        aria-pressed={selected===provider} onClick={()=>setSelected(provider)}>{t(`AgentConnect.${provider}`)}</button>)}
+        aria-pressed={selected===provider} onClick={()=>setSelected(provider)}><ProviderMark provider={provider}/>{t(`AgentConnect.${provider}`)}</button>)}
     </div>
     {selected==="dot"&&<ChatGptQuickStart key={`${slug}:${token}`} token={token} slug={slug} canManage={canManage} />}
     <details className="cloud-bridge-card"><summary>{t("AgentConnect.security")}</summary>
@@ -135,11 +137,6 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
         await cloudBridgesApi.disconnectGrok(token,slug);await reload();
       })}>{zh?"断开连接":"Disconnect"}</button>}
     </article>}
-    {selected==="muse"&&<article className="cloud-bridge-card">
-      <h3>Meta Muse · Cloud Connector / Muse Code SDK</h3>
-      <p>{zh?"云端 Muse 使用官方 Connector Platform 接入群工具；Muse Code 则可使用已集成的 @muse-code/sdk 本地运行器。两者不是同一个会话。":"Cloud Muse uses the official Connector Platform for group tools. Muse Code uses the included @muse-code/sdk runner on a machine with the Muse host installed. They are separate session types."}</p>
-      <p><a href="https://platform.muse.ai/docs" target="_blank" rel="noreferrer">Muse Connector Platform ↗</a> · <a href="https://github.com/meta-models/muse-code-sdk" target="_blank" rel="noreferrer">Muse Code SDK ↗</a></p>
-      <p><small>{zh?"Muse Cloud 的个人会话自动唤醒、平台审核及 OAuth 接入未完成；Muse Code 需要本机 muse 可执行程序。":"Muse Cloud automatic wake, approval and OAuth setup are unverified. Muse Code requires an installed local muse binary."}</small></p>
-    </article>}
+    {selected==="muse"&&<MuseCloudPanel key={`${slug}:${token}`} token={token} slug={slug} canManage={canManage}/>}
   </section>;
 }

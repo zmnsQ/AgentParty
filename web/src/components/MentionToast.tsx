@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 // 被@页内提示（Task R5-toast）：标签页聚焦时被@弹右上角 toast，可点跳转/手动关/6s 自动消失。
 // 与浏览器系统通知（未聚焦时）互补；页内 toast 不需要通知授权。
 import { useEffect } from "react";
@@ -65,7 +66,7 @@ function ToastCard({
     >
       <div className="mention-toast-head">
         <span className="mention-toast-title">
-          <span className="ap-sprite ap-sprite--bell-on" aria-hidden="true" />
+          <StudioIcon name="bell-on" />
           <span>{t("Channel.toast.title", { sender: senderLabel, channel })}</span>
           {item.ts !== undefined && <time className="t-mono mention-toast-time">{fmtTime(item.ts)}</time>}
         </span>
@@ -75,7 +76,7 @@ function ToastCard({
           aria-label={t("Channel.toast.dismiss")}
           onClick={(e) => { e.stopPropagation(); onDismiss(item.seq); }}
           onKeyDown={(e) => e.stopPropagation()}
-        >×</button>
+        ><StudioIcon name="close" /></button>
       </div>
       <div className="mention-toast-body" title={(item.fullBody ?? item.body) || undefined}>{item.body}</div>
     </div>
@@ -121,7 +122,7 @@ export function MentionHeaderNotice({ items, channel, identityDisplay, onJump, o
         onClick={() => onJump(item.seq)}
         title={(item.fullBody ?? item.body) || undefined}
       >
-        <span className="ap-sprite ap-sprite--bell-on" aria-hidden="true" />
+        <StudioIcon name="bell-on" />
         <span className="mention-header-title">{t("Channel.toast.title", { sender: senderLabel, channel })}</span>
         {item.ts !== undefined && <time className="t-mono mention-header-time">{fmtTime(item.ts)}</time>}
         {items.length > 1 && <span className="t-mono mention-header-count">+{items.length - 1}</span>}
@@ -132,7 +133,7 @@ export function MentionHeaderNotice({ items, channel, identityDisplay, onJump, o
         aria-label={t("Channel.toast.dismiss")}
         onClick={() => onDismiss(item.seq)}
       >
-        ×
+        <StudioIcon name="close" />
       </button>
     </div>
   );

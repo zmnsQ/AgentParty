@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import { useState } from "react";
 import { useT } from "../i18n/useT";
 import "../i18n/strings/ServerProfiles";
@@ -318,7 +319,7 @@ export function ServerProfileAddGate({
         />
         <div className="desktop-pairing-actions">
           <button type="button" className="d-btn" onClick={onCancel}>
-            {t("ServerProfiles.addPair.cancel")}
+            <StudioIcon name="close" />{t("ServerProfiles.addPair.cancel")}
           </button>
         </div>
       </section>

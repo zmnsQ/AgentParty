@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import {useEffect,useRef,useState} from "react";
 import {useT} from "../i18n/useT";
 import {apiOrigin,apiBase} from "../lib/base";
@@ -49,11 +50,11 @@ export function McpSecurityPanel({token,slug,canManage}:{token:string;slug:strin
         <label><input type="checkbox" checked={value.policy.enabled} onChange={e=>change("enabled",e.target.checked)} disabled={busy||(!value.policy.owner_mfa_enabled&&!value.policy.enabled)}/><span>{t("AgentConnect.enable")}</span></label>
         <label><input type="checkbox" checked={value.policy.allow_write} onChange={e=>change("allow_write",e.target.checked)} disabled={busy||!value.policy.enabled}/><span>{t("AgentConnect.write")}</span></label>
         <label><input type="checkbox" checked={value.policy.allow_events} onChange={e=>change("allow_events",e.target.checked)} disabled={busy||!value.policy.enabled}/><span>{t("AgentConnect.events")}</span></label>
-        <div className="commons-actions"><button className="d-btn" type="button" disabled={busy} onClick={()=>void save()}>{t("AgentConnect.save")}</button>
-          <button className="d-btn" type="button" disabled={busy} onClick={()=>setRevision(n=>n+1)}>{t("Collab.refresh")}</button></div>
+        <div className="commons-actions"><button className="d-btn" type="button" disabled={busy} onClick={()=>void save()}><StudioIcon name="check" />{t("AgentConnect.save")}</button>
+          <button className="d-btn" type="button" disabled={busy} onClick={()=>setRevision(n=>n+1)}><StudioIcon name="refresh" />{t("Collab.refresh")}</button></div>
       </div>:<p>{t("AgentConnect.ownerOnly")}</p>}
     </>}
     <label className="mcp-endpoint-label">{t("AgentConnect.endpoint")}<input readOnly type="url" value={endpoint} onFocus={e=>e.currentTarget.select()} /></label>
-    <button type="button" className="d-btn" onClick={()=>{void (navigator.clipboard? navigator.clipboard.writeText(endpoint):Promise.reject(new Error("clipboard_unavailable"))).then(()=>setNote(t("AgentConnect.copied"))).catch(()=>setError(t("AgentConnect.copyFailed")));}}>{t("AgentConnect.copy")}</button>
+    <button type="button" className="d-btn" onClick={()=>{void (navigator.clipboard? navigator.clipboard.writeText(endpoint):Promise.reject(new Error("clipboard_unavailable"))).then(()=>setNote(t("AgentConnect.copied"))).catch(()=>setError(t("AgentConnect.copyFailed")));}}><StudioIcon name="copy" />{t("AgentConnect.copy")}</button>
   </section>;
 }

@@ -1,3 +1,4 @@
+import { StudioIcon } from "../components/StudioIcon";
 import {ChannelWelcome} from "../components/ChannelWelcome";
 import "../i18n/strings/Studio";
 // 频道页：presence 条 + 实时消息流 + 内联错误条幅 + 插话框。
@@ -1671,7 +1672,7 @@ export function TaskLedgerPanel({
                             aria-label={t("Channel.tasks.attachRemoveAria", { filename: att.filename })}
                             onClick={() => setNewAtts((cur) => cur.filter((a) => a.key !== att.key))}
                           >
-                            ×
+                            <StudioIcon name="close" />
                           </button>
                         </li>
                       ))}
@@ -4637,7 +4638,7 @@ export function ChannelPage({
             className={"d-btn chan-tool-btn" + (charterUpdated ? " chan-tool-btn--updated" : "")}
             onClick={() => openPanel("charter")}
           >
-            <span className="ap-sprite ap-sprite--announcement" aria-hidden="true" />
+            <StudioIcon name="announcement" />
             <span>{t("Channel.tools.charter")}</span>
             {/* #1044：「版本 0」没有信息量——只有改过（rev>0）才挂版本徽章 */}
             {charter !== null && charter.charter_rev > 0 && <span className="t-mono chan-tool-badge">{t("Channel.charter.rev", { rev: charter.charter_rev })}</span>}
@@ -4645,7 +4646,7 @@ export function ChannelPage({
           </button>
           {/* Team 只承接成员、正式分工与工作视图；消息筛选/完成记录/Host 告警各回到所属模块。 */}
           <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("team")}>
-            <span className="ap-sprite ap-sprite--division" aria-hidden="true" />
+            <StudioIcon name="division" />
             <span>{t("Channel.tools.team")}</span>
             {structuredRoleCount > 0 && (
               <span className="t-mono chan-tool-badge">{t("Channel.team.rolesBadge", { count: String(structuredRoleCount) })}</span>
@@ -4653,7 +4654,7 @@ export function ChannelPage({
             <span className="t-mono chan-tool-badge">{t("Channel.team.onlineBadge", { count: String(onlineMemberCount) })}</span>
           </button>
           <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("tasks")}>
-            <span className="ap-sprite ap-sprite--tasks" aria-hidden="true" />
+            <StudioIcon name="tasks" />
             <span>{t("Channel.tasks.title")}</span>
             <span className="t-mono chan-tool-badge">{taskOpenCount}</span>
             {taskReviewCount > 0 && <span className="t-mono chan-tool-badge chan-tool-badge--hot">{t("Channel.tasks.summary.review", { count: taskReviewCount })}</span>}
@@ -4665,7 +4666,7 @@ export function ChannelPage({
             className={"d-btn chan-tool-btn" + (q !== "" || agentFilterActive || completionOnly ? " is-active" : "")}
             onClick={() => openPanel("search")}
           >
-            <span className="ap-sprite ap-sprite--search" aria-hidden="true" />
+            <StudioIcon name="search" />
             <span>{t("Channel.tools.timeline")}</span>
             {q !== "" && seqFromQuery(q) === null && <span className="t-mono chan-tool-badge">{searchLoading ? "..." : searchHits.length}</span>}
             {(agentFilterActive || completionOnly) && (
@@ -4722,7 +4723,7 @@ export function ChannelPage({
               {canModerate && (
                 <div className="chan-admin-group chan-admin-group--channel">
                   <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("admin")}>
-                    <span className="ap-sprite ap-sprite--settings" aria-hidden="true" />
+                    <StudioIcon name="settings" />
                     <span>{t("Channel.tools.manage")}</span>
                     <span className="t-mono chan-tool-badge">
                       {t(`Channel.visibility.${localVisibility}`)}

@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 // Agent Party 关停公告（2026-10-31）：挂在 #root 最上方（main.tsx），所以登录门、邀请落地、频道页、
 // 桌面版都能看到。引导迁移到 open-cross-session（ocs），并链到卸载指南。
 //
@@ -49,7 +50,7 @@ export function OcsMigrationNotice() {
   return (
     <aside className="banner banner--yellow ocs-migration-notice" role="status" aria-live="polite" data-notice-state={state}>
       <div className="ocs-migration-notice-head">
-        <strong className="ocs-migration-notice-title">⚠ {t("OcsMigrationNotice.title")}</strong>
+        <strong className="ocs-migration-notice-title"><StudioIcon name="failed" /> {t("OcsMigrationNotice.title")}</strong>
         {state === "seen" && (
           <button
             type="button"

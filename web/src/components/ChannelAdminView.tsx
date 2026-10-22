@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import {
   type KeyboardEvent,
   type ReactNode,
@@ -429,7 +430,7 @@ export function ChannelAdminView({
         </div>
         {onClose !== undefined && (
           <button type="button" className="d-btn team-blog-close" onClick={onClose}>
-            {t("ChannelAdmin.close")} ✕
+            {t("ChannelAdmin.close")} <StudioIcon name="close" />
           </button>
         )}
       </header>

@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 // 首次进入的 1-2-3-4 引导浮层（#146）。只在浏览器第一次进来时出现，关掉后落一个
 // localStorage 标记（复用 ap_locale 那套持久化模式，不造新机制），之后不再打扰。
 // 范围克制：一张可关闭的四步卡片，讲清「加入频道 → @唤醒 → 认领任务 → 提交」主线。
@@ -73,7 +74,7 @@ export function OnboardingGuide({
           onClick={dismiss}
           aria-label={t("Onboarding.close")}
         >
-          ✕
+          <StudioIcon name="close" />
         </button>
         <h2 className="d-title onboarding-title" id="onboarding-title">
           {t("Onboarding.title")}

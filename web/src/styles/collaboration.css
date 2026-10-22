@@ -66,7 +66,7 @@
 .commons-provider span, .commons-provider a { font-size: 11px; }
 .commons-provider span { color: var(--commons-muted); }
 .commons-endpoint { margin: 12px 0; }
-.commons-endpoint input { font-family: var(--t-mono) !important; font-size: 11px !important; }
+.commons-endpoint input { font-family: var(--t-sans) !important; font-size: 11px !important; }
 .commons-repo-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 18px 0; }
 .commons-repo-card { text-align: left; background: var(--t-panel); border: 1px solid var(--t-faint); color: var(--t-text); padding: 14px; cursor: pointer; font: inherit; }
 .commons-repo-card.is-selected { border-color: var(--t-blue); box-shadow: inset 3px 0 var(--t-blue); background: var(--t-panel2); }
@@ -78,7 +78,7 @@
 .commons-pull-number { color: var(--commons-positive); font: bold 12px var(--t-mono); padding-top: 2px; }
 .commons-pull p { font-size: 11px; padding: 4px 0; }
 .commons-pull small { color: var(--commons-muted); font-size: 10px; }
-.commons-branch { font-family: var(--t-mono); color: var(--commons-muted); overflow-wrap: anywhere; }
+.commons-branch { font-family: var(--t-sans); color: var(--commons-muted); overflow-wrap: anywhere; }
 .commons-dropzone { text-align: center; padding: 22px; margin: 16px 0; background: var(--t-panel2); border: 1px dashed var(--commons-positive); border-radius: 4px; }
 .commons-dropzone > .d-btn { margin: 12px 0; }
 .commons-dropzone .commons-check { justify-content: center; }
@@ -122,7 +122,7 @@
 .commons-review-meta dd { margin: 0; overflow-wrap: anywhere; }
 .commons-changes { display: grid; gap: 12px; }
 .commons-change { border: 1px solid var(--t-faint); }
-.commons-change > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--t-panel2); cursor: pointer; font-family: var(--t-mono); font-size: 12px; }
+.commons-change > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--t-panel2); cursor: pointer; font-family: var(--t-sans); font-size: 12px; }
 .commons-change > summary > span:first-child { overflow-wrap: anywhere; }
 .commons-change > summary::before { content: '▸'; flex: none; }
 .commons-change[open] > summary::before { content: '▾'; }

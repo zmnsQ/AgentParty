@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AuthError,
@@ -653,7 +654,7 @@ export function AgentTokens({
           <p className="agentmanager-module-hint">{t("AgentTokens.channelHint", { slug })}</p>
         </div>
         <button type="button" className="d-btn" onClick={() => void refreshAgents()}>
-          {t("AgentTokens.refresh")}
+          <StudioIcon name="refresh" />{t("AgentTokens.refresh")}
         </button>
       </header>
 
@@ -675,7 +676,7 @@ export function AgentTokens({
       {agentError !== null && <p className="agenttokens-error" role="alert">{agentError}</p>}
       {residentError !== null && <p className="agenttokens-error" role="alert">{residentError}</p>}
 
-      <label className="agentmanager-search">
+      <label className="agentmanager-search"><StudioIcon name="search" />
         <span className="agentmanager-sr-only">{t("AgentTokens.searchAgents")}</span>
         <input
           className="agenttokens-input"
@@ -706,6 +707,7 @@ export function AgentTokens({
                     setAgentError(null);
                   }}
                 >
+                  <span className="agentmanager-avatar"><StudioIcon name={isOAuthIdentity(agent)?"cloud":"terminal"} /></span>
                   <span className="agentmanager-list-name">
                     {agentLabel(agent)}
                     {(agent.nickname||isOAuthIdentity(agent)) && <small>{agent.name}</small>}
@@ -1109,7 +1111,7 @@ export function AgentTokens({
         </div>
         <div className="agenttokens-actions">
           <button type="button" className="d-btn" onClick={() => void refreshProfiles()}>
-            {t("AgentTokens.refresh")}
+            <StudioIcon name="refresh" />{t("AgentTokens.refresh")}
           </button>
           {!creatingProfile && profiles !== null && profiles.length > 0 && (
             <button
@@ -1128,7 +1130,7 @@ export function AgentTokens({
 
       {profileError !== null && <p className="agenttokens-error" role="alert">{profileError}</p>}
 
-      <label className="agentmanager-search">
+      <label className="agentmanager-search"><StudioIcon name="search" />
         <span className="agentmanager-sr-only">{t("AgentTokens.searchProfiles")}</span>
         <input
           className="agenttokens-input"
@@ -1160,7 +1162,7 @@ export function AgentTokens({
                     setProfileError(null);
                   }}
                 >
-                  <span className="agentmanager-list-name">{profile.handle}</span>
+                  <span className="agentmanager-avatar"><StudioIcon name="folder" /></span><span className="agentmanager-list-name">{profile.handle}</span>
                   <span className="agentmanager-profile-meta">
                     {profile.runner} · {profile.base_branch}
                   </span>

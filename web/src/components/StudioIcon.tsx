@@ -1,11 +1,75 @@
-/** Original small line icons; no third-party logos or proprietary brand assets. */
-export type StudioIconName="group"|"agent"|"message"|"plus"|"search"|"arrow"|"files"|"check";
-const paths:Record<StudioIconName,string>={
- group:"M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2.5 2.5 0 1 0 0-5M2 20v-2a6 6 0 0 1 12 0v2m3-7a5 5 0 0 1 5 5v2",
- agent:"M12 3v3m-6 0h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2ZM8 11h.01M16 11h.01M8 16h8M2 11v4m20-4v4",
- message:"M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-6 4V5a1 1 0 0 1 1-1Zm3 5h10M7 13h7",
- plus:"M12 5v14M5 12h14",search:"M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Zm5.5-2 5 5",
- arrow:"M4 12h16m-6-6 6 6-6 6",files:"M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Zm0 0v6h6M8 14h8M8 17h6",
- check:"m5 12 4 4L19 6"
-};
-export function StudioIcon({name,className=""}:{name:StudioIconName;className?:string}){return <svg className={`studio-icon ${className}`} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={paths[name]}/></svg>;}
+/** Unified original vector icons. 24px grid, 1.75px stroke, currentColor. */
+import type { CSSProperties } from "react";
+export const STUDIO_ICON_PATHS = {
+  "group": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+  "agent": "M12 3v3M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2ZM8 11h.01M16 11h.01M8 16h8M1 11v4M23 11v4",
+  "message": "M21 11.5a8.3 8.3 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.7a8.3 8.3 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.3 8.3 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z",
+  "plus": "M12 5v14M5 12h14",
+  "search": "M21 21l-5.2-5.2M10.8 18.6a7.8 7.8 0 1 0 0-15.6 7.8 7.8 0 0 0 0 15.6Z",
+  "arrow": "M4 12h16m-6-6 6 6-6 6",
+  "arrow-left": "M20 12H4m6-6-6 6 6 6",
+  "files": "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 13h8M8 17h5",
+  "check": "m5 12 4 4L19 6",
+  "close": "M6 6l12 12M6 18 18 6",
+  "edit": "m16 3 5 5M4 15l12-12a2 2 0 0 1 3 0l2 2a2 2 0 0 1 0 3L9 20l-6 1Z",
+  "settings": "M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+  "bell-on": "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
+  "bell-off": "m3 3 18 18M9 3.8A6 6 0 0 1 18 9v4M6 6a6 6 0 0 0 0 3c0 6-3 6-3 8h14M10 21h4",
+  "announcement": "M3 10v4h4l12 5V5L7 10Zm4 4 2 7h3l-2-6M22 9v6",
+  "division": "M12 3v6M5 14v-3h14v3M3 14h4v6H3Zm7 0h4v6h-4Zm7 0h4v6h-4Z",
+  "coordination": "M8 3H3v5m0-5 6 6M16 21h5v-5m0 5-6-6M16 3h5v5m0-5-6 6M8 21H3v-5m0 5 6-6",
+  "tasks": "M9 5h11M9 12h11M9 19h11M2 5l1 1 3-3M2 12l1 1 3-3M2 19l1 1 3-3",
+  "tools": "M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6",
+  "human": "M20 21v-2a7 7 0 0 0-14 0v2M13 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+  "success": "M22 11.1V12a10 10 0 1 1-5.9-9.1M22 4l-10 10-3-3",
+  "failed": "M12 8v5M12 17h.01M10.3 3.8 1.8 18.5A2 2 0 0 0 3.5 21h17a2 2 0 0 0 1.7-2.5L13.7 3.8a2 2 0 0 0-3.4 0Z",
+  "waiting": "M12 8v4l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z",
+  "shield": "M12 3 3 7v6c0 5 9 9 9 9s9-4 9-9V7ZM8 12l3 3 5-6",
+  "lock": "M5 10h14v11H5Zm3 0V6a4 4 0 0 1 8 0v4M12 14v3",
+  "key": "M15 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10ZM10 12H2m3 0v4m3-4v3",
+  "link": "M10 13a5 5 0 0 0 7 0l4-4a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-4 4a5 5 0 0 0 7 7l2-2",
+  "unlink": "m3 3 18 18M10 5l2-2a5 5 0 0 1 7 7l-2 2M14 19l-2 2a5 5 0 0 1-7-7l2-2",
+  "cloud": "M7 19h10a5 5 0 0 0 .2-10A6 6 0 0 0 5.8 8 5.5 5.5 0 0 0 7 19Z",
+  "monitor": "M3 3h18v14H3ZM8 21h8M12 17v4",
+  "terminal": "m5 7 5 5-5 5M13 17h6",
+  "chevron-down": "m6 9 6 6 6-6",
+  "chevron-right": "m9 6 6 6-6 6",
+  "chevron-up": "m6 15 6-6 6 6",
+  "copy": "M9 9h12v12H9ZM5 15H3V3h12v2",
+  "refresh": "M20 7a9 9 0 0 0-15 1M4 3v5h5M4 17a9 9 0 0 0 15-1m1 5v-5h-5",
+  "delete": "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7",
+  "download": "M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5",
+  "upload": "M12 15V3M7 8l5-5 5 5M4 16v5h16v-5",
+  "send": "m22 2-7 20-4-9-9-4Zm0 0L11 13",
+  "attachment": "m21 11-9 9a6 6 0 0 1-8.5-8.5l10-10a4 4 0 0 1 5.6 5.6l-10 10a2 2 0 0 1-2.8-2.8l9-9",
+  "folder": "M3 5h6l2 3h10v13H3Z",
+  "code": "m8 5-6 7 6 7m8-14 6 7-6 7M14 3l-4 18",
+  "globe": "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18Z",
+  "sun": "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5",
+  "moon": "M21 13a9 9 0 1 1-10-10 7 7 0 0 0 10 10Z",
+  "help": "M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z",
+  "logout": "M9 3H3v18h6M9 12h12m-5-5 5 5-5 5",
+  "more": "M5 12h.01M12 12h.01M19 12h.01",
+  "activity": "M2 12h4l3-8 6 16 3-8h4",
+  "star": "m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z",
+  "mail": "M3 5h18v14H3Zm0 0 9 8 9-8",
+  "play": "m7 4 14 8-14 8Z",
+  "pause": "M7 4v16M17 4v16",
+  "stop": "M5 5h14v14H5Z",
+  "external": "M14 3h7v7m0-7L10 14M10 3H3v18h18v-7",
+  "menu": "M3 6h18M3 12h18M3 18h18",
+  "filter": "M3 5h18l-7 8v6l-4 2v-8Z",
+  "receipt": "M4 3h16v18l-3-2-3 2-3-2-3 2-4-2ZM8 7h8M8 11h8M8 15h4",
+  "archive": "M3 3h18v5H3Zm2 5v13h14V8M10 12h4",
+  "history": "M3 11a9 9 0 1 1 2 6M3 3v8h8M12 7v5l3 2",
+  "sparkles": "m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z",
+} as const;
+export type StudioIconName = keyof typeof STUDIO_ICON_PATHS;
+export function StudioIcon({name,className="",size,label}:{name:StudioIconName;className?:string;size?:number;label?:string}) {
+  return <svg className={`studio-icon ${className}`} data-icon={name} width={size??18} height={size??18}
+    style={size?{"--icon-size":`${size}px`} as CSSProperties:undefined} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" focusable="false"
+    aria-hidden={label?undefined:true} role={label?"img":undefined} aria-label={label}>
+    <path d={STUDIO_ICON_PATHS[name]} />
+  </svg>;
+}

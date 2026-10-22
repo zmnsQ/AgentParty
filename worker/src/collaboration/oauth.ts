@@ -61,7 +61,7 @@ function form(req:Request):Promise<URLSearchParams>{
 function noCache(body:unknown,status=200):Response{
   return Response.json(body,{status,headers:{"cache-control":"no-store","pragma":"no-cache","referrer-policy":"no-referrer"}});
 }
-interface RegisteredClient{id:string;client_id:string;name:string;redirects_json:string;disabled_at:number|null;}
+interface RegisteredClient{id:string;client_id:string;name:string;redirects_json:string;disabled_at:number|null;owner_account:string|null;channel_slug:string|null;secret_hash:string|null;provider:string|null;}
 interface Pending{
  id:string; nonce_hash:string; browser_session_id:string;account:string;client_id:string;
  channel_slug:string;redirect_uri:string;state:string;code_challenge:string;
@@ -84,7 +84,10 @@ function channelFromResource(value:string,env:AppEnv):string|null{
   return m?.[1]??null;
 }
 async function client(db:D1Database,id:string):Promise<RegisteredClient|null>{
-  return db.prepare("SELECT client_id,name,redirects_json,disabled_at FROM connector_oauth_clients WHERE client_id=? AND disabled_at IS NULL")
+  return db.prepare(`SELECT c.client_id,c.name,c.redirects_json,c.disabled_at,
+    p.owner_account,p.channel_slug,p.secret_hash,p.provider
+    FROM connector_oauth_clients c LEFT JOIN connector_oauth_private_clients p ON p.client_id=c.client_id
+    WHERE c.client_id=? AND c.disabled_at IS NULL`)
     .bind(id).first<RegisteredClient>();
 }
 async function groupOwned(db:D1Database,slug:string,account:string):Promise<boolean>{
@@ -218,7 +221,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       token_endpoint:root+"/oauth/token",registration_endpoint:root+"/oauth/register",
       authorization_response_iss_parameter_supported:true,
       response_types_supported:["code"],grant_types_supported:["authorization_code","refresh_token"],
-      token_endpoint_auth_methods_supported:["none"],code_challenge_methods_supported:["S256"],
+      token_endpoint_auth_methods_supported:["none","client_secret_basic","client_secret_post"],code_challenge_methods_supported:["S256"],
       client_id_metadata_document_supported:false,scopes_supported:[...ALL_SCOPES]});
   });
   app.post("/oauth/register",async c=>{
@@ -251,9 +254,12 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
   });
   app.get("/oauth/authorize",async c=>{
     const p=c.req.query();
-    const clientId=p.client_id??"",redirect=p.redirect_uri??"",resource=p.resource??"",scope=p.scope??"";
-    const scopes=definedScopes(scope),slug=channelFromResource(resource,c.env);
+    const clientId=p.client_id??"",redirect=p.redirect_uri??"";
     const target=await client(c.env.DB,clientId);
+    const resource=p.resource??(target?.channel_slug?publicUrlForSlug(c.env,target.channel_slug):"");
+    const scope=p.scope??(target?.provider==="muse"?"group.read":"");
+    const scopes=definedScopes(scope),slug=channelFromResource(resource,c.env);
+    if(target?.channel_slug&&slug!==target.channel_slug)return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
     if(!target||!slug||!scopes||p.response_type!=="code"||p.code_challenge_method!=="S256"||
       !CHALLENGE.test(p.code_challenge??"")||!STATE.test(p.state??"")||
       !JSON.parse(target.redirects_json).includes(redirect))return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
@@ -263,6 +269,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       const url=`${uri(c.env)}/api/auth/github/start?return_to=${encodeURIComponent(path)}`;
       return new Response(null,{status:302,headers:{location:url,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
+    if(target?.owner_account&&target.owner_account!==current.account)return renderOAuthProblem(c.req.raw,"group_owner_required",403);
     if(!await groupOwned(c.env.DB,slug,current.account))return renderOAuthProblem(c.req.raw,"group_owner_required",403);
     if(current.enabled!==1)return renderOAuthProblem(c.req.raw,"mfa_required",403);
     if(!await mcpPermission(c.env.DB,slug,"group.read"))return renderOAuthProblem(c.req.raw,"group_mcp_policy_denied",403);
@@ -355,9 +362,30 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
   });
   app.post("/oauth/token",async c=>{
     let p:URLSearchParams;try{p=await parseBody(c.req.raw);}catch{return simple("invalid_request");}
-    const clientId=p.get("client_id")??"",resource=p.get("resource")??"";
-    if(!ID.test(clientId)||!await client(c.env.DB,clientId))return simple("invalid_client",401);
+    if(["client_id","client_secret","code","code_verifier","resource","refresh_token","grant_type","redirect_uri"].some(k=>p.getAll(k).length>1))return simple("invalid_request");
+    let clientId=p.get("client_id")??"",clientSecret=p.get("client_secret")??"";
+    const authorization=c.req.header("authorization");
+    if(authorization){
+      if(!authorization.startsWith("Basic ")||clientSecret)return simple("invalid_client",401);
+      try {
+        const text=atob(authorization.slice(6));const split=text.indexOf(":");
+        if(split<1)return simple("invalid_client",401);
+        const basicId=decodeURIComponent(text.slice(0,split));
+        if(clientId&&clientId!==basicId)return simple("invalid_client",401);
+        clientId=basicId;clientSecret=decodeURIComponent(text.slice(split+1));
+      }catch{return simple("invalid_client",401);}
+    }
+    const registered=ID.test(clientId)?await client(c.env.DB,clientId):null;
+    if(!registered)return simple("invalid_client",401);
+    if(registered.secret_hash){
+      if(!/^acs_[a-f0-9]{64}$/.test(clientSecret))return simple("invalid_client",401);
+      const actual=await sha256Hex(clientSecret);let delta=0;
+      for(let i=0;i<actual.length;i++)delta|=actual.charCodeAt(i)^registered.secret_hash.charCodeAt(i);
+      if(delta!==0)return simple("invalid_client",401);
+    }else if(authorization||clientSecret)return simple("invalid_client",401);
+    const resource=p.get("resource")??(registered.channel_slug?publicUrlForSlug(c.env,registered.channel_slug):"");
     const slug=channelFromResource(resource,c.env);
+    if(registered.channel_slug&&slug!==registered.channel_slug)return simple("invalid_target_resource");
     if(!slug)return simple("invalid_target_resource");
     try{
       if(p.get("grant_type")==="authorization_code"){
@@ -367,7 +395,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
         const row=await c.env.DB.prepare(`DELETE FROM connector_oauth_codes
           WHERE code_hash=? AND client_id=? AND resource=? AND redirect_uri=? AND expires_at>? RETURNING *`)
           .bind(await sha256Hex(code),clientId,resource,redirect,Date.now()).first<Code>();
-        if(!row||row.channel_slug!==slug||!await validCodeChallenge(verifier,row.code_challenge))return simple("invalid_grant");
+        if(!row||row.channel_slug!==slug||(registered.owner_account&&row.account!==registered.owner_account)||!await validCodeChallenge(verifier,row.code_challenge))return simple("invalid_grant");
         return noCache(await issueToken(c.env.DB,row,clientId));
       }
       if(p.get("grant_type")==="refresh_token"){

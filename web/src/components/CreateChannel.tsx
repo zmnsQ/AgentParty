@@ -40,7 +40,7 @@ export function CreateChannel({token,onCreated,requestOpen=0}:Props){
   {open&&<dialog ref={dialogRef} className="studio-create-modal" aria-labelledby="newchan-dialog-title" aria-describedby="newchan-dialog-help" aria-modal="true"
     onCancel={e=>{e.preventDefault();close();}} onKeyDown={e=>{if(e.key==="Escape"&&isCompositionKey(e)){e.preventDefault();e.stopPropagation();}}}>
    <div className="d-card newchan-card">
-    <header className="studio-create-heading"><span className="studio-step-icon"><StudioIcon name="group"/></span><button type="button" className="studio-close" onClick={close} disabled={busy} aria-label={t("CreateChannel.cancel")}>×</button></header>
+    <header className="studio-create-heading"><span className="studio-step-icon"><StudioIcon name="group"/></span><button type="button" className="studio-close" onClick={close} disabled={busy} aria-label={t("CreateChannel.cancel")}><StudioIcon name="close" /></button></header>
     <h2 id="newchan-dialog-title">{t("Studio.newGroupTitle")}</h2><p id="newchan-dialog-help" className="studio-form-lead">{t("Studio.newGroupHint")}</p>
     <label className="newchan-name-label" htmlFor="newchan-name">{t("CreateChannel.nameLabel")}</label>
     <input ref={nameRef} id="newchan-name" className="newchan-input" autoFocus maxLength={80} value={title} placeholder={t("CreateChannel.titlePlaceholder")} onChange={e=>setTitle(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!isCompositionKey(e)){e.preventDefault();void submit();}}} disabled={busy}/>

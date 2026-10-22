@@ -1,0 +1,99 @@
+/* Management surfaces: one composition and control grammar for settings, identities and connections. */
+:root .settings-panel{width:min(1040px,100%);padding:0;overflow:hidden;border-radius:18px;max-height:calc(100dvh - 48px)}
+:root .settings-head{padding:22px 26px;gap:16px;border-bottom:1px solid var(--t-border)}
+:root .settings-title{font:620 19px/1.4 var(--t-sans);letter-spacing:-.025em}
+:root .settings-close{width:34px;height:34px;border:0;border-radius:9px;display:grid;place-items:center;background:transparent;color:var(--t-muted)}
+:root .settings-close:hover{background:var(--ac-hover);color:var(--t-text)}
+:root .settings-layout{grid-template-columns:196px minmax(0,1fr);min-height:0}
+:root .settings-nav{padding:18px 12px;background:var(--ac-surface-1);border-right:1px solid var(--t-border)}
+:root .settings-tabs{display:flex;flex-direction:column;gap:5px}
+:root .settings-tab{display:flex;gap:10px;align-items:center;justify-content:flex-start;min-height:42px;border:0;padding:10px 12px;border-radius:9px;background:transparent;font:500 13px/1.4 var(--t-sans);color:var(--t-muted)}
+:root .settings-tab:hover{background:var(--ac-hover);color:var(--t-text)}
+:root .settings-tab.is-active{background:var(--t-panel);color:var(--t-text);box-shadow:var(--ac-shadow-sm)}
+:root .settings-tab.is-active .studio-icon{color:var(--t-accent)}
+:root .settings-content{padding:26px;min-width:0}
+:root .settings-module-title{font:620 18px/1.45 var(--t-sans);letter-spacing:-.02em;margin:0 0 8px}
+:root .settings-section{padding:18px 0;border-bottom:1px solid var(--t-border);margin:0;display:grid;gap:12px}
+:root .settings-section:last-child{border-bottom:0}
+:root .settings-label{font:600 13px/1.5 var(--t-sans);color:var(--t-text);margin:0}
+:root .settings-hint{font:12px/1.8 var(--t-sans);color:var(--t-muted);margin:0}
+:root .settings-theme{border:0;background:transparent;padding:0;box-shadow:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:400px}
+:root .settings-theme-btn{display:flex;align-items:center;gap:10px;padding:16px;border:1px solid var(--t-border);border-radius:12px;min-height:62px;background:var(--t-panel2);font:500 13px/1.5 var(--t-sans);color:var(--t-body)}
+:root .settings-theme-btn span{flex:1;text-align:left}
+:root .settings-theme-btn.is-active{background:var(--d-red-soft);border-color:var(--t-accent);color:var(--t-accent)}
+:root .settings-toggle{display:flex;align-items:center;gap:12px;padding:0;border:0;box-shadow:none;background:transparent;min-height:38px;font:500 13px/1.5 var(--t-sans);justify-self:start}
+.ui-switch-track{width:36px;height:22px;padding:3px;border-radius:20px;display:block;flex:none;background:var(--ac-border-strong);transition:background .16s}
+.ui-switch-track>span{display:block;width:16px;height:16px;border-radius:50%;background:var(--t-panel);box-shadow:0 1px 3px #0002;transition:transform .16s}
+.is-on .ui-switch-track{background:var(--t-accent)}.is-on .ui-switch-track>span{transform:translateX(14px);background:var(--t-accent-ink)}
+:root .settings-account-chip,:root .agentmanager-runner-chip{border:0;border-radius:5px;background:var(--ac-hover);font-size:10px;color:var(--t-muted);padding:3px 6px}
+:root .settings-logout{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--t-border);border-radius:8px;min-height:38px;padding:8px 12px;background:var(--t-panel);color:var(--t-red);justify-self:start}
+:root .agentmanager-module-head{align-items:flex-start;gap:16px;margin-bottom:20px}
+:root .agentmanager-module-hint{font:12px/1.8 var(--t-sans);color:var(--t-muted);max-width:60ch;overflow-wrap:anywhere}
+:root .agentmanager-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 20px}
+:root .agentmanager-summary>div{border:1px solid var(--t-border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;background:var(--t-panel2)}
+:root .agentmanager-summary strong{font:600 23px/1.2 var(--t-sans);letter-spacing:-.03em}
+:root .agentmanager-summary span{font:11px/1.6 var(--t-sans);color:var(--t-muted)}
+:root .agentmanager-search{display:flex;align-items:center;gap:10px;border:1px solid var(--t-border);border-radius:10px;padding:0 12px;background:var(--t-panel);color:var(--t-muted);margin:0 0 16px}
+:root .agentmanager-search .agenttokens-input{border:0;box-shadow:none;min-height:40px;background:transparent;padding:8px 0}
+:root .agentmanager-search:focus-within{border-color:var(--t-accent);box-shadow:0 0 0 3px var(--ac-focus)}
+:root .agentmanager-workspace{border:0;gap:18px;background:transparent;grid-template-columns:minmax(190px,.8fr) minmax(0,1.5fr)}
+:root .agentmanager-list{padding:0;border:0;display:flex;flex-direction:column;gap:8px}
+:root .agentmanager-list-item{display:grid;grid-template-columns:34px minmax(0,1fr);gap:5px 10px;align-items:center;border:1px solid var(--t-border);border-radius:11px;background:var(--t-panel2);padding:12px;text-align:left;box-shadow:none}
+:root .agentmanager-list-item:hover{background:var(--ac-hover)}
+:root .agentmanager-list-item.is-selected{border-color:var(--t-accent);background:var(--d-red-soft);box-shadow:none}
+.agentmanager-avatar{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--t-panel);color:var(--t-accent);grid-row:1/3}
+:root .agentmanager-list-name{font:550 13px/1.5 var(--t-sans);min-width:0;overflow:hidden;text-overflow:ellipsis}
+:root .agentmanager-list-name small{font:10px/1.5 var(--t-mono);color:var(--t-muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+:root .agentmanager-status{font:500 10px/1.5 var(--t-sans);border:0;border-radius:5px;padding:3px 6px;grid-column:2;justify-self:start;white-space:normal;word-break:normal;background:var(--ac-hover)}
+:root .agentmanager-status.is-ready{color:var(--t-green);background:var(--d-green-soft)}
+:root .agentmanager-status.is-warning{color:var(--d-amber);background:var(--d-amber-soft)}
+:root .agentmanager-detail{border:1px solid var(--t-border);border-radius:14px;background:var(--t-panel);padding:20px;min-width:0}
+:root .agentmanager-detail-head{padding:0 0 18px;border-bottom:1px solid var(--t-border);display:flex;align-items:flex-start;gap:12px}
+:root .agentmanager-detail-head h3{font:600 18px/1.5 var(--t-sans);overflow-wrap:anywhere;margin:3px 0}
+:root .agentmanager-detail-head .t-mono{font-size:10px;line-height:1.8;color:var(--t-muted);overflow-wrap:anywhere}
+:root .agentmanager-detail-section{padding:18px 0;margin:0;border-bottom:1px solid var(--t-border)}
+:root .agentmanager-callout{padding:16px;margin:18px 0;border:1px solid var(--t-border);border-radius:11px;background:var(--t-panel2)}
+:root .agentmanager-section-head h4,:root .agentmanager-callout h4{font:600 13px/1.5 var(--t-sans);margin:0 0 8px}
+:root .agentmanager-section-head p,:root .agentmanager-callout p{font:12px/1.8 var(--t-sans);color:var(--t-muted)}
+:root .agentmanager-facts>div{border-bottom:1px solid var(--t-border);padding:9px 0;grid-template-columns:90px minmax(0,1fr)}
+:root .agentmanager-facts dt{font:12px/1.5 var(--t-sans);color:var(--t-muted)}
+:root .agentmanager-facts dd{font:12px/1.6 var(--t-sans);overflow-wrap:anywhere}
+:root .agentmanager-danger{margin-top:12px;padding:15px;background:var(--d-red-soft);border:0;border-radius:10px}
+:root .agentmanager-danger .d-btn{color:var(--t-red);background:var(--t-panel);border-color:transparent}
+:root .agenttokens-input,:root .d-input,:root .agentmanager-profile-form input,:root .agentmanager-profile-form textarea,:root .agentmanager-profile-form select{font:13px/1.7 var(--t-sans);border:1px solid var(--t-border);border-radius:8px;min-width:0;box-shadow:none;background:var(--t-panel)}
+:root .msg-receipt-icon{--icon-size:14px}
+:root .chan-tool-btn .studio-icon,:root .app-settings-btn .studio-icon,:root .app-agent-center-btn .studio-icon{--icon-size:18px;margin:0}
+:root .chan-toolstrip-toggle .studio-icon{--icon-size:18px}
+:root .msg-receipt-detail .studio-icon{--icon-size:14px}
+:root .channel-panel-head .d-btn,:root .settings-close{box-shadow:none}
+@media(max-width:760px){
+ :root .settings-panel{max-height:calc(100dvh - 16px);border-radius:14px}
+ :root .settings-head{padding:16px}
+ :root .settings-layout{display:flex;flex-direction:column}
+ :root .settings-nav{padding:8px;border-right:0;border-bottom:1px solid var(--t-border)}
+ :root .settings-tabs{flex-direction:row;overflow:auto;gap:4px}
+ :root .settings-tab{min-height:44px;white-space:nowrap;flex:none;padding:9px 12px}
+ :root .settings-content{padding:16px}
+ :root .settings-close{width:44px;height:44px}
+ :root .agentmanager-workspace{grid-template-columns:minmax(0,1fr)}
+ :root .agentmanager-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ :root .agentmanager-detail{padding:16px}
+ :root .agentmanager-summary{gap:6px}
+ :root .agentmanager-summary>div{padding:12px 10px}
+ :root .agenttokens-input,:root .d-input{font-size:16px;min-height:44px}
+ :root .agentmanager-facts>div{grid-template-columns:minmax(0,1fr);gap:4px}
+}
+@media(max-width:400px){:root .agentmanager-list{grid-template-columns:minmax(0,1fr)}:root .settings-theme{grid-template-columns:minmax(0,1fr)}}
+.provider-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:12px;background:var(--d-red-soft);color:var(--t-accent);border:1px solid color-mix(in srgb,var(--t-accent) 12%,transparent)}
+.agent-connect-option>.provider-mark{grid-row:1/4;align-self:start}
+.agent-connect-tabs .provider-mark{width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:inherit}.agent-connect-tabs .provider-mark .studio-icon{--icon-size:16px!important}
+.agent-connect-option[data-provider=hermes] .provider-mark{background:var(--ac-hover);color:var(--t-body)}
+:root .commons-file{border:1px solid var(--t-border);border-radius:11px;background:var(--t-panel);padding:14px;align-items:center;gap:12px}
+:root .commons-file-icon{width:38px;height:42px;display:grid;place-items:center;border-radius:9px;background:var(--t-panel2);color:var(--t-accent);border:0}
+:root .commons-repo-card{padding:16px;border:1px solid var(--t-border);border-radius:12px;background:var(--t-panel2);box-shadow:none}
+:root .commons-repo-card.is-selected{border-color:var(--t-accent);background:var(--d-red-soft)}
+:root .commons-badge{border:0;border-radius:5px;padding:3px 7px;font:500 10px/1.5 var(--t-sans)}
+:root .commons-actions .d-btn{gap:7px}
+:root .notify-toggle-btn{width:36px;height:36px;padding:0;border:0;border-radius:9px;box-shadow:none;color:var(--t-muted);background:transparent}
+:root .notify-toggle-btn:hover,:root .notify-toggle-btn.is-active{color:var(--t-accent);background:var(--d-red-soft)}
+:root .msg-status-btn{font-family:var(--t-sans);font-size:11px;display:inline-flex;align-items:center;gap:6px}

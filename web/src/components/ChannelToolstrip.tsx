@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import { useState, type ReactNode } from "react";
 import { useT } from "../i18n/useT";
 import "../i18n/strings/Channel";
@@ -52,9 +53,9 @@ export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
         title={t(expanded ? "Channel.tools.collapse" : "Channel.tools.expand")}
         onClick={toggle}
       >
-        <span className="ap-sprite ap-sprite--tools" aria-hidden="true" />
+        <StudioIcon name="tools" />
         <span className="chan-toolstrip-toggle-label">{t("Channel.tools.label")}</span>
-        <span className="chan-toolstrip-toggle-arrow" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
+        <span className="chan-toolstrip-toggle-arrow" aria-hidden="true"><StudioIcon name={expanded ? "chevron-down" : "chevron-right"} size={14} /></span>
       </button>
       <div id="channel-toolstrip-content" className="chan-toolstrip-content">
         <div className="chan-tool-buttons">{buttons}</div>

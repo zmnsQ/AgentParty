@@ -1,3 +1,4 @@
+import { StudioIcon } from "./components/StudioIcon";
 import { useBrowserAuth } from "./lib/useBrowserAuth";
 import { BrowserSecurity, GithubAuthSetup, SecondFactorGate } from "./components/BrowserSecurity";
 // 应用骨架：登录闸 → 头部 + 左侧频道列表 + 右侧（首页 | 频道页）
@@ -1297,7 +1298,7 @@ export function App() {
             title={t("App.handle.setCta")}
           >
             <span className="handlesetup-trigger-edit" aria-hidden="true">
-              ✎
+              <StudioIcon name="edit"/>
             </span>
             <span className="handlesetup-trigger-value">{t("App.handle.chipUnset")}</span>
           </button>
@@ -1325,7 +1326,7 @@ export function App() {
             aria-expanded={localAgentCenterOpen}
             onClick={openLocalAgentCenter}
           >
-            <span className="ap-sprite ap-sprite--agent" aria-hidden="true" />
+            <StudioIcon name="agent" />
           </button>
         )}
         {slug !== null && (
@@ -1341,7 +1342,7 @@ export function App() {
           title={t("App.settings.title")}
           onClick={openSettings}
         >
-          <span className="ap-sprite ap-sprite--settings" aria-hidden="true" />
+          <StudioIcon name="settings" />
         </button>
       </header>
       <DesktopInstallPrompt desktop={desktop} />
@@ -1394,7 +1395,7 @@ export function App() {
               onClick={() => setHandleBannerDismissed(true)}
               aria-label={t("App.handle.bannerDismiss")}
             >
-              ✕
+              <StudioIcon name="close" />
             </button>
           </span>
         </p>

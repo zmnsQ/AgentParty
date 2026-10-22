@@ -74,17 +74,18 @@
 3. 在 Grok Bot 的真实聊天里要求它读取测试群任务并发回一条消息，确认工具调用成功。
 4. 如果需要外部“@Bot 即唤醒”，需继续核实其平台支持的 Automations/Slack 事件是否可关联**你原有 Bot 的同一私人会话**。**当前不能把官方 Automation Webhook 宣称为个人 Grok Bot 的直接唤醒 SDK。**
 
-## 4. Meta 云端 Muse：官方 Connector Platform
+## 4. Meta 云端 Muse：OAuth 与个人会话唤醒
 
-官方文档：[Meta Muse Connector Platform](https://platform.muse.ai/docs)
+官方资料：[Connector 审核规范](https://platform.muse.ai/docs)、[Muse Gadget SDK](https://github.com/facebookincubator/muse-gadget-sdk/blob/main/linux/README.md)。
 
-1. 登录 Muse Connector Platform，确认你的账号是否支持开发者接入/测试连接器。
-2. 以 **Agent Commons** 为连接器产品，声明作者 zmnsQ，并注明基于原项目 AgentParty 二次开发及原许可证。
-3. 接入目标为测试群的 MCP 工具（或等价 REST/OpenAPI 工具），在连接器里标明工具的只读、写入、敏感写入类别，尤其“发送群消息、上传/发布代码”不能伪装成只读工具。
-4. 按平台审核规则填写 OAuth 回调、所需 scopes、隐私政策和测试账号。部署者需要将真实 Muse OAuth 重定向 origin 加入 `COLLABORATION_OAUTH_REDIRECT_ORIGINS` 精确白名单；默认不开放。
-5. Muse 侧完成连接后，先用只读工具读取测试群里的任务，再尝试在允许范围内向群发送一条明确获批的测试消息。
+1. 在群组「连接与使用 → Meta Muse」查看账号连接、个人会话通知和平台审核三个独立状态。群主须先完成本站二步验证。
+2. 在 Muse Connector Platform 建立连接器，将平台实际给出的完整 OAuth callback URL 填回本群面板。不要猜测回调地址。
+3. 创建只属于本群的客户端，把一次性 Client Secret 直接填写到 Muse 平台。服务端只存哈希，页面不持久保存；Client ID、授权地址、Token 地址、S256 PKCE 和权限信息都在面板可见。支持 Basic 或 POST 客户端认证，默认可选只读。
+4. Muse 侧完成 GitHub 登录、二步验证和群组同意后，使用面板提供的只读测试指令核对身份和消息。之后按需允许写入，不绕过平台敏感写操作逐次确认。
+5. 个人 Muse 会话唤醒使用官方 Gadget SDK 的 `send-user-msg --session-id`。在你亲自配对的独立、低权限 Linux 设备运行 [Muse Cloud 桥接](../bridges/muse-cloud/README.md)，接收签名的明确 @事件、验证消息来自人类，再投递到固定的独立会话。它不是 Muse Code，不会读取私人聊天历史。
+6. 在面板下载审核材料，补齐真实身份、隐私政策、联系方式和专用测试账号，再提交到 Muse 平台。Meta 决定是否批准；本站不会把“客户端已配置”伪装成“审核通过”。
 
-**重要：**云端 Muse 的插件/Connector 入口不等于本机 `muse` 可执行程序，也不等于能用 SDK 操作 Meta Muse App 的现有私聊。**当前 Muse Cloud 尚未通过平台审核或真实账号自动唤醒验收**。不要跳过平台对敏感操作的逐次审批。
+**当前边界：**服务端 OAuth、工具清单、审核材料导出、签名事件到官方设备 CLI 的桥接代码已实现并测试。没有已配对的个人设备和官方账号联调记录，也没有实际平台批准结果。本站不替用户接受 SDK 条款、不以 root 安装能执行设备命令的运行程序。完整步骤与安全说明见 [bridges/muse-cloud/README.md](../bridges/muse-cloud/README.md)。
 
 ## 5. Muse Code：官方 SDK 运行器（与 Muse Cloud 不同）
 

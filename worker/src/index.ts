@@ -3792,11 +3792,13 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
             g.refresh_expires_at AS oauth_refresh_expires_at, g.access_expires_at AS oauth_access_expires_at,
             g.scopes_json AS oauth_scopes, c.name AS oauth_client_name,
             c.redirects_json AS oauth_redirects, c.disabled_at AS oauth_client_disabled,
+            pc.provider AS oauth_provider,
             CASE WHEN g.access_hash=t.hash THEN 1 ELSE 0 END AS oauth_token_matches
        FROM tokens t
        LEFT JOIN agent_nicknames n ON n.name = t.name
        LEFT JOIN connector_oauth_grants g ON g.agent_name=t.name AND g.account=t.owner AND g.channel_slug=t.channel_scope
        LEFT JOIN connector_oauth_clients c ON c.client_id=g.client_id
+       LEFT JOIN connector_oauth_private_clients pc ON pc.client_id=c.client_id
       WHERE t.owner = ?
         AND t.role = 'agent'
         AND t.channel_scope = ?
@@ -3808,7 +3810,7 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
     .all<{ name: string; owner: string; channel_scope: string; created_at: number; nickname: string | null;
       oauth_grant_id: string | null; oauth_revoked_at: number | null; oauth_refresh_expires_at: number | null;
       oauth_access_expires_at: number | null; oauth_scopes: string | null; oauth_client_name: string | null;
-      oauth_redirects: string | null; oauth_client_disabled: number | null; oauth_token_matches: number }>();
+      oauth_redirects: string | null; oauth_provider:string|null; oauth_client_disabled: number | null; oauth_token_matches: number }>();
   const now=Date.now();
   return c.json({ agents: rows.results.map(row=>{
     // Explicit allowlist: never expose access/refresh hashes, credentials or cookies.
@@ -3822,7 +3824,7 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
     const active=row.oauth_revoked_at===null&&row.oauth_client_disabled===null&&row.oauth_token_matches===1&&
       Math.max(row.oauth_refresh_expires_at??0,row.oauth_access_expires_at??0)>now;
     return {...basic,credential_kind:"oauth",oauth:{
-      client_name:row.oauth_client_name??"OAuth client",provider:chatgpt?"chatgpt":"other",
+      client_name:row.oauth_client_name??"OAuth client",provider:row.oauth_provider==="muse"?"muse":chatgpt?"chatgpt":"other",
       status:active?"authorized":"reconnect_required",
       scopes:Array.isArray(scopes)?scopes.filter((v):v is string=>typeof v==="string"):[],
     }};

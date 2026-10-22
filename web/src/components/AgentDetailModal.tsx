@@ -1,3 +1,4 @@
+import {StudioIcon} from "./StudioIcon";
 // 单 Agent 详情弹窗（#272 审计重开）：分工面板/presence roster 里点某个 agent，
 // 独立看它的工作状态（presence 已有字段）、历史工作内容（本频道已加载消息里过滤出它发的）、
 // 在线状态。不建新后端——所有数据来自调用方已经持有的 presence/messages。
@@ -320,7 +321,7 @@ function AgentDetailContent({
                 </dt>
                 <dd className="t-mono">
                   #{currentTask}
-                  {heartbeatAt !== null ? ` · ♥ ${fmtRel(heartbeatAt, now)}` : ""}
+                  {heartbeatAt !== null ? <> · <StudioIcon name="activity" size={12}/> {fmtRel(heartbeatAt, now)}</> : null}
                 </dd>
               </div>
             )}

@@ -1,3 +1,4 @@
+import { StudioIcon } from "../StudioIcon";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useT } from "../../i18n/useT";
 
@@ -50,7 +51,7 @@ export function TeamShell({
               if (!closeDisabled) onClose();
             }}
           >
-            {t("Channel.tools.close")} ✕
+            {t("Channel.tools.close")} <StudioIcon name="close" />
           </button>
         )}
       </header>

@@ -1,0 +1,966 @@
+{
+  "source": "Real React components in isolated browser; synthetic API data only",
+  "passed": 96,
+  "cases": [
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "zh",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "zh",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 320,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 390,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "en",
+      "theme": "doodle",
+      "width": 1280,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 320,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 390,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "preferences",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "account",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "manager",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "muse",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 13
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "files",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 8
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "picker",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 12
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "chat",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 4
+    },
+    {
+      "locale": "en",
+      "theme": "midnight",
+      "width": 1280,
+      "screen": "home",
+      "overflow": false,
+      "rasterIcons": 0,
+      "unrequestedWrites": 0,
+      "vectorIcons": 10
+    }
+  ]
+}

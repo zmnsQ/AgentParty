@@ -1,3 +1,4 @@
+import { StudioIcon } from "../StudioIcon";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CollaborationRole } from "@agentparty/shared";
 import { useT, type TFunc } from "../../i18n/useT";
@@ -212,7 +213,7 @@ function Card({
                 className={`team-card-host team-card-host--${card.host.lease}`}
                 title={card.host.lease === "stale" ? t("TeamBoard.host.staleTitle", { reason: card.host.staleReason ?? "" }) : undefined}
               >
-                ★ {t(card.host.lease === "active" ? "TeamBoard.host.active" : "TeamBoard.host.stale")}
+                <StudioIcon name="star" /> {t(card.host.lease === "active" ? "TeamBoard.host.active" : "TeamBoard.host.stale")}
               </span>
             )}
           </div>
@@ -246,7 +247,7 @@ function Card({
           )}
           {canAssignHost && !editing && (
             <button type="button" className="d-btn team-card-hostbtn" disabled={saving} onClick={() => { void onAssignHost!(card.name); }} title={t("TeamBoard.action.assignHostTitle", { name: card.display })}>
-              ★ {t("TeamBoard.action.assignHost")}
+              <StudioIcon name="star" /> {t("TeamBoard.action.assignHost")}
             </button>
           )}
           {showEdit && !editing && (
@@ -283,7 +284,7 @@ function Card({
             )
           )}
           {card.doing.heartbeatAt !== null && card.lane === "working" && (
-            <span className="team-card-muted">♥ {t("TeamBoard.doing.heartbeat", { age: teamAge(card.doing.heartbeatAt, now, t) })}</span>
+            <span className="team-card-muted"><StudioIcon name="activity" /> {t("TeamBoard.doing.heartbeat", { age: teamAge(card.doing.heartbeatAt, now, t) })}</span>
           )}
           {card.doing.activity !== null && (
             <span className="team-card-activity">{card.doing.activity.phase}{card.doing.activity.tool ? ` · ${card.doing.activity.tool}` : ""}</span>

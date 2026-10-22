@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import {isCompositionKey} from "../lib/compositionGuard";
 import {
   useEffect,
@@ -10,6 +11,7 @@ import {
 export interface SectionedDialogSection<SectionId extends string = string> {
   id: SectionId;
   label: string;
+  icon?: import("./StudioIcon").StudioIconName;
   content: ReactNode;
 }
 
@@ -207,7 +209,7 @@ export function SectionedDialog<SectionId extends string>({
         <header className="settings-head">
           <h2 className="settings-title" id={titleId}>{title}</h2>
           <button type="button" className="settings-close" aria-label={closeLabel} onClick={onClose}>
-            ×
+            <StudioIcon name="close" />
           </button>
         </header>
 
@@ -233,7 +235,8 @@ export function SectionedDialog<SectionId extends string>({
                     onClick={() => selectSection(section.id)}
                     onKeyDown={(event) => selectFromKeyboard(event, index)}
                   >
-                    {section.label}
+                    <StudioIcon name={section.icon ?? (section.id.includes("local") ? "monitor" : section.id.includes("project") ? "folder" : "group")} />
+                    <span>{section.label}</span>
                   </button>
                 );
               })}

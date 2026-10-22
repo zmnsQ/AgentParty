@@ -1,3 +1,4 @@
+import { StudioIcon, type StudioIconName } from "./StudioIcon";
 // 统一消息状态条（Phase 3）：把 Phase 1 的 @ 唤醒回执 + Phase 2 的已读游标合成一条，点开像 Lark 的
 // 已读弹层。两条泳道诚实分开：
 //   · 已读/未读 = 逐帧流式在读的身份(人类 + serve/watch --follow 的 agent)，靠 read_cursor
@@ -162,7 +163,7 @@ export function MessageStatus({
             {hasRead ? (
               <>
                 <span className="msg-status-read">
-                  <span className="ap-sprite ap-sprite--success" aria-hidden="true" /> {t("WakeReceipt.read.read", { n: readers.length })}
+                  <StudioIcon name="success" /> {t("WakeReceipt.read.read", { n: readers.length })}
                 </span>
                 {unread.length > 0 && (
                   <span className="msg-status-unread"> · {t("WakeReceipt.read.unread", { n: unread.length })}</span>
@@ -234,7 +235,7 @@ export function MessageStatus({
                     title={deliveryTitle(delivery)}
                     data-delivery-id={delivery.id}
                   >
-                    <span className={`msg-receipt-icon ap-sprite ap-sprite--${DELIVERY_ICON[delivery.state]}`} aria-hidden="true" />
+                    <StudioIcon name={DELIVERY_ICON[delivery.state] as StudioIconName} className="msg-receipt-icon" />
                     <span className="msg-status-delivery-copy">
                       <span className="msg-status-delivery-head">
                         <span className="t-mono">{display(delivery.target_name)}</span>
@@ -280,7 +281,7 @@ export function MessageStatus({
                     })}
                     data-inbox-state={row.state}
                   >
-                    <span className={`msg-receipt-icon ap-sprite ap-sprite--${INBOX_ICON[row.tone]}`} aria-hidden="true" />
+                    <StudioIcon name={INBOX_ICON[row.tone] as StudioIconName} className="msg-receipt-icon" />
                     <span className="msg-status-delivery-copy">
                       <span className="msg-status-delivery-head">
                         <span className="t-mono">{display(row.target)}</span>
@@ -316,7 +317,7 @@ export function MessageStatus({
                     className={`msg-status-name msg-status-delivery-row msg-receipt--${r.state}`}
                     title={receiptTitle(r)}
                   >
-                    <span className={`msg-receipt-icon ap-sprite ap-sprite--${RECEIPT_ICON[r.state]}`} aria-hidden="true" />
+                    <StudioIcon name={RECEIPT_ICON[r.state] as StudioIconName} className="msg-receipt-icon" />
                     <span className="msg-status-delivery-copy">
                       <span className="msg-status-delivery-head">
                         <span className="t-mono">{display(r.name)}</span>

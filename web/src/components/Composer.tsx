@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import {isCompositionKey} from "../lib/compositionGuard";
 // 底部插话框：Markdown、@name mention（动态在线列表补全，issue #39）、Cmd/Ctrl+Enter 发送（spec §9 第 4 块）。
 // readonly / archived 时由页面层直接不渲染本组件（错误内联为条幅）。
@@ -116,7 +117,7 @@ function PendingAttachment({
         aria-label={removeLabel}
         onClick={() => onRemove(att.key)}
       >
-        ×
+        <StudioIcon name="close" />
       </button>
     );
   if (isImage && !failed) {
@@ -562,7 +563,7 @@ export function Composer({
                   aria-label={`dismiss ${u.filename}`}
                   onClick={() => onCancelUpload(u.id)}
                 >
-                  ×
+                  <StudioIcon name="close" />
                 </button>
               )}
             </li>

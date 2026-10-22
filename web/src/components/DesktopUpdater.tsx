@@ -1,3 +1,4 @@
+import {StudioIcon} from "./StudioIcon";
 import { COMMONS_AUTO_UPDATE_ENABLED } from "../lib/desktopUpdater";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
@@ -341,7 +342,7 @@ export function DesktopUpdater() {
         aria-expanded={state.panelOpen}
         title={controlLabel}
       >
-        <span aria-hidden="true">↻</span>
+        <StudioIcon name="refresh"/>
       </button>
       {state.panelOpen && (
         <DesktopUpdaterPanel

@@ -462,7 +462,7 @@ export interface ChannelAgentInfo {
   created_at: number;
   nickname?: string | null;
   credential_kind?: "token" | "oauth";
-  oauth?: { client_name:string;provider:"chatgpt"|"other";status:"authorized"|"reconnect_required";scopes:string[] };
+  oauth?: { client_name:string;provider:"chatgpt"|"muse"|"other";status:"authorized"|"reconnect_required";scopes:string[] };
 }
 
 export type ProjectAgentRunner = "codex" | "claude" | "codex-sdk" | "shell";

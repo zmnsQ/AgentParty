@@ -1,3 +1,4 @@
+import {registerMuseConnectorRoutes} from "./muse-connector";
 import type { Context, Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import {
@@ -570,4 +571,5 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
     return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0,agents:perAgent.results,...mcpEventReadiness(c.env)});
   }));
   registerGrokAutomationRoutes(app, { access });
+  registerMuseConnectorRoutes(app,{access});
 }
