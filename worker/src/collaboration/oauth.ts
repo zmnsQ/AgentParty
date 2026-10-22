@@ -143,7 +143,7 @@ function consentPage(params:{
   };
   const scopes=params.scopes.map(scope=>`<li><span>${escape(scopeLabels[scope]??scope)}</span><code>${escape(scope)}</code></li>`).join("");
   const html=`<!DOCTYPE html><html lang="${zh?"zh-CN":"en"}"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="same-origin">
 <meta name="author" content="zmnsQ"><link rel="stylesheet" href="/commons-consent.css"><title>${phrases.title}</title></head><body class="commons-consent">
 <main><h1>${phrases.heading}</h1><p>${phrases.github}: <strong>${escape(params.account)}</strong></p>
 <p><strong>${escape(params.clientName)}</strong> ${phrases.wants} <strong>#${escape(params.group)}</strong>.</p>
@@ -157,9 +157,13 @@ function consentPage(params:{
 <p>${phrases.derived} <a href="https://github.com/leeguooooo/AgentParty">AgentParty</a>,
 ${phrases.upstream}</p><p><a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE">${phrases.license}</a>
 · <a href="https://github.com/zmnsQ/AgentParty">${phrases.source}</a></p></footer></main></body></html>`;
+  // Native HTML POSTs under no-referrer send Origin: null, including when
+  // posting to this very page. Preserve same-origin form attribution while
+  // suppressing Referer on cross-origin navigation. isExpectedOrigin remains
+  // strict; never accept null/missing Origin to compensate for this bug.
   return new Response(html,{headers:{"content-type":"text/html; charset=utf-8",
     "content-security-policy":"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none';",
-    "referrer-policy":"no-referrer","cache-control":"no-store"}});
+    "referrer-policy":"same-origin","cache-control":"no-store"}});
 }
 function redirectResult(clientUrl:string,value:Record<string,string>):Response{
   const out=new URL(clientUrl);

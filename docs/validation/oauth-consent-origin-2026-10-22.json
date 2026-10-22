@@ -1,0 +1,40 @@
+{
+  "environment": "Isolated local Chrome CDP; actual consent renderer, synthetic data only",
+  "before": {
+    "label": "before",
+    "source": "actual production consent renderer; synthetic local data only",
+    "page": {
+      "referrer": "no-referrer",
+      "action": "http://127.0.0.1:59940/oauth/authorize"
+    },
+    "requests": [
+      {
+        "origin": "null",
+        "fetch_site": "same-origin",
+        "referer_present": false,
+        "origin_matches": false,
+        "has_nonce": true,
+        "has_request_id": true
+      }
+    ]
+  },
+  "after": {
+    "label": "after",
+    "source": "actual production consent renderer; synthetic local data only",
+    "page": {
+      "referrer": "same-origin",
+      "action": "http://127.0.0.1:60165/oauth/authorize"
+    },
+    "requests": [
+      {
+        "origin": "http://127.0.0.1:60165",
+        "fetch_site": "same-origin",
+        "referer_present": true,
+        "origin_matches": true,
+        "has_nonce": true,
+        "has_request_id": true
+      }
+    ]
+  },
+  "security_checks": "Missing/null/foreign Origin remains rejected; same-site POST keeps session+nonce+MFA+PKCE checks; cross-site callback redirect keeps no-referrer"
+}

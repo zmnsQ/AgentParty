@@ -105,6 +105,66 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     expect(body).toContain("zmnsQ");
     expect(body).toContain("BUSL-1.1");
   });
+  it("keeps the real Origin on native consent form POSTs without leaking referrers cross-site",async()=>{
+    const c=await setup();
+    const query=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"native-form-origin",
+      scope:"group.read",resource:c.resource});
+    const response=await req("/oauth/authorize?"+query,{headers:{cookie:c.cookie}});
+    expect(response.status).toBe(200);
+    expect(response.headers.get("referrer-policy")).toBe("same-origin");
+    const body=await response.text();
+    expect(body).toContain('<meta name="referrer" content="same-origin">');
+    expect(body).not.toContain('<meta name="referrer" content="no-referrer">');
+    expect(response.headers.get("content-security-policy")).toContain("form-action 'self'");
+    expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(body).toContain('<form method="POST" action="/oauth/authorize">');
+    const form=new URLSearchParams({request_id:matchHidden(body,"request_id"),nonce:matchHidden(body,"nonce"),decision:"approve"});
+    const allowed=await req("/oauth/authorize",{method:"POST",headers:{origin:SITE,cookie:c.cookie,
+      "sec-fetch-site":"same-origin","content-type":"application/x-www-form-urlencoded"},body:form.toString()});
+    expect(allowed.status).toBe(302);
+    // The cross-site callback keeps no-referrer: codes/state stay out of Referer.
+    expect(allowed.headers.get("referrer-policy")).toBe("no-referrer");
+    const callback=new URL(allowed.headers.get("location")!);
+    expect(callback.origin).toBe("https://chatgpt.com");
+    expect(callback.searchParams.get("state")).toBe("native-form-origin");
+    expect(callback.searchParams.get("iss")).toBe(SITE);
+    expect((await exchange(c,callback.searchParams.get("code")!)).status).toBe(200);
+  });
+
+  it.each([
+    {label:"opaque null origin",origin:"null",site:"same-origin"},
+    {label:"missing origin",origin:undefined,site:"same-origin"},
+    {label:"foreign origin",origin:"https://attacker.test",site:"same-origin"},
+    {label:"foreign origin with forged forwarded proto",origin:"https://attacker.test",site:"none"},
+    {label:"cross-site metadata",origin:SITE,site:"cross-site"},
+    {label:"lookalike subdomain",origin:"https://commons.test.attacker.test",site:"same-site"},
+  ])("still rejects $label without consuming a legitimate one-time consent",async({origin,site})=>{
+    const c=await setup();
+    const query=new URLSearchParams({client_id:c.clientId,redirect_uri:CALLBACK,response_type:"code",
+      code_challenge:c.challenge,code_challenge_method:"S256",state:"csrf-still-enforced",
+      scope:"group.read",resource:c.resource});
+    const page=await req("/oauth/authorize?"+query,{headers:{cookie:c.cookie}});
+    expect(page.status).toBe(200);
+    const html=await page.text();
+    const form=new URLSearchParams({request_id:matchHidden(html,"request_id"),nonce:matchHidden(html,"nonce"),decision:"approve"});
+    const headers:Record<string,string>={cookie:c.cookie,"content-type":"application/x-www-form-urlencoded",
+      "sec-fetch-site":site,"x-forwarded-proto":"https","x-forwarded-host":"commons.test"};
+    if(origin!==undefined)headers.origin=origin;
+    const rejected=await req("/oauth/authorize",{method:"POST",headers,body:form.toString()});
+    expect(rejected.status).toBe(403);
+    expect(await rejected.json()).toMatchObject({error:"invalid_origin"});
+    // Rejection precedes consuming a pending request. A new same-origin form POST
+    // with the original session-bound nonce still succeeds, exactly once.
+    const validHeaders={cookie:c.cookie,origin:SITE,"sec-fetch-site":"same-origin",
+      "content-type":"application/x-www-form-urlencoded"};
+    const approved=await req("/oauth/authorize",{method:"POST",headers:validHeaders,body:form.toString()});
+    expect(approved.status).toBe(302);
+    const replay=await req("/oauth/authorize",{method:"POST",headers:validHeaders,body:form.toString()});
+    expect(replay.status).toBe(403);
+    expect(await replay.json()).toMatchObject({error:"invalid_or_expired_consent"});
+  });
+
   it("advertises discovery and rejects untrusted redirect clients",async()=>{
     const c=await setup();
     const doc=await(await req("/.well-known/oauth-authorization-server")).json() as any;
