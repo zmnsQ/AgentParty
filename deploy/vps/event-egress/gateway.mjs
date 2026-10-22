@@ -9,6 +9,7 @@ import {lookup as dnsLookup} from 'node:dns/promises';
 import {BlockList,isIP} from 'node:net';
 import {timingSafeEqual,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
+import {realpathSync} from 'node:fs';
 
 export const PORT=8798;
 const MAX_BODY=262144,MAX_ENVELOPE=400000,MAX_REPLY=8192;
@@ -164,7 +165,13 @@ export async function drainOnce(token,fetcher=fetch){
  if(!Number.isSafeInteger(result?.attempted)||!Number.isSafeInteger(result?.delivered))throw Error('event_drain_unavailable');
  return result;
 }
-if(process.argv[1]===fileURLToPath(import.meta.url)){
+/** Resolve release symlinks before deciding whether this module is the executable. */
+export function isMainModule(entry=process.argv[1]){
+ if(typeof entry!=='string'||!entry)return false;
+ try{return realpathSync(entry)===realpathSync(fileURLToPath(import.meta.url));}
+ catch{return false;}
+}
+if(isMainModule()){
  const origins=JSON.parse(process.env.EVENT_EGRESS_ALLOWED_ORIGINS??'[]');
  if(!Array.isArray(origins)||origins.some(x=>typeof x!=='string'))throw Error('invalid_allowlist');
  const server=makeServer({token:process.env.EVENT_EGRESS_TOKEN??'',policy:{mode:process.env.EVENT_EGRESS_MODE??'allowlist',origins}});

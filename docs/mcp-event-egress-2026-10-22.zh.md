@@ -45,3 +45,12 @@ ChatGPT 的原生 Events 任务创建仍由支持该能力的 Work / Cloud 或 d
 测试使用合成账号、回调和密钥；外部 DNS/TLS 依赖的端到端公网投递另在部署时检查。真实个人 ChatGPT 的 Events 注册不能由合成用例替代，本文件不宣称用户的订阅已经创建。
 
 参考：[OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events)、[Node HTTPS](https://nodejs.org/api/https.html)、[Node net.BlockList](https://nodejs.org/api/net.html)、[IANA IPv4 特殊地址](https://www.iana.org/assignments/iana-ipv4-special-registry/)。
+
+
+## 部署启动回归修复（2026-10-22）
+
+首次实际安装时，事件服务没有监听端口，部署脚本已恢复旧程序及旧配置，保留聊天、文件和原 OAuth 授权。定位为 Node ESM 入口判断：systemd 通过 `current` 版本软链接执行脚本，`process.argv[1]` 与解析后的 `import.meta.url` 路径不同，原逻辑将主程序当作导入模块，以退出码 0 直接结束，没有启动服务。
+
+已通过隔离子进程复现，并改为比较两者的规范真实路径。没有修改 DNS/IP 限制、TLS 校验、回调挑战或用户授权。新增主入口判断及实际软链接启动回归：确认端口只监听本机、健康检查成功、匿名投递仍返回 401，测试进程在结束时关闭。
+
+最新完整 `bun run check:commons` 退出码 0：**671 项通过**（53 + 270 + 217 + 111 + 4 + 6 + 10），无跳过。仍须以实际部署和个人 ChatGPT 订阅的后续验收为准，不能仅凭测试通过宣称自动唤醒已接通。

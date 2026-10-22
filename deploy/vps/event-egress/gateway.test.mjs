@@ -97,3 +97,43 @@ test('drainer only requests queued-delivery maintenance, never source messages o
   assert.equal(options.redirect,'error');return Response.json({attempted:2,delivered:1});
  });assert.deepEqual(result,{attempted:2,delivered:1});assert.equal(calls,1);
 });
+
+
+test('entrypoint detection resolves deployment symlinks and fails closed on missing entry',async()=>{
+ const {isMainModule}=await import('./gateway.mjs');
+ const {fileURLToPath}=await import('node:url');
+ assert.equal(isMainModule(fileURLToPath(new URL('./gateway.mjs',import.meta.url))),true);
+ assert.equal(isMainModule(fileURLToPath(import.meta.url)),false);
+ assert.equal(isMainModule('/nonexistent/agentcommons-gateway.mjs'),false);
+ assert.equal(isMainModule(''),false);
+});
+
+test('production-style current symlink actually starts the loopback gateway and rejects anonymous delivery',{timeout:10000},async()=>{
+ const {spawn}=await import('node:child_process');
+ const {mkdtemp,symlink,rm}=await import('node:fs/promises');
+ const {tmpdir}=await import('node:os');
+ const {join}=await import('node:path');
+ const {fileURLToPath}=await import('node:url');
+ const temporary=await mkdtemp(join(tmpdir(),'agentcommons-gateway-entry-'));
+ const entry=join(temporary,'current-gateway.mjs');
+ await symlink(fileURLToPath(new URL('./gateway.mjs',import.meta.url)),entry);
+ const child=spawn(process.execPath,[entry],{
+  env:{...process.env,EVENT_EGRESS_TOKEN:'b'.repeat(64),EVENT_EGRESS_MODE:'public-https',EVENT_DRAIN_ENABLED:'false'},
+  stdio:['ignore','pipe','pipe'],
+ });
+ let output='';child.stdout.on('data',chunk=>output+=chunk);child.stderr.on('data',chunk=>output+=chunk);
+ const closed=new Promise(resolve=>child.once('exit',resolve));
+ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ try{
+  for(let i=0;i<50&&!output.includes('mcp_callback_transport_ready')&&child.exitCode===null;i++)await pause(50);
+  assert.ok(output.includes('mcp_callback_transport_ready'),'symlink executable exited without opening its server');
+  const health=await fetch('http://127.0.0.1:8798/health',{signal:AbortSignal.timeout(1500)});
+  assert.deepEqual(await health.json(),{ok:true,transport:'dns-pinned-https',mode:'public-https'});
+  assert.equal((await fetch('http://127.0.0.1:8798/deliver',{method:'POST',body:'{}',signal:AbortSignal.timeout(1500)})).status,401);
+ }finally{
+  if(child.exitCode===null)child.kill('SIGTERM');
+  await Promise.race([closed,pause(2000)]);
+  if(child.exitCode===null)child.kill('SIGKILL');
+  await rm(temporary,{recursive:true,force:true});
+ }
+});
