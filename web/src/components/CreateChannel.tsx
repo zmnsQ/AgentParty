@@ -18,13 +18,11 @@ interface Props {
   onCreated(slug: string): void;
 }
 
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const VIS_OPTIONS: readonly Visibility[] = ["private", "public_watch", "public"];
 
 export function CreateChannel({ token, onCreated }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("private");
   const [party, setParty] = useState(false);
@@ -32,7 +30,6 @@ export function CreateChannel({ token, onCreated }: Props) {
   const [err, setErr] = useState<string | null>(null);
 
   const reset = useCallback(() => {
-    setSlug("");
     setTitle("");
     setVisibility("private");
     setParty(false);
@@ -40,24 +37,26 @@ export function CreateChannel({ token, onCreated }: Props) {
   }, []);
 
   const submit = useCallback(async () => {
-    const s = slug.trim().toLowerCase();
-    if (!SLUG_RE.test(s)) {
-      setErr(t("CreateChannel.slugInvalid"));
+    const name = title.trim();
+    if (name.length === 0 || name.length > 80) {
+      setErr(t("CreateChannel.nameInvalid"));
       return;
     }
     setErr(null);
     setBusy(true);
     try {
-      await createChannel(token, {
-        slug: s,
-        title: title.trim() || undefined,
+      const created = await createChannel(token, {
+        title: name,
         visibility,
         mode: party ? "party" : "normal",
       });
+      if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(created.slug)) {
+        throw new Error("invalid generated channel identifier");
+      }
       setBusy(false);
       setOpen(false);
       reset();
-      onCreated(s);
+      onCreated(created.slug);
     } catch (e) {
       setBusy(false);
       setErr(
@@ -72,7 +71,7 @@ export function CreateChannel({ token, onCreated }: Props) {
                 : t("CreateChannel.errGeneric"),
       );
     }
-  }, [slug, title, visibility, party, token, onCreated, reset, t]);
+  }, [title, visibility, party, token, onCreated, reset, t]);
 
   if (!open) {
     return (
@@ -94,20 +93,14 @@ export function CreateChannel({ token, onCreated }: Props) {
 
   return (
     <div className="d-card newchan-card">
+      <label className="newchan-name-label" htmlFor="newchan-name">
+        {t("CreateChannel.nameLabel")}
+      </label>
       <input
-        className="t-mono newchan-input"
-        value={slug}
-        autoFocus
-        spellCheck={false}
-        placeholder={t("CreateChannel.slugPlaceholder")}
-        onChange={(e) => setSlug(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
-        disabled={busy}
-      />
-      <input
+        id="newchan-name"
         className="newchan-input"
+        autoFocus
+        maxLength={80}
         value={title}
         placeholder={t("CreateChannel.titlePlaceholder")}
         onChange={(e) => setTitle(e.target.value)}
@@ -116,6 +109,7 @@ export function CreateChannel({ token, onCreated }: Props) {
         }}
         disabled={busy}
       />
+      <p className="newchan-help" id="newchan-identifier-help">{t("CreateChannel.generatedHint")}</p>
       <div className="newchan-opts">
         <label className="newchan-seg">
           <span className="t-mono newchan-segk">{t("CreateChannel.visibilityLabel")}</span>
@@ -160,7 +154,7 @@ export function CreateChannel({ token, onCreated }: Props) {
         >
           {t("CreateChannel.cancel")}
         </button>
-        <button type="button" className="d-btn d-btn--primary" onClick={submit} disabled={busy}>
+        <button type="button" className="d-btn d-btn--primary" onClick={submit} disabled={busy || !title.trim()}>
           {busy ? t("CreateChannel.creating") : t("CreateChannel.create")}
         </button>
       </div>

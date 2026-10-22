@@ -4603,6 +4603,10 @@ app.post("/api/channels", async (c) => {
   const body = (await c.req.json().catch(() => null)) as
     | { slug?: unknown; title?: unknown; kind?: unknown; mode?: unknown; visibility?: unknown; auto_suffix?: unknown }
     | null;
+  // UI-created rooms omit slug entirely: a cryptographically random, opaque
+  // identifier is allocated server-side. Existing CLI/API callers providing
+  // explicit slugs retain their old, exact-address behavior.
+  const generatedSlug = body !== null && body.slug === undefined;
   const slug = typeof body?.slug === "string" ? body.slug : "";
   // #695 slug 撞名不再硬 409：显式建频道（party channel create）传 auto_suffix，撞名自动取下一个空位
   // slug（foo → foo-2 → foo-3 …）。默认关（init 的 create-or-join、invite 的 scoped 建频道都要精确 slug，
@@ -4612,8 +4616,14 @@ app.post("/api/channels", async (c) => {
   const mode = body?.mode === undefined ? "normal" : body.mode;
   // 默认 private = 零破坏（spec §3.1）
   const visibility = body?.visibility === undefined ? "private" : body.visibility;
-  const title = typeof body?.title === "string" ? body.title : null;
-  if (!SLUG_RE.test(slug) || typeof kind !== "string" || !KINDS.includes(kind)) {
+  const rawTitle = typeof body?.title === "string" ? body.title : null;
+  const title = generatedSlug ? rawTitle?.trim() ?? null : rawTitle;
+  // Newly-created human rooms have a display name. A slug is *not* a name:
+  // it is a stable internal URL/API key whose uniqueness is handled below.
+  if (generatedSlug && (!title || title.length > 80)) {
+    return c.json(errorBody("bad_request", "channel name required (1-80 characters)"), 400);
+  }
+  if ((!generatedSlug && !SLUG_RE.test(slug)) || typeof kind !== "string" || !KINDS.includes(kind)) {
     return c.json(errorBody("bad_request", "valid slug and kind (standing|temp) required"), 400);
   }
   if (typeof mode !== "string" || !MODES.includes(mode)) {
@@ -4629,7 +4639,7 @@ app.post("/api/channels", async (c) => {
   // 见 issue #31）：创建自己的 scope 不算逃出 scope。仍禁止建任意其它频道——外部方拿到 scoped token 越不了权，
   // 至多创建它被邀请的那一个 slug，且该 slug 已存在时是 409 no-op，不能以房主账号名义抢占别的 slug / 建 public。
   const createScope = c.get("identity").channel_scope;
-  if (createScope != null && createScope !== slug) {
+  if (createScope != null && (generatedSlug || createScope !== slug)) {
     return c.json(errorBody("forbidden", "channel-scoped token can only create its own scope channel"), 403);
   }
   const now = Date.now();
@@ -4685,10 +4695,15 @@ app.post("/api/channels", async (c) => {
   // INSERT 是唯一真相源：并发下两方算出同一候选，只有一方插入成功，另一方接着试下一个，无需额外锁。
   // scoped token 建的是它被邀请的那一个精确 slug（见上方 scope 闸），不参与改名；故基于 slug 本身即可。
   let createdSlug = slug;
-  const maxSuffixAttempts = autoSuffix ? SLUG_SUFFIX_MAX_ATTEMPTS : 1;
+  const maxSuffixAttempts = generatedSlug ? 5 : autoSuffix ? SLUG_SUFFIX_MAX_ATTEMPTS : 1;
   let inserted = false;
   for (let attempt = 0; attempt < maxSuffixAttempts; attempt++) {
-    const candidate = attempt === 0 ? slug : suffixedSlug(slug, attempt + 1);
+    // 16 secure random bytes = 128 bits. No timestamp, predictable counter or
+    // user-derived title enters the channel ID. The D1 UNIQUE index is the
+    // concurrency authority; only a genuine collision is retried.
+    const candidate = generatedSlug
+      ? `ch-${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("")}`
+      : attempt === 0 ? slug : suffixedSlug(slug, attempt + 1);
     try {
       await insertChannel(candidate);
       createdSlug = candidate;
@@ -4700,12 +4715,14 @@ app.post("/api/channels", async (c) => {
       if (!isUniqueConstraintError(error)) {
         return c.json(errorBody("unavailable", "channel create failed"), 503);
       }
-      // 撞名：非 auto_suffix 直接 409（老客户端契约不变）；auto_suffix 试下一个后缀。
-      if (!autoSuffix) return c.json(errorBody("conflict", "slug already exists"), 409);
+      // Generated IDs simply draw a new cryptographic candidate. Legacy
+      // explicit-slug callers keep their previous 409/auto_suffix behavior.
+      if (!generatedSlug && !autoSuffix) return c.json(errorBody("conflict", "slug already exists"), 409);
       continue;
     }
   }
   if (!inserted) {
+    if (generatedSlug) return c.json(errorBody("unavailable", "could not allocate unique channel id"), 503);
     return c.json(errorBody("conflict", `no free slug variant for "${slug}" within ${SLUG_SUFFIX_MAX_ATTEMPTS} tries`), 409);
   }
   if (kind === "temp") {

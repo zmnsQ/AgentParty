@@ -15,7 +15,7 @@ function ChannelCard({ c, onOpen }: { c: ChannelInfo; onOpen(slug: string): void
   return (
     <button type="button" className="d-card home-card" onClick={() => onOpen(c.slug)}>
       <header className="d-meta">
-        <span>#{c.slug}</span>
+        {/* Opaque generated IDs belong in links, not as a visible room name. */}
         <span>{c.kind}</span>
         {c.archived_at !== null && <span className="home-card-archived">archived</span>}
         <PresenceDots channel={c} />
