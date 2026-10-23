@@ -43,8 +43,9 @@ export default defineConfig({
   server: {
     // 本地联调：wrangler-accounts dev 默认 8787
     proxy: {
-      "/api": { target: "http://localhost:8787", ws: true },
-      "/openapi.json": { target: "http://localhost:8787" },
+      "/api": { target: process.env.COMMONS_API_PROXY ?? "http://localhost:8787", ws: true },
+      "/oauth": { target: process.env.COMMONS_API_PROXY ?? "http://localhost:8787" },
+      "/openapi.json": { target: process.env.COMMONS_API_PROXY ?? "http://localhost:8787" },
     },
   },
 });

@@ -134,3 +134,7 @@ body.commons-consent{font-family:var(--t-sans);background:var(--t-bg)}
 .commons-consent .oauth-result-icon{border:0;border-radius:14px;box-shadow:none;background:var(--d-yellow);color:var(--t-accent)}
 .commons-consent .oauth-footer{font-family:var(--t-sans);color:var(--t-muted)}
 @media(prefers-reduced-motion:reduce){.commons-consent .oauth-button{transition:none;transform:none}}
+
+/* The same master as native, login and the workspace. */
+.commons-consent .oauth-brand{display:inline-flex;align-items:center;gap:10px;font-size:21px}
+.oauth-brand img{width:36px;height:36px;border-radius:10px}

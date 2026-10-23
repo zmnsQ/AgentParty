@@ -96,7 +96,7 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
         {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} />}
       </div>
     </>}
-    <footer className="commons-attribution"><OriginalProjectCredit compact /></footer>
+    <footer className="commons-attribution"><details className="commons-project-credit"><summary>{t("Attribution.label")}</summary><OriginalProjectCredit compact /></details></footer>
   </div>;
 }
 

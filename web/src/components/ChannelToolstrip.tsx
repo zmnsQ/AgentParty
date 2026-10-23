@@ -1,3 +1,4 @@
+import {AnimatedDisclosure} from "./AnimatedDisclosure";
 import { StudioIcon } from "./StudioIcon";
 import { useState, type ReactNode } from "react";
 import { useT } from "../i18n/useT";
@@ -8,9 +9,9 @@ const EXPANDED_STORAGE_KEY = "ap_channel_tools_expanded";
 function readExpandedPreference(): boolean {
   try {
     const raw = localStorage.getItem(EXPANDED_STORAGE_KEY);
-    return raw === null ? true : raw === "1";
+    return raw === null ? false : raw === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -57,10 +58,10 @@ export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
         <span className="chan-toolstrip-toggle-label">{t("Channel.tools.label")}</span>
         <span className="chan-toolstrip-toggle-arrow" aria-hidden="true"><StudioIcon name={expanded ? "chevron-down" : "chevron-right"} size={14} /></span>
       </button>
-      <div id="channel-toolstrip-content" className="chan-toolstrip-content">
+      <AnimatedDisclosure id="channel-toolstrip-content" className="chan-toolstrip-content" open={expanded}>
         <div className="chan-tool-buttons">{buttons}</div>
         <div className="chan-tool-actions">{actions}</div>
-      </div>
+      </AnimatedDisclosure>
     </div>
   );
 }

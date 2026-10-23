@@ -1,0 +1,44 @@
+{
+  "checks": [
+    "login mobile has no page overflow",
+    "GitHub remains primary; legacy credentials are discoverable",
+    "MFA remains a separate verification gate",
+    "navigation collapses, excludes hidden controls from focus and survives reload",
+    "tasks mobile has no page overflow",
+    "proposal mobile has no page overflow",
+    "connections mobile has no page overflow",
+    "tasks, team, connections, files, repository and direct agent panels render",
+    "chat mobile has no page overflow",
+    "mobile navigation closes after a group switch",
+    "reduced motion disables layout transitions",
+    "empty workspace has a clear first action",
+    "long group titles do not cause page overflow",
+    "onboarding is scrollable and can be dismissed on mobile",
+    "group loading failure stays visible with navigation collapsed",
+    "no uncaught browser errors or external network requests"
+  ],
+  "motion": {
+    "navigationTransitions": [
+      {
+        "property": "grid-template-columns",
+        "duration": 300
+      }
+    ],
+    "drawerTransitions": {
+      "duration": "0.3s, 0.16s, 0.3s",
+      "grid": "32px"
+    },
+    "reduced": {
+      "transition": "0s",
+      "animation": "none"
+    }
+  },
+  "errors": [],
+  "external": [],
+  "viewport": [
+    1440,
+    1000,
+    390,
+    844
+  ]
+}

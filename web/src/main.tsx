@@ -8,6 +8,7 @@ import "./styles/foundation.css";
 import "./styles/app.css";
 import "./styles/studio.css";
 import "./styles/management.css";
+import "./styles/workspace.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

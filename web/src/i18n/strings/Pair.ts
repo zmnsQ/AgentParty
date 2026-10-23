@@ -3,7 +3,7 @@ import { registerDict, type LocaleDict } from "../dict";
 export const PairStrings: LocaleDict = {
   en: {
     "Pair.title": "Pair a desktop",
-    "Pair.subtitle": "Confirm the code shown in the AgentParty desktop app.",
+    "Pair.subtitle": "Confirm the code shown in the AgentCommons desktop app.",
     "Pair.code.label": "Pairing code",
     "Pair.code.invalid": "Enter the 10-character code shown on your desktop.",
     "Pair.inspect": "Review device",
@@ -31,7 +31,7 @@ export const PairStrings: LocaleDict = {
   },
   zh: {
     "Pair.title": "配对桌面端",
-    "Pair.subtitle": "确认 AgentParty 桌面端中显示的短码。",
+    "Pair.subtitle": "确认 AgentCommons 桌面端中显示的短码。",
     "Pair.code.label": "配对短码",
     "Pair.code.invalid": "请输入桌面端显示的 10 位短码。",
     "Pair.inspect": "查看设备",

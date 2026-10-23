@@ -222,7 +222,7 @@ export function Composer({
   const [menu, setMenu] = useState<MentionMenuState | null>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
 
-  // 自动增高（#340）：随内容长高、封顶 40vh（超出后框内滚动）；清空 draft 时缩回初始 3 行。
+  // 自动增高（#340）：随内容长高、封顶 40vh（超出后框内滚动）；清空 draft 时缩回初始 2 行。
   useLayoutEffect(() => {
     const ta = taRef.current;
     if (ta === null) return;
@@ -506,7 +506,7 @@ export function Composer({
       <textarea
         ref={taRef}
         className="composer-input t-mono"
-        rows={3}
+        rows={2}
         placeholder={t("Composer.placeholder")}
         value={draft}
         onChange={onChange}
@@ -576,8 +576,8 @@ export function Composer({
           {pasteError}
         </p>
       )}
-      <FeatureTip tip="Tips.wake" className="composer-wake-tip" />
       <div className="composer-actions">
+        <FeatureTip tip="Tips.wake" className="composer-wake-tip" />
         {canAttach && (
           <>
             <input

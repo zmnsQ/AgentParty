@@ -44,10 +44,10 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider}:Props
       // Read-only status discovery: this is not a WebSocket heartbeat.
       canManage ? listChannelAgents(token,slug).catch(()=>null) : Promise.resolve(null),
     ]);
-    if(isActive()&&!signal?.aborted){setState(grok);setEvents(eventState);setAuthorizedAgents(connections);}
+    if(isActive()&&!signal?.aborted){setState(grok);setEvents(eventState);setAuthorizedAgents(connections);setError("");}
   },[token,slug,canManage,isActive]);
   useEffect(()=>{alive.current=true;const controller=new AbortController();
-    void reload(controller.signal).catch(e=>{if(isActive())setError(String(e));});
+    void reload(controller.signal).catch(e=>{if(isActive()&&!controller.signal.aborted)setError(String(e));});
     return()=>{alive.current=false;controller.abort();};
   },[reload,isActive]);
   const task=async(fn:()=>Promise<void>)=>{

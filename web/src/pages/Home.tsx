@@ -20,7 +20,7 @@ export function Home({channels,onOpen,onCreate}:Props){
  const live=channels?.filter(c=>c.archived_at===null)??null,archived=channels?.filter(c=>c.archived_at!==null)??[];
  const matches=live?.filter(c=>(c.title??c.slug).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))??[];
  return <div className="home studio-home">
-  <section className="home-hero"><p className="studio-eyebrow">{t("Studio.kicker")}</p><h2 className="home-title">{t("Studio.welcome")}</h2><p className="home-sub">{t("Studio.intro")}</p>
+  <section className="home-hero"><img className="workspace-hero-art" src="/brand/workspace.png" alt="" width="1448" height="1086"/><p className="studio-eyebrow">{t("Studio.kicker")}</p><h2 className="home-title">{t("Studio.welcome")}</h2><p className="home-sub">{t("Studio.intro")}</p>
     {onCreate&&<button type="button" className="d-btn d-btn--primary studio-create-cta" onClick={onCreate}><StudioIcon name="plus"/>{t("Studio.create")}</button>}
   </section>
   {live?.length===0&&<ol className="studio-journey">{(["group","agent","message"] as const).map((name,index)=><li key={name}><span className="studio-step-icon"><StudioIcon name={name}/></span><div><strong>{t(`Studio.step${index+1}`)}</strong><p>{t(`Studio.step${index+1}Hint`)}</p></div></li>)}</ol>}

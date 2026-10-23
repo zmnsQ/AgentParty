@@ -1,8 +1,6 @@
 // @ts-expect-error Bun executes this test, while the web tsconfig intentionally loads only Vite globals.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
-// @ts-expect-error Bun provides node:fs for this source-level CSS contract test.
-import { readFileSync } from "node:fs";
 import { LocaleProvider } from "../i18n/locale";
 
 const { ChannelToolstrip } = await import("./ChannelToolstrip");
@@ -59,53 +57,32 @@ function toggle(r: ReactTestRenderer) {
   return r.root.find((node) => node.props.className === "d-btn chan-toolstrip-toggle");
 }
 
-describe("ChannelToolstrip discoverability (#355)", () => {
-  test("defaults to expanded with a visible tools toggle", () => {
+describe("ChannelToolstrip progressive disclosure", () => {
+  test("starts collapsed and excludes hidden actions from keyboard navigation", () => {
     const r = render();
-    expect(r.root.findByProps({ "aria-label": "channel tools" }).props.className).toContain("chan-toolstrip--expanded");
-    expect(toggle(r).props["aria-expanded"]).toBe(true);
-    expect(toggle(r).props["aria-controls"]).toBe("channel-toolstrip-content");
-    expect(toggle(r).findByProps({ className: "ap-sprite ap-sprite--tools" })).toBeDefined();
-    expect(toggle(r).findByProps({ className: "chan-toolstrip-toggle-label" }).children).toEqual(["channel tools"]);
-  });
-
-  test("defaults to expanded when reading localStorage throws", () => {
-    const storage = memoryStorage({ ap_locale: "en" });
-    storage.getItem = () => { throw new Error("storage unavailable"); };
-
-    const r = renderWithStorage(storage);
-
-    expect(toggle(r).props["aria-expanded"]).toBe(true);
-  });
-
-  test("collapses, expands, and persists the user's choice", async () => {
-    const r = render();
-    await act(async () => toggle(r).props.onClick());
-
     expect(toggle(r).props["aria-expanded"]).toBe(false);
-    expect(r.root.findByProps({ "aria-label": "channel tools" }).props.className).toContain("chan-toolstrip--collapsed");
-    expect(localStorage.getItem("ap_channel_tools_expanded")).toBe("0");
-
+    expect(r.root.find(n => n.type === "div" && n.props.id === "channel-toolstrip-content").props.inert).toBe(true);
+  });
+  test("expands, collapses and restores the saved preference", async () => {
+    const r = render();
     await act(async () => toggle(r).props.onClick());
     expect(toggle(r).props["aria-expanded"]).toBe(true);
     expect(localStorage.getItem("ap_channel_tools_expanded")).toBe("1");
-  });
-
-  test("restores a collapsed preference", () => {
-    const r = render({ ap_channel_tools_expanded: "0" });
+    expect(r.root.find(n => n.type === "div" && n.props.id === "channel-toolstrip-content").props.inert).toBe(false);
+    await act(async () => toggle(r).props.onClick());
     expect(toggle(r).props["aria-expanded"]).toBe(false);
-    expect(r.root.findByProps({ "aria-label": "channel tools" }).props.className).toContain("chan-toolstrip--collapsed");
+    expect(localStorage.getItem("ap_channel_tools_expanded")).toBe("0");
   });
-
-  test("responsive CSS keeps the one-row desktop track and hides only mobile collapsed content", () => {
-    const css = readFileSync(new URL("../styles/app.css", import.meta.url), "utf8");
-    expect(css).toContain(".chan-toolstrip-toggle {\n  display: none;");
-    expect(css).toMatch(/\.chan-toolstrip-content\s*{[^}]*display:\s*flex;[^}]*flex-direction:\s*row;[^}]*overflow:\s*visible;/s);
-    expect(css).toMatch(/\.chan-tool-actions\s*{[^}]*margin-left:\s*auto;/s);
-    expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip-toggle \{[\s\S]*display: inline-flex;/);
-    expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip-toggle-label \{[\s\S]*display: none;/);
-    expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip--collapsed \.chan-toolstrip-content \{\s*display: none;/);
-    expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip-content \{[\s\S]*overflow-x: auto;/);
-    expect(css).toMatch(/\.chan-tool-btn \.ap-sprite\s*{[^}]*--ap-icon-size:\s*28px;[^}]*background-size:\s*440% 330%;/s);
+  test("honors an existing expanded preference", () => {
+    expect(toggle(render({ap_channel_tools_expanded:"1"})).props["aria-expanded"]).toBe(true);
+  });
+  test("works when preference storage is unavailable", async () => {
+    const storage = memoryStorage({ap_locale:"en"});
+    storage.getItem = () => { throw new Error("private browsing"); };
+    storage.setItem = () => { throw new Error("private browsing"); };
+    const r = renderWithStorage(storage);
+    expect(toggle(r).props["aria-expanded"]).toBe(false);
+    await act(async () => toggle(r).props.onClick());
+    expect(toggle(r).props["aria-expanded"]).toBe(true);
   });
 });

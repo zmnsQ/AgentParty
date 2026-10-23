@@ -1,3 +1,4 @@
+import {Brand} from "./Brand";
 // 外部协作者邀请落地页（#593）：/invite/<code>。
 // 未登录：先展示邀请预览（频道 + 预设昵称）+ 登录按钮，登录回来自动兑换；
 // 已登录：直接兑换（入册实例 + 入频道 + 设昵称三合一），成功跳进频道。
@@ -95,7 +96,7 @@ export function InviteLanding({
   return (
     <main className="gate">
       <h1 className="d-title gate-title">
-        Agent<span className="d-hl">Party</span>
+        <Brand/>
       </h1>
       {previewError !== null ? (
         <p className="banner banner--red" role="alert">
@@ -184,7 +185,7 @@ export function InviteRequiredGate({
   return (
     <main className="gate">
       <h1 className="d-title gate-title">
-        Agent<span className="d-hl">Party</span>
+        <Brand/>
       </h1>
       <div className="d-card gate-card">
         <p className="d-hand gate-sub">{t("InviteRequired.title")}</p>

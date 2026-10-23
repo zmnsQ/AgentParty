@@ -76,6 +76,7 @@ export function OnboardingGuide({
         >
           <StudioIcon name="close" />
         </button>
+        <img className="onboarding-art" src="/brand/workspace.png" width="1448" height="1086" alt=""/>
         <h2 className="d-title onboarding-title" id="onboarding-title">
           {t("Onboarding.title")}
         </h2>

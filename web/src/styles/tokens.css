@@ -2,14 +2,14 @@
  * Design reference: Caho1/open-claude-ui (MIT), see THIRD_PARTY_NOTICES.md.
  * Stable doodle/midnight preference IDs are preserved for existing users. */
 :root,:root[data-theme="doodle"]{
- --ac-surface-0:#f6f5f1;--ac-surface-1:#efeee8;--ac-surface-2:#faf9f6;--ac-surface-3:#ffffff;
+ --ac-surface-0:#f5f4ef;--ac-surface-1:#eeede9;--ac-surface-2:#faf9f6;--ac-surface-3:#ffffff;
  --ac-border:#dedbd3;--ac-border-strong:#c8c3b8;
  --t-bg:var(--ac-surface-0);--t-panel:var(--ac-surface-3);--t-panel2:var(--ac-surface-2);--t-border:var(--ac-border);
  --t-text:#292720;--t-body:#49463f;--t-muted:#6f6b62;--t-dim:#78746a;--t-faint:var(--ac-border);
  --t-green:#347354;--t-red:#b73f37;--t-blue:#315e9b;--t-purple:#7958a4;
- --t-accent:#a54d32;--t-accent-ink:#ffffff;--t-link:#98492f;
+ --t-accent:#a95338;--t-accent-ink:#ffffff;--t-link:#a95338;
  --agent-l-name:37%;--agent-l-soft:55%;
- --d-ink:#38352e;--d-paper:var(--ac-surface-0);--d-yellow:#f6ead8;--d-red:#a54d32;
+ --d-ink:#38352e;--d-paper:var(--ac-surface-0);--d-yellow:#f6ead8;--d-red:#a95338;
  --d-red-soft:#f8e8e3;--d-blue:#43688d;--d-blue-soft:#e9eff6;--d-green:#347354;--d-green-soft:#e9f2e9;
  --d-amber:#94661c;--d-amber-soft:#f6efde;--d-shadow:rgba(43,34,22,.07);
  --code-bg:#f3f1ec;--code-border:#e4e0d7;--scroll-track:transparent;
@@ -17,16 +17,16 @@
  --ac-shadow-sm:0 1px 2px rgba(43,34,22,.04),0 0 0 1px rgba(43,34,22,.04);
  --ac-shadow-popover:0 16px 48px rgba(43,34,22,.12),0 0 0 1px rgba(43,34,22,.07);
  --ac-shadow-modal:0 32px 100px rgba(43,34,22,.20),0 0 0 1px rgba(43,34,22,.08);
- --ac-backdrop:rgba(30,27,22,.32);
+ --ac-backdrop:rgba(30,27,22,.32);--ac-accent-soft:#f2e5de;
 }
 :root[data-theme="midnight"]{
- --ac-surface-0:#20201d;--ac-surface-1:#191a17;--ac-surface-2:#272823;--ac-surface-3:#30312b;
+ --ac-surface-0:#201f1c;--ac-surface-1:#191918;--ac-surface-2:#272622;--ac-surface-3:#30302b;
  --ac-border:#42433c;--ac-border-strong:#5a5b50;
  --t-text:#f0eee7;--t-body:#d0cfc5;--t-muted:#aaa99c;--t-dim:#a2a193;
- --t-accent:#d58e72;--t-accent-ink:#201b17;--t-link:#e3a78e;
+ --t-accent:#e7a68f;--t-accent-ink:#201b17;--t-link:#e7a68f;
  --t-green:#96c3a0;--t-red:#ef9c91;--t-blue:#a2bad9;--t-purple:#c0a7da;
  --agent-l-name:72%;--agent-l-soft:62%;
- --d-ink:#e1ded4;--d-red:#d58e72;--d-shadow:rgba(0,0,0,.18);
+ --d-ink:#e1ded4;--d-red:#e7a68f;--d-shadow:rgba(0,0,0,.18);
  --d-yellow:#403625;--d-red-soft:#473028;--d-blue:#a2bad9;--d-blue-soft:#2b3740;
  --d-green:#96c3a0;--d-green-soft:#293b2f;--d-amber:#d5b76d;--d-amber-soft:#3b3526;
  --code-bg:#1b1c18;--code-border:#42433c;
@@ -34,7 +34,7 @@
  --ac-shadow-sm:0 1px 2px rgba(0,0,0,.08),0 0 0 1px rgba(255,255,240,.03);
  --ac-shadow-popover:0 16px 48px rgba(0,0,0,.32),0 0 0 1px rgba(255,255,240,.07);
  --ac-shadow-modal:0 32px 100px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,240,.08);
- --ac-backdrop:rgba(0,0,0,.50);
+ --ac-backdrop:rgba(0,0,0,.50);--ac-accent-soft:#352720;
 }
 :root{
  --t-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
@@ -43,8 +43,8 @@
  --d-marker:var(--t-sans);--d-hand:var(--t-sans);
  --p-working:var(--d-green);--p-waiting:var(--d-blue);--p-blocked:var(--t-red);--p-busy:var(--d-amber);--p-done:var(--t-muted);--p-offline:var(--t-faint);
  --ac-radius-xs:6px;--ac-radius-sm:10px;--ac-radius-md:14px;--ac-radius-lg:20px;
- --ac-duration-press:90ms;--ac-duration-fast:140ms;--ac-duration-panel:240ms;
- --ac-ease-out:cubic-bezier(.16,1,.3,1);--ac-ease-standard:cubic-bezier(.2,0,0,1);
+ --ac-duration-press:90ms;--ac-duration-fast:160ms;--ac-duration-panel:300ms;
+ --ac-ease-out:cubic-bezier(.22,1,.36,1);--ac-ease-standard:cubic-bezier(.2,0,0,1);
  --ac-space-1:4px;--ac-space-2:8px;--ac-space-3:12px;--ac-space-4:16px;--ac-space-6:24px;--ac-space-8:32px;
 }
 @media(prefers-reduced-motion:reduce){:root{--ac-duration-press:0ms;--ac-duration-fast:0ms;--ac-duration-panel:0ms}}

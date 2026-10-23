@@ -1,3 +1,4 @@
+import {Brand} from "../components/Brand";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/useT";
 import "../i18n/strings/Pair";
@@ -241,6 +242,7 @@ export function PairPage({ serverOrigin, token, initialCode, onRequireHuman, onD
 
   return (
     <main className="gate pair-page">
+      <Brand/>
       <h1 className="d-title gate-title">{t("Pair.title")}</h1>
       <p className="gate-sub">{t("Pair.subtitle")}</p>
       <div className="d-card gate-card pair-card">

@@ -26,8 +26,8 @@ describe("OAuth site-consistent presentation",()=>{
   it("escapes all untrusted display fields without granting more navigation",async()=>{
     const bad='<img src=x onerror="attack()">';
     const r=renderOAuthConsent({...view,groupTitle:bad,clientName:bad,login:bad},{locale:"en",theme:"doodle"});
-    const html=await r.text();expect(html).not.toContain("<img");expect(html).toContain("&lt;img");
-    expect(r.headers.get("content-security-policy")).toBe("default-src 'none'; style-src 'self'; form-action 'self' https://chatgpt.com; frame-ancestors 'none'; base-uri 'none';");
+    const html=await r.text();expect(html).not.toContain("<img src=x");expect(html).toContain("&lt;img");expect(html).toContain('src="/brand/mark.png"');
+    expect(r.headers.get("content-security-policy")).toBe("default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self' https://chatgpt.com; frame-ancestors 'none'; base-uri 'none';");
     expect(r.headers.get("referrer-policy")).toBe("same-origin");
     expect(r.headers.get("cache-control")).toBe("no-store");
   });

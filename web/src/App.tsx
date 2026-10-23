@@ -1,3 +1,5 @@
+import {Brand} from "./components/Brand";
+import {WorkspaceShell} from "./components/WorkspaceShell";
 import { StudioIcon } from "./components/StudioIcon";
 import { useBrowserAuth } from "./lib/useBrowserAuth";
 import { BrowserSecurity, GithubAuthSetup, SecondFactorGate } from "./components/BrowserSecurity";
@@ -962,7 +964,7 @@ export function App() {
       return (
         <>
           <main className="gate desktop-session-gate">
-            <h1 className="d-title gate-title">Agent<span className="d-hl"> Commons</span></h1>
+            <h1 className="d-title gate-title"><Brand/></h1>
             <p className="banner" role="status" aria-live="polite">{t("App.desktop.restoring")}</p>
           </main>
           <DesktopRecoveryUpdater />
@@ -973,7 +975,7 @@ export function App() {
       return (
         <>
           <main className="gate desktop-session-gate">
-            <h1 className="d-title gate-title">Agent<span className="d-hl"> Commons</span></h1>
+            <h1 className="d-title gate-title"><Brand/></h1>
             <section className="d-card gate-card">
               <p className="banner banner--red" role="alert">{t("App.desktop.restoreFailed")}</p>
               <ServerSwitcher
@@ -1083,7 +1085,7 @@ export function App() {
     return (
       <main className="gate">
         <h1 className="d-title gate-title">
-          Agent<span className="d-hl"> Commons</span>
+          <Brand/>
         </h1>
         <p className="banner" role="status" aria-live="polite">
           {t("App.status.signingIn")}
@@ -1097,7 +1099,7 @@ export function App() {
     return (
       <main className="gate">
         <h1 className="d-title gate-title">
-          Agent<span className="d-hl"> Commons</span>
+          <Brand/>
         </h1>
         {joinStatus?.phase === "error" ? (
           <>
@@ -1233,6 +1235,7 @@ export function App() {
   const unknownChannel =
     slug !== null && channels !== null && !channels.some((c) => c.slug === slug);
   const deploymentOrigin = desktop ? activeOrigin : apiOrigin();
+  const currentChannel = channels?.find(channel => channel.slug === slug);
 
   return (
     <div className="app">
@@ -1245,7 +1248,7 @@ export function App() {
             navigate("/");
           }}
         >
-          Agent<span className="d-hl"> Commons</span>
+          <Brand/>
         </a>
         <span className="d-hand app-tag">{t("App.tagline")}</span>
         <a className="app-docs t-mono" href="/docs">
@@ -1400,8 +1403,7 @@ export function App() {
           </span>
         </p>
       )}
-      <div className="app-shell">
-        <aside className="app-side">
+      <WorkspaceShell route={slug} navigationError={listError} navigation={<>
           {canCreate && token !== null && (
             <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
           )}
@@ -1423,8 +1425,14 @@ export function App() {
             onOpen={openChannel}
             onRetry={reloadChannels}
           />
-        </aside>
+        </>}>
         <main className="app-main">
+          {currentChannel && (
+            <header className="workspace-context">
+              <span>{t("Studio.workspace")}</span>
+              <h1 title={currentChannel.title || currentChannel.slug}>{currentChannel.title || currentChannel.slug}</h1>
+            </header>
+          )}
           {routeNotFound ? (
             <p className="banner banner--red" role="alert">
               {t("App.route.notFound")}
@@ -1485,7 +1493,7 @@ export function App() {
             <Home channels={channels} onOpen={openChannel} onCreate={canCreate?()=>setCreateGroupRequest(n=>n+1):undefined} />
           )}
         </main>
-      </div>
+      </WorkspaceShell>
       {/* 首次自动显示仍由组件记忆；设置入口可显式重开（#146 / #357）。 */}
       <OnboardingGuide
         forceOpen={guideOpen}

@@ -1,3 +1,4 @@
+import {Brand} from "./Brand";
 import { StudioIcon } from "./StudioIcon";
 import { useState } from "react";
 import { useT } from "../i18n/useT";
@@ -307,7 +308,7 @@ export function ServerProfileAddGate({
   const t = useT();
   return (
     <main className="gate desktop-server-add-gate">
-      <h1 className="d-title gate-title">Agent<span className="d-hl">Party</span></h1>
+      <h1 className="d-title gate-title"><Brand/></h1>
       <section className="d-card gate-card" aria-labelledby="desktop-server-add-title">
         <h2 id="desktop-server-add-title">{t("ServerProfiles.addPair")}</h2>
         <p>{t("ServerProfiles.addPair.hint")}</p>

@@ -1,3 +1,4 @@
+import {Brand} from "./Brand";
 import { githubLoginUrl, securityError } from "../lib/browserAuth";
 import "./browser-auth.css";
 // 登录闸（spec §10 双轨）：配置了 SSO provider 时先给 provider 登录，粘贴 token 始终保留
@@ -25,11 +26,11 @@ export function TokenGate({ error, providers, onSso, onSubmit, github }: Props) 
 
   return (
     <main className="gate">
+      <img className="gate-art" src="/brand/workspace.png" alt="" width="1448" height="1086"/>
       <h1 className="d-title gate-title">
-        Agent<span className="d-hl"> Commons</span>
+        <Brand/>
       </h1>
       <p className="d-hand gate-sub">{t("TokenGate.subtitle")}</p>
-      <OriginalProjectCredit />
       <div className="d-card gate-card">
         {github && <section className="browser-auth-stack">
           {github.configured ? <a className="d-btn d-btn--primary github-login-primary" href={githubLoginUrl()}>{locale === "zh" ? "使用 GitHub 登录" : "Continue with GitHub"}</a>
@@ -93,6 +94,7 @@ export function TokenGate({ error, providers, onSso, onSubmit, github }: Props) 
       <div className="gate-lang">
         <LanguageSwitcher />
       </div>
+      <details className="gate-project-credit"><summary>{locale === "zh" ? "项目、作者与开源许可" : "Project, authors & licenses"}</summary><OriginalProjectCredit /></details>
       <p className="gate-byline">
         {t("TokenGate.bylineBy")}
         <a href="https://github.com/zmnsQ" rel="author noopener noreferrer" target="_blank">

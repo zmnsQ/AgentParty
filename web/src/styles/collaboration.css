@@ -18,7 +18,7 @@
 .commons-panel { padding: 4px 0 12px; }
 .commons-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
 .commons-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.commons-primary { background: var(--commons-positive) !important; color: var(--t-panel) !important; border-color: var(--commons-positive) !important; }
+.commons-primary { background: var(--t-accent) !important; color: var(--t-accent-ink) !important; border-color: var(--t-accent) !important; }
 .commons-hub button:disabled { opacity: .55; cursor: not-allowed; }
 .commons-muted { color: var(--commons-muted); font-size: 12px; margin: 9px 0 !important; }
 .commons-note { background: var(--t-panel2); border-left: 3px solid var(--t-blue); padding: 10px 12px; margin: 12px 0 !important; color: var(--t-body); font-size: 12px; }
@@ -69,7 +69,7 @@
 .commons-endpoint input { font-family: var(--t-sans) !important; font-size: 11px !important; }
 .commons-repo-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 18px 0; }
 .commons-repo-card { text-align: left; background: var(--t-panel); border: 1px solid var(--t-faint); color: var(--t-text); padding: 14px; cursor: pointer; font: inherit; }
-.commons-repo-card.is-selected { border-color: var(--t-blue); box-shadow: inset 3px 0 var(--t-blue); background: var(--t-panel2); }
+.commons-repo-card.is-selected { border-color: var(--t-accent); box-shadow: none; background: var(--ac-accent-soft); }
 .commons-repo-card strong { display: block; overflow-wrap: anywhere; }
 .commons-repo-card span { color: var(--commons-muted); font-size: 11px; }
 .commons-pull { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-top: 1px solid var(--t-faint); }
@@ -108,7 +108,7 @@
 .commons-proposals { margin: 24px 0; border-top: 1px solid var(--t-faint); padding-top: 6px; }
 .commons-proposal-list { display: grid; gap: 9px; }
 .commons-proposal-card { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; width: 100%; border: 1px solid var(--t-faint); border-radius: 4px; padding: 14px; background: var(--t-panel); color: var(--t-text); cursor: pointer; font: inherit; text-align: left; }
-.commons-proposal-card.is-selected { border-color: var(--t-blue); background: var(--t-panel2); }
+.commons-proposal-card.is-selected { border-color: var(--t-accent); background: var(--ac-accent-soft); }
 .commons-proposal-card strong, .commons-proposal-card small, .commons-proposal-card code { display: block; overflow-wrap: anywhere; }
 .commons-proposal-card small, .commons-proposal-card code { font-size: 11px; color: var(--commons-muted); margin-top: 4px; }
 .commons-proposal-card > .commons-badge { flex: none; }

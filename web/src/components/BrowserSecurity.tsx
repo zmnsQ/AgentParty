@@ -1,3 +1,4 @@
+import {Brand} from "./Brand";
 import { useEffect, useState } from 'react';
 import { useLocale } from '../i18n/locale';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -16,7 +17,7 @@ function AuthPageFooter() {
 export function SecondFactorGate({ onVerified, onCancel }: { onVerified(): Promise<unknown>; onCancel(): Promise<unknown> }) {
   const { locale } = useLocale(); const zh = locale === 'zh';
   const [code, setCode] = useState(''), [recovery, setRecovery] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState<unknown>(null);
-  return <main className="gate"><section className="d-card browser-security"><h1>{zh ? '二步验证' : 'Two-step verification'}</h1>
+  return <main className="gate"><Brand/><section className="d-card browser-security"><h1>{zh ? '二步验证' : 'Two-step verification'}</h1>
     <p>{zh ? 'GitHub 身份已确认。请输入验证器中的 6 位验证码，完成本次登录。' : 'GitHub identity confirmed. Enter the six-digit authenticator code to finish signing in.'}</p>
     <form className="browser-auth-stack" onSubmit={async e => { e.preventDefault(); if (busy) return; setBusy(true); setError(null); try { await browserAuthRequest('/verify', { code, recovery }); setCode(''); await onVerified(); } catch (err) { setError(err); } finally { setBusy(false); } }}>
       <label>{recovery ? (zh ? '一次性恢复码' : 'One-time recovery code') : (zh ? '验证器验证码' : 'Authenticator code')}
@@ -43,7 +44,7 @@ export function BrowserSecurity() {
     window.dispatchEvent(new Event('commons-auth-refresh'));await reload();
   }
   function downloadCodes(){const blob=new Blob([`Agent Commons — ${status?.login??''}\nOne-time recovery codes. Keep offline and private.\n\n${codes.join('\n')}\n`],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='AgentCommons-recovery-codes.txt';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  return <main className="gate"><section className="d-card browser-security"><a href="/">← {zh?'返回协作空间':'Back to workspace'}</a><h1>{zh?'账号安全':'Account security'}</h1>
+  return <main className="gate"><Brand/><section className="d-card browser-security"><a href="/">← {zh?'返回协作空间':'Back to workspace'}</a><h1>{zh?'账号安全':'Account security'}</h1>
     <p>{zh?'GitHub 登录负责确认身份；本站验证器是独立的第二道验证。':'GitHub confirms your identity. This authenticator is an independent second verification step.'}</p>
     {error!==null&&<p className="banner banner--red" role="alert">{securityError(error,zh)}</p>}
     {!status&&error===null&&<p role="status">{zh?'正在读取设置…':'Loading settings…'}</p>}
@@ -68,7 +69,7 @@ export function GithubAuthSetup() {
   const [key]=useState(()=>new URLSearchParams(location.hash.slice(1)).get('key')??'');
   const [busy,setBusy]=useState(false),[error,setError]=useState<unknown>(null);
   useEffect(()=>{history.replaceState(null,'',location.pathname);},[]);
-  return <main className="gate"><section className="d-card browser-security"><h1>{zh?'配置 GitHub 登录':'Configure GitHub sign-in'}</h1><p>{zh?'在你的 GitHub 账号下创建一个专用登录应用。下一页由 GitHub 要求你确认；无需复制 Client Secret。':'Create a dedicated sign-in app under your GitHub account. GitHub will ask you to confirm; no Client Secret copy-pasting is needed.'}</p><p>{zh?'仅验证账号身份，不申请仓库读写权限。应用配置会直接加密保存在本服务器。':'Identity only, with no repository read/write permissions. The app configuration is encrypted on this server.'}</p>
+  return <main className="gate"><Brand/><section className="d-card browser-security"><h1>{zh?'配置 GitHub 登录':'Configure GitHub sign-in'}</h1><p>{zh?'在你的 GitHub 账号下创建一个专用登录应用。下一页由 GitHub 要求你确认；无需复制 Client Secret。':'Create a dedicated sign-in app under your GitHub account. GitHub will ask you to confirm; no Client Secret copy-pasting is needed.'}</p><p>{zh?'仅验证账号身份，不申请仓库读写权限。应用配置会直接加密保存在本服务器。':'Identity only, with no repository read/write permissions. The app configuration is encrypted on this server.'}</p>
     {!key&&<p className="banner" role="status">{zh?'请使用部署管理员提供的一次性初始化入口。普通登录不需要此步骤。':'Open the one-time setup entry provided by the administrator. Normal sign-in does not require this step.'}</p>}
     {error!==null&&<p className="banner banner--red" role="alert">{securityError(error,zh)}</p>}
     <button className="d-btn d-btn--primary" disabled={busy||!key} onClick={async()=>{setBusy(true);setError(null);try{const data=await browserAuthRequest<{action:string;manifest:Record<string,unknown>}>('/registration/start',{setup_key:key});const target=new URL(data.action);if(target.origin!=='https://github.com'||target.pathname!=='/settings/apps/new')throw new Error('invalid_setup_destination');const form=document.createElement('form');form.method='POST';form.action=target.toString();const field=document.createElement('input');field.type='hidden';field.name='manifest';field.value=JSON.stringify(data.manifest);form.appendChild(field);document.body.appendChild(form);form.submit();}catch(e){setError(e);setBusy(false);}}}>{busy?(zh?'正在前往 GitHub…':'Opening GitHub…'):(zh?'在 GitHub 创建登录应用':'Create sign-in app on GitHub')}</button><p><a href="/">{zh?'返回登录页':'Return to sign-in'}</a></p>

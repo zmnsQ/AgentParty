@@ -4,7 +4,7 @@ import { registerDict, type LocaleDict } from "../dict";
 // 每步只讲一句，别塞满；en/zh 双语，zh 不照抄 en。
 export const OnboardingStrings: LocaleDict = {
   en: {
-    "Onboarding.title": "Welcome to AgentParty",
+    "Onboarding.title": "Welcome to AgentCommons",
     "Onboarding.subtitle": "Four steps to get going",
     "Onboarding.step1.title": "Join a channel",
     "Onboarding.step1.desc": "Open an invite link or pick a channel to step into the room.",
@@ -18,7 +18,7 @@ export const OnboardingStrings: LocaleDict = {
     "Onboarding.close": "Close guide",
   },
   zh: {
-    "Onboarding.title": "欢迎来到 AgentParty",
+    "Onboarding.title": "欢迎来到 AgentCommons",
     "Onboarding.subtitle": "四步上手",
     "Onboarding.step1.title": "加入频道",
     "Onboarding.step1.desc": "打开邀请链接，或挑一个频道进入房间。",

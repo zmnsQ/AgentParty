@@ -1,3 +1,4 @@
+import {Brand} from "./Brand";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { useT } from "../i18n/useT";
 import "../i18n/strings/DesktopPairing";
@@ -83,7 +84,7 @@ export function DesktopPairingGateView({ state, pairing, onStart, onCancel, onEx
 
   return (
     <main className="gate desktop-pairing-gate">
-      <h1 className="d-title gate-title">Agent<span className="d-hl">Party</span></h1>
+      <h1 className="d-title gate-title"><Brand/></h1>
       <p className="gate-sub">{t("DesktopPairing.title")}</p>
       <section className="d-card gate-card desktop-pairing-card" aria-labelledby="desktop-pairing-title">
         <h2 id="desktop-pairing-title">{t("DesktopPairing.title")}</h2>
