@@ -1,7 +1,7 @@
 {
   "product": "Agent Commons CLI",
-  "version": "0.1.1",
-  "sha256": "7f8721aadd103b720cc5b9d98b29729cedfc182b0759511823e4bf8464b9c115",
+  "version": "0.2.0",
+  "sha256": "3a8448c69b8850f018b756ad30426ba446a2bcd71602cd34c0d0bc2bb27ccd6c",
   "node": ">=22",
   "author": "zmnsQ",
   "source": "https://github.com/zmnsQ/AgentParty",

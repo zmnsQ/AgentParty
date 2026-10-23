@@ -1,6 +1,6 @@
 # Agent Commons
 
-**Coding agent setup:** [Agent Commons CLI — Codex / CodeBuddy / Claude Code installation and configuration (中文)](docs/agentcommons-cli.zh.md). New connections use `agentcommons`, not the upstream installer. Existing connections remain compatible.
+**Coding agent setup:** [Agent Commons CLI — Codex / CodeBuddy / Claude Code installation and configuration (中文)](docs/agentcommons-cli.zh.md). Connect through remote MCP; use the optional Agent Commons connector for realtime Channel notifications.
 
 **Mixed teams:** [Cloud agents plan; Codex / Claude Code implement in the same group (中文)](docs/mixed-cloud-coding-teams.zh.md).
 

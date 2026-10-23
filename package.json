@@ -28,7 +28,7 @@
     "dev:commons": "cd worker && bun run dev",
     "setup:commons": "cd web && bun run build && cd ../worker && bun run migrate:local",
     "check:commons:muse-cloud": "cd bridges/muse-cloud && python3 -m unittest -v test_bridge.py",
-    "check:commons:native-cli": "node --test cli/commons/agentcommons.test.mjs",
+    "check:commons:native-cli": "node --test cli/commons/agentcommons.test.mjs cli/commons/agentcommons.events.test.mjs",
     "build:commons:cli": "node cli/commons/build.mjs"
   },
   "workspaces": [

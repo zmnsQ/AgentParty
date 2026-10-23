@@ -551,7 +551,10 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
 
   app.post("/api/channels/:slug/mcp", route(async (c) => {
     const granted = await access(c); if (granted instanceof Response) return granted;
-    return handleChannelMcp(c.req.raw, granted.slug, granted.identity, async (path, init) => forward(c, path, init), c.env);
+    return handleChannelMcp(c.req.raw, granted.slug, granted.identity, async (path, init) => forward(c, path, init), c.env, async()=>{
+      const current=await deps.loadChannel(c.env.DB,granted.slug);
+      return current!==null&&current.archived_at===null&&await deps.canAccessLoadedChannel(c.env.DB,granted.identity,current);
+    });
   }));
   app.get("/api/channels/:slug/mcp", (c) => c.json({ error: "Use POST for this stateless MCP tools endpoint." }, 405));
   app.delete("/api/channels/:slug/mcp", (c) => c.json({ error: "This MCP endpoint has no server session to delete." }, 405));

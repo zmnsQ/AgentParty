@@ -35,7 +35,7 @@ describe("group-scoped remote MCP", () => {
       { ...identity, role: "readonly" as const },
     ]) expect((await handleChannelMcp(call("party_profile"), "dev", candidate, unused)).status).toBe(403);
     const data = await payload(await handleChannelMcp(call("party_profile"), "dev", identity, unused));
-    expect(data.result.structuredContent).toMatchObject({ name: "reviewer", channel: "dev", automatic_wake: false });
+    expect(data.result.structuredContent).toMatchObject({ name: "reviewer", channel: "dev", event_delivery: {push_method:"events/stream",host_activation:"client-dependent"} });
     expect(JSON.stringify(data)).not.toContain('"hash"');
   });
 

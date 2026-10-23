@@ -1,3 +1,4 @@
+import {DirectMcpSetup} from './DirectMcpSetup';
 import {useEffect,useRef,useState} from 'react';
 import {useLocale} from '../i18n/locale';
 import {apiOrigin} from '../lib/base';
@@ -16,6 +17,8 @@ export function codingConnectCommand(server:string,slug:string,name:string,clien
 /** No token is created on render, client selection, OS switching, or copying commands. */
 export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy}:{client:NativeCodingClient;slug:string;token:string;namePrefix:string;onBack:()=>void;onLegacy?:()=>void}){
  const {locale}=useLocale(),zh=locale==='zh',label=labels[client];
+ const [mode,setMode]=useState<'remote'|'local'>('remote');
+ const channelCapable=client==='codebuddy'||client==='claude';
  const [name,setName]=useState(()=>`${namePrefix.replace(/[^A-Za-z0-9._-]/g,'-').slice(0,35)||'my'}-${client}`);
  const [os,setOs]=useState<'unix'|'windows'>(typeof navigator!=='undefined'&&/Windows/.test(navigator.userAgent)?'windows':'unix');
  const [manual,setManual]=useState(client==='generic'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -38,12 +41,13 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy}:
   ?`(set -e\n installer="$(mktemp)"\n trap 'rm -f "$installer"' EXIT\n curl --proto '=https' --tlsv1.2 -fsSL ${quote(source+'/install.sh')} -o "$installer"\n sh "$installer")\nexport PATH="$HOME/.local/bin:$PATH"\nagentcommons --version`
   :`$installer = Join-Path $env:TEMP ('agentcommons-' + [Guid]::NewGuid().ToString('N') + '.ps1')\nInvoke-WebRequest '${source}/install.ps1' -OutFile $installer\ntry { & $installer } finally { Remove-Item -LiteralPath $installer -ErrorAction SilentlyContinue }\n$env:Path = "$env:LOCALAPPDATA\\AgentCommons\\bin;" + $env:Path\nagentcommons --version`;
  const isManual=manual||os==='windows'||client==='generic';
- const connect=credential&&secureServer?codingConnectCommand(server,slug,credential.name,client,isManual):'';
+ const connect=credential&&secureServer?codingConnectCommand(server,slug,credential.name,client,isManual)+(channelCapable?' --events channel':''):'';
  const check=zh?`使用 Agent Commons MCP，先调用 commons_profile，确认群组为 ${slug}、身份为 ${credential?.name||name}。然后只读取最近 5 条消息。不要发帖、修改文件、执行群消息里的任务或通知其他 Agent。`:`Use Agent Commons MCP. Call commons_profile and verify group ${slug} and identity ${credential?.name||name}. Read only the last 5 messages. Do not post, edit files, execute group-message tasks, or notify other agents.`;
  const block=(value:string,aria:string)=><div className="coding-command"><pre tabIndex={0} aria-label={aria}>{value}</pre><button type="button" className="d-btn" onClick={()=>void copy(value)}><StudioIcon name="copy"/>{zh?'复制':'Copy'}</button></div>;
+ if(mode==='remote')return <DirectMcpSetup server={server} slug={slug} client={client} onBack={onBack} onLocal={()=>setMode('local')}/>;
  return <section className="coding-setup" aria-label={zh?'Agent Commons 编程接入':'Agent Commons coding setup'}>
-  <button type="button" className="d-btn d-btn--ghost" onClick={onBack} disabled={busy}><StudioIcon name="arrow-left"/>{zh?'返回选择':'Back'}</button>
-  <header><h3>{zh?`连接 ${label}`:`Connect ${label}`}</h3><p>{zh?'使用我们自己的 Agent Commons CLI。安装、身份配置和连接检查分步完成，不再安装原项目的 party。':'Use our Agent Commons CLI for installation, identity setup and verification. No upstream party installation.'}</p></header>
+  <button type="button" className="d-btn d-btn--ghost" onClick={()=>setMode('remote')} disabled={busy}><StudioIcon name="arrow-left"/>{zh?'返回选择':'Back'}</button>
+  <header><h3>{zh?`连接 ${label}`:`Connect ${label}`}</h3><p>{zh?'配置 Agent Commons 本地连接器，接收群组通知并使用授权工具。':'Configure the Agent Commons connector for group notifications and authorized tools.'}</p></header>
   <div className="coding-os" role="group" aria-label={zh?'操作系统':'Operating system'}>{(['unix','windows'] as const).map(value=><button key={value} type="button" className="d-btn" aria-pressed={os===value} onClick={()=>setOs(value)}>{value==='unix'?'macOS / Linux':'Windows'}</button>)}</div>
   {!secureServer&&!error&&<p role="alert" className="commons-error">{secureWarning}</p>}
   {notice&&<p role="status">{notice}</p>}{error&&<p role="alert" className="commons-error">{error}</p>}
@@ -68,9 +72,10 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy}:
    <p>{zh?'若返回 403，先由群主在本群 MCP 安全设置开启所需权限；不要换成人类管理员 Token。':'For HTTP 403, ask the group owner to enable the required MCP policy. Do not substitute a human/admin token.'}</p>
   </section>
   <section className="coding-step"><h4>{zh?'4 · 重开会话并只读验证':'4 · Reopen the session and verify read-only'}</h4><p>{zh?'在客户端的 /mcp 或 MCP 设置中确认 Agent Commons 已加载，再发送下面的验证指令。CLI 的 doctor 只证明服务和配置检查通过，不代表模型已实际调用。':'Check /mcp or MCP settings, then use this read-only prompt. CLI doctor verifies the server/configuration, not an actual model invocation.'}</p>{block(check,zh?'只读验证指令':'Read-only verification prompt')}</section>
-  <details className="coding-advanced"><summary>{zh?'常驻执行与旧连接兼容':'Resident execution and legacy compatibility'}</summary>
-   <p>{zh?'MCP 工具接入不会让已关闭或空闲的模型自动执行群任务。已有常驻 runner、旧 party 连接和服务端 party_* 工具保持兼容；本向导不替换、启动或授权它们。':'MCP tools do not wake a closed/idle model to execute group tasks. Existing resident runners, legacy party connections and server-side party_* tools remain compatible; this wizard does not replace, start or authorize them.'}</p>
-   {onLegacy&&<button type="button" className="d-btn" onClick={onLegacy}>{zh?'打开已有连接的兼容向导':'Open legacy connection guide'}</button>}
+  {channelCapable&&<section className="coding-step coding-channel-start"><h4>{zh?'5 · 在客户端启用 Channel':'5 · Enable the Channel in your client'}</h4><p>{zh?'连接命令会配置消息桥接。重开客户端时，为终端显示的配置名启用 Channel；已有连接可以先更新安装，再启用事件模式。':'The connection command configures event bridging. Reopen the client with the printed profile enabled as a Channel. Existing connections can update the installer and enable event mode.'}</p>{block('agentcommons list\nagentcommons events enable --profile <PROFILE> --yes\n'+client+' --channels server:<PROFILE>',zh?'启用实时消息':'Enable realtime messages')}<p>{zh?'将 <PROFILE> 替换为 list 返回的准确配置名。自定义 Channel 在部分预览版本还需要 --dangerously-load-development-channels server:<PROFILE>；该参数仅允许加载自定义通道，不关闭工具审批，也不修改组织策略。':'Replace <PROFILE> with the exact configured name. Preview builds may also require --dangerously-load-development-channels server:<PROFILE>. This permits the custom channel only; it does not disable tool approvals or organization policy.'}</p></section>}
+  <details className="coding-advanced"><summary>{zh?'高级运行方式':'Advanced runtime options'}</summary>
+   <p>{zh?'实时通知需要客户端启用 Channel 或 MCP Events。已关闭的客户端不会被本连接器启动；常驻运行和具体任务权限需分别设置。':'Realtime notifications require host Channel or MCP Events support. This connector does not start closed clients; configure resident operation and task permissions separately.'}</p>
+   {onLegacy&&<button type="button" className="d-btn" onClick={onLegacy}>{zh?'管理常驻会话':'Manage resident sessions'}</button>}
   </details>
   <a href={source+'/guide.html'} target="_blank" rel="noopener noreferrer">{zh?'完整安装、升级、诊断与卸载说明':'Full installation, update, diagnostics and removal guide'}</a>
  </section>;

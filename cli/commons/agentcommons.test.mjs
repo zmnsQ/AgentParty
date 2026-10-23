@@ -53,7 +53,7 @@ for(const client of ['codex','codebuddy','claude'])test(`${client}: complete sec
  assert.ok(f.calls.every(c=>c.url==='/api/me'||['initialize','tools/list'].includes(JSON.parse(c.body).method)));
  assert.equal((await run(flags(f.origin,client),f.env,secret)).code,0);
  const config=await run(['config','--profile',p],f.env);assert.ok(!config.out.includes(secret));assert.match(config.out,client==='codex'?/mcp_servers/:/mcpServers/);
- const doctor=await run(['doctor','--profile',p],f.env);assert.equal(doctor.code,0,doctor.err);assert.equal(JSON.parse(doctor.out).automaticWake,false);
+ const doctor=await run(['doctor','--profile',p],f.env);assert.equal(doctor.code,0,doctor.err);assert.equal(JSON.parse(doctor.out).modelStarted,false);assert.equal(JSON.parse(doctor.out).hostActivation,"unverified");
  const removed=await run(['disconnect','--profile',p,'--yes'],f.env);assert.equal(removed.code,0,removed.err);assert.equal(existsSync(path),false);assert.equal(existsSync(f.env.AC_TEST_LOG),false);
 }));
 test('stdio initialize, tools/list and calls translate exactly; no diagnostics on stdout',()=>fixture(async f=>{

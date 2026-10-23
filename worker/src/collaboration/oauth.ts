@@ -1,3 +1,4 @@
+import {nativeCliRedirect,nativeCliRedirects} from './native-cli';
 import {MUSE_NATIVE_REDIRECT,MUSE_PUBLIC_PKCE,nativeMuseRedirects,nativeMuseScope} from "./muse-native";
 import {renderOAuthConsent,renderOAuthGroupChoice,renderOAuthProblem,oauthPresentation} from "./oauth-pages";
 import type { Hono, Context } from "hono";
@@ -27,6 +28,7 @@ function uri(env:AppEnv):string{
   return u.origin;
 }
 function validRedirect(value:unknown,env:AppEnv):value is string{
+  if(nativeCliRedirect(value))return true;
   if(typeof value!=="string"||value.length>1000||/[\\\s%]/.test(value))return false;
   let u:URL;try{u=new URL(value);}catch{return false;}
   if(u.protocol!=="https:"||u.username||u.password||u.hash||u.search||u.pathname==="/")return false;
@@ -259,12 +261,13 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     const clientId=p.client_id??"",redirect=p.redirect_uri??"";
     const target=await client(c.env.DB,clientId);
     const nativeMuse=!!target&&nativeMuseRedirects(target.redirects_json);
+    const nativeCli=!!target&&nativeCliRedirects(target.redirects_json);
     const resource=p.resource??(target?.channel_slug?publicUrlForSlug(c.env,target.channel_slug):"");
-    const scope=p.scope??(target?.provider==="muse"||nativeMuse?"group.read":"");
+    const scope=p.scope??(target?.provider==="muse"||nativeMuse||nativeCli?"group.read":"");
     const scopes=definedScopes(nativeMuse?nativeMuseScope(scope):scope),slug=channelFromResource(resource,c.env);
     // A native public client without RFC 8707 resource must explicitly select
     // an owned group. Never infer a group from a name, cookie or last visit.
-    const chooseGroup=nativeMuse&&!resource&&!target?.channel_slug;
+    const chooseGroup=(nativeMuse||nativeCli)&&!resource&&!target?.channel_slug;
     if(target?.channel_slug&&slug!==target.channel_slug)return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
     if(!target||(!slug&&!chooseGroup)||!scopes||p.response_type!=="code"||p.code_challenge_method!=="S256"||
       !CHALLENGE.test(p.code_challenge??"")||!STATE.test(p.state??"")||
@@ -404,7 +407,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     let resource=p.get("resource")??(registered.channel_slug?publicUrlForSlug(c.env,registered.channel_slug):"");
     // Only the exact native callback may omit resource. Recover the audience
     // exclusively from a previously issued, client-bound code/refresh grant.
-    if(!p.has("resource")&&!resource&&nativeMuseRedirects(registered.redirects_json)){
+    if(!p.has("resource")&&!resource&&(nativeMuseRedirects(registered.redirects_json)||nativeCliRedirects(registered.redirects_json))){
       const grant=p.get("grant_type"),code=p.get("code")??"",refresh=p.get("refresh_token")??"";
       if(grant==="authorization_code"&&/^acco_[a-f0-9]{64}$/.test(code)){
         const record=await c.env.DB.prepare("SELECT resource FROM connector_oauth_codes WHERE code_hash=? AND client_id=? AND redirect_uri=? AND expires_at>?")
