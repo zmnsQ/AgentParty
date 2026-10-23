@@ -18,22 +18,29 @@ function memoryStorage(seed: Record<string, string> = {}): Storage {
 }
 
 let renderer: ReactTestRenderer | null = null;
+const originalGlobals = new Map<string, PropertyDescriptor | undefined>();
+
+function stubGlobal(key: string, value: unknown) {
+  if (!originalGlobals.has(key)) originalGlobals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+  Object.defineProperty(globalThis, key, { configurable: true, value });
+}
 
 beforeEach(() => {
-  Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });
+  stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 });
 
 afterEach(async () => {
   if (renderer !== null) await act(async () => renderer?.unmount());
   renderer = null;
-  Reflect.deleteProperty(globalThis, "localStorage");
+  for (const [key, descriptor] of originalGlobals) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+    else Reflect.deleteProperty(globalThis, key);
+  }
+  originalGlobals.clear();
 });
 
 function renderWithStorage(storage: Storage): ReactTestRenderer {
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: storage,
-  });
+  stubGlobal("localStorage", storage);
   let value!: ReactTestRenderer;
   void act(() => {
     value = create(
@@ -61,7 +68,11 @@ describe("ChannelToolstrip progressive disclosure", () => {
   test("starts collapsed and excludes hidden actions from keyboard navigation", () => {
     const r = render();
     expect(toggle(r).props["aria-expanded"]).toBe(false);
-    expect(r.root.find(n => n.type === "div" && n.props.id === "channel-toolstrip-content").props.inert).toBe(true);
+    const content = r.root.find(n => n.type === "div" && n.props.id === "channel-toolstrip-content");
+    expect(toggle(r).props["aria-controls"]).toBe(content.props.id);
+    expect(content.props.inert).toBe(true);
+    expect(content.props["aria-hidden"]).toBe(true);
+    expect(content.findAllByType("button")).toHaveLength(2);
   });
   test("expands, collapses and restores the saved preference", async () => {
     const r = render();
@@ -84,5 +95,23 @@ describe("ChannelToolstrip progressive disclosure", () => {
     expect(toggle(r).props["aria-expanded"]).toBe(false);
     await act(async () => toggle(r).props.onClick());
     expect(toggle(r).props["aria-expanded"]).toBe(true);
+  });
+  test("mobile exposes one menu and preserves mounted actions without changing desktop preference", async () => {
+    stubGlobal("window", { matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) });
+    stubGlobal("document", { getElementById: () => null });
+    const r = render({ ap_channel_tools_expanded: "1" });
+    const menu = r.root.findByProps({ className: "mobile-channel-more" });
+    const overlay = () => r.root.findByProps({ className: "mobile-channel-menu-overlay" });
+    const action = r.root.find(n => n.type === "button" && n.children[0] === "Notify");
+    expect(r.root.findAll(n => n.props.className === "d-btn chan-toolstrip-toggle")).toHaveLength(0);
+    expect(r.root.findAll(n => n.type === "button" && n.children[0] === "Notify")).toHaveLength(1);
+    expect(overlay().props.hidden).toBe(true);
+    await act(async () => menu.props.onClick());
+    expect(overlay().props.hidden).toBe(false);
+    expect(menu.props["aria-expanded"]).toBe(true);
+    await act(async () => r.root.findByProps({ className: "mobile-icon-button" }).props.onClick());
+    expect(overlay().props.hidden).toBe(true);
+    expect(r.root.find(n => n.type === "button" && n.children[0] === "Notify")).toBe(action);
+    expect(localStorage.getItem("ap_channel_tools_expanded")).toBe("1");
   });
 });

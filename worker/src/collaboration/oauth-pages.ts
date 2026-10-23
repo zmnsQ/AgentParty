@@ -90,3 +90,14 @@ export function renderOAuthProblem(request:Request,code:OAuthProblem,status:numb
   const body=`<section class="oauth-result"><span class="oauth-result-icon">${icon("alert")}</span><p class="oauth-eyebrow">${zh?"连接未完成":"CONNECTION NOT COMPLETED"}</p><h1>${esc(copy[0])}</h1><p class="oauth-lead" role="alert">${esc(copy[1])}</p><p>${esc(copy[2])}</p><aside class="oauth-boundary">${icon("shield")}<p>${zh?"本页面没有授予任何新的访问权限。":"This page has not granted any new access."}</p></aside><a class="oauth-button oauth-button-primary" href="${primary}">${primaryLabel}${icon("arrow")}</a><details class="oauth-error-detail"><summary>${zh?"查看错误标识":"View error reference"}</summary><code>${code}</code></details></section>`;
   return documentPage(copy[0],body,p,"no-referrer",status);
 }
+
+/** GET only selects the audience; POST consent with a session-bound nonce is
+ * still mandatory. Untrusted metadata is escaped; no secret is embedded. */
+export function renderOAuthGroupChoice(v:{clientName:string;groups:Array<{slug:string;title:string|null;resource:string}>;params:Record<string,string>},p:OAuthPresentation):Response{
+ const zh=p.locale==="zh",title=zh?"选择要连接的群组":"Choose a group to connect";
+ const allowed=["client_id","redirect_uri","response_type","scope","state","code_challenge","code_challenge_method"];
+ const hidden=allowed.filter(key=>v.params[key]!==undefined).map(key=>`<input type="hidden" name="${key}" value="${esc(v.params[key]!)}">`).join("");
+ const options=v.groups.map(group=>`<option value="${esc(group.resource)}">${esc(group.title||group.slug)} · #${esc(group.slug)}</option>`).join("");
+ const body=`<section class="oauth-intro"><h1>${title}</h1><p class="oauth-lead">${esc(v.clientName)} ${zh?"未指定群组。请选择本次要连接的一个群组，下一步核对权限。":"did not specify a group. Select one group, then review its permissions."}</p></section><section class="oauth-actions-section"><form method="GET" action="/oauth/authorize">${hidden}<label class="oauth-group-label" for="oauth-group">${zh?"仅连接此群组":"Connect this group only"}</label><select class="oauth-group-select" id="oauth-group" name="resource" required><option value="">${zh?"请选择群组":"Choose a group"}</option>${options}</select><button class="oauth-button oauth-button-primary" type="submit">${zh?"继续核对权限":"Continue to review access"}</button></form><p class="oauth-fineprint">${zh?"这一步不会授予访问权限，也不会自动选择其他群组。":"This step does not grant access or automatically choose another group."}</p></section>`;
+ return documentPage(title,body,p,"same-origin");
+}

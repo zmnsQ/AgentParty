@@ -1,0 +1,156 @@
+{
+  "source": "Isolated real React components and actual server-rendered OAuth forms; synthetic identity and intercepted network. Not a real iPhone or signed-in Muse account.",
+  "web_unit_tests": {
+    "passed": 76,
+    "failed": 0
+  },
+  "worker_tests": {
+    "passed": 69,
+    "failed": 0
+  },
+  "interaction_cases": [
+    {
+      "width": 320,
+      "lang": "zh",
+      "theme": "doodle",
+      "screenWidth": 320,
+      "scroll": 320,
+      "layout": "flex",
+      "passed": true,
+      "verified": [
+        "drawer",
+        "no page overflow",
+        "portal",
+        "coding flow",
+        "Muse endpoint",
+        "settings",
+        "small height",
+        "no implicit writes"
+      ]
+    },
+    {
+      "width": 390,
+      "lang": "zh",
+      "theme": "doodle",
+      "screenWidth": 390,
+      "scroll": 390,
+      "layout": "flex",
+      "passed": true,
+      "verified": [
+        "drawer",
+        "no page overflow",
+        "portal",
+        "coding flow",
+        "Muse endpoint",
+        "settings",
+        "small height",
+        "no implicit writes"
+      ]
+    },
+    {
+      "width": 430,
+      "lang": "en",
+      "theme": "midnight",
+      "screenWidth": 430,
+      "scroll": 430,
+      "layout": "flex",
+      "passed": true,
+      "verified": [
+        "drawer",
+        "no page overflow",
+        "portal",
+        "coding flow",
+        "Muse endpoint",
+        "settings",
+        "small height",
+        "no implicit writes"
+      ]
+    },
+    {
+      "width": 390,
+      "lang": "en",
+      "theme": "midnight",
+      "screenWidth": 390,
+      "scroll": 390,
+      "layout": "flex",
+      "passed": true,
+      "verified": [
+        "drawer",
+        "no page overflow",
+        "portal",
+        "coding flow",
+        "Muse endpoint",
+        "settings",
+        "small height",
+        "no implicit writes"
+      ]
+    },
+    {
+      "width": 980,
+      "screen": 390,
+      "lang": "zh",
+      "theme": "doodle",
+      "screenWidth": 390,
+      "scroll": 980,
+      "layout": "flex",
+      "passed": true,
+      "verified": [
+        "drawer",
+        "no page overflow",
+        "portal",
+        "coding flow",
+        "Muse endpoint",
+        "settings",
+        "small height",
+        "no implicit writes"
+      ]
+    },
+    {
+      "width": 1280,
+      "lang": "en",
+      "theme": "doodle",
+      "desktop": true,
+      "screenWidth": 1280,
+      "scroll": 1280,
+      "layout": "grid",
+      "passed": true,
+      "verified": [
+        "drawer",
+        "no page overflow",
+        "portal",
+        "coding flow",
+        "Muse endpoint",
+        "settings",
+        "small height",
+        "no implicit writes"
+      ]
+    }
+  ],
+  "native_consent_cases": [
+    {
+      "width": 320,
+      "locale": "zh",
+      "theme": "doodle",
+      "nativeGroupSelection": true,
+      "nativeApproveClick": true,
+      "sameOriginPost": true
+    },
+    {
+      "width": 390,
+      "locale": "zh",
+      "theme": "doodle",
+      "nativeGroupSelection": true,
+      "nativeApproveClick": true,
+      "sameOriginPost": true
+    },
+    {
+      "width": 430,
+      "locale": "en",
+      "theme": "midnight",
+      "nativeGroupSelection": true,
+      "nativeApproveClick": true,
+      "sameOriginPost": true
+    }
+  ],
+  "production_schema_changes": false
+}

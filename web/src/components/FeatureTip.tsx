@@ -1,3 +1,4 @@
+import {StudioIcon} from "./StudioIcon";
 // 功能级 tips 引导（#145）。一个轻量、可复用的 hover/focus 提示：在功能旁放一个「?」小圆点，
 // 指上去（或键盘聚焦）弹出一句话解释「这个按钮/区域是干嘛的」。和 #146 的首次总览浮层是两回事——
 // 那个是一次性四步总览，这个是常驻在具体控件旁、按需查看、不落任何持久化标记（不造新机制）。
@@ -23,7 +24,7 @@ export function FeatureTip({ tip, className }: Props) {
         aria-label={t("Tips.ariaHelp")}
         aria-describedby={bubbleId}
       >
-        ?
+        <StudioIcon name="help" size={16}/>
       </button>
       <span className="feature-tip-bubble t-mono" role="tooltip" id={bubbleId}>
         {t(tip)}

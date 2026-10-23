@@ -1,0 +1,66 @@
+/* Chat-first composition. The primary screen has a group header, one status
+   line, a scrollable transcript and a single-row composer. Management is opt-in. */
+.msg-time-compact {display:none;}
+.composer-secondary-actions { display: contents; }
+:root .feature-tip-dot {display:inline-grid;place-items:center;width:24px;height:24px;min-height:24px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--t-muted);}
+:root .feature-tip-dot .studio-icon {--icon-size:16px;}
+.composer-secondary-actions[hidden], .mobile-channel-menu-overlay[hidden] { display: none !important; }
+.mobile-channel-more,.mobile-icon-button,.composer-more { display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:12px;color:var(--t-body);background:transparent;cursor:pointer; }
+.mobile-channel-more:hover,.mobile-icon-button:hover,.composer-more:hover { background:var(--ac-hover); }
+.mobile-channel-menu-overlay {position:fixed;inset:0;z-index:270;display:flex;align-items:flex-end;isolation:isolate;}
+.mobile-channel-menu-scrim {position:absolute;inset:0;border:0;background:var(--ac-backdrop);}
+.mobile-channel-menu-sheet {position:relative;width:100%;max-height:85%;overflow:auto;overscroll-behavior:contain;background:var(--t-panel);border-radius:20px 20px 0 0;padding:12px 16px max(20px,env(safe-area-inset-bottom));}
+.mobile-channel-menu-sheet>header {display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.mobile-channel-menu-sheet h2 {font:600 17px/1.5 var(--t-sans);margin:0;}
+.mobile-channel-menu-sheet h3 {font:500 12px/1.5 var(--t-sans);color:var(--t-muted);margin:16px 0 8px;}
+:root .mobile-channel-menu-sheet :is(.chan-tool-buttons,.chan-tool-actions) {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px;margin:0;}
+:root .mobile-channel-menu-sheet :is(.chan-admin-actions,.chan-admin-group,.agent-join,.agenttokens) {display:contents;}
+:root .mobile-channel-menu-sheet .d-btn {width:100%;min-height:48px;justify-content:flex-start;gap:10px;padding:12px;border:0;border-radius:12px;box-shadow:none;background:var(--t-panel2);color:var(--t-text);font:500 14px/1.4 var(--t-sans);white-space:normal;}
+:root .mobile-channel-menu-sheet .d-btn:hover {background:var(--ac-hover);}
+:root .mobile-channel-menu-sheet .chan-tool-badge {display:none;}
+:root .mobile-channel-menu-sheet .studio-icon {--icon-size:20px;}
+.mobile-drawer-actions {display:grid;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--t-faint);}
+.mobile-drawer-notify {padding:4px 8px;}
+@media (max-width:760px), (max-device-width:760px) and (pointer:coarse) {
+ :root.ac-mobile .app--channel>.app-head {display:none;}
+ :root.ac-mobile .app--channel .chan {gap:0;}
+ :root.ac-mobile .mobile-groupbar {display:flex;align-items:center;gap:4px;padding:4px 8px;min-height:56px;background:var(--t-panel);}
+ :root.ac-mobile .mobile-group-toggle {flex:1;min-width:0;min-height:44px;padding:6px 8px;gap:10px;}
+ :root.ac-mobile .mobile-group-toggle>span {font-size:16px;font-weight:600;}
+ :root.ac-mobile #mobile-channel-menu-slot {flex:none;}
+ :root.ac-mobile .mobile-group-toggle .studio-icon {--icon-size:20px;}
+ :root.ac-mobile .presence-bar {flex:none;padding:0 12px;border:0;background:var(--t-bg);}
+ :root.ac-mobile .presence-mobile-summary {width:100%;min-height:36px;display:flex;align-items:center;gap:7px;padding:4px 4px;border:0;background:transparent;color:var(--t-muted);font:12px/1.4 var(--t-sans);text-align:left;}
+ :root.ac-mobile .presence-mobile-summary>.studio-icon {margin-left:auto;}
+ .presence-mobile-dot {width:6px;height:6px;border-radius:50%;background:var(--d-amber);flex:none;}
+ .presence-mobile-dot[data-status=open] {background:var(--t-green);}
+ .presence-mobile-attention {font-size:11px;color:var(--t-muted);margin-left:4px;}
+ :root.ac-mobile .mobile-roster-overview {display:grid;gap:8px;margin-bottom:16px;}
+ :root.ac-mobile .mobile-roster-overview .focus-inline {max-width:100%;flex-wrap:wrap;}
+ :root.ac-mobile .stream {padding:8px 12px 14px;gap:10px;scrollbar-gutter:auto;}
+ :root.ac-mobile .stream .msg-card {flex:0 0 auto;padding:12px;min-width:0;width:100%;border-radius:12px;animation:none;}
+ :root.ac-mobile .stream .msg-card--own {margin-block:4px;background:color-mix(in srgb,var(--t-accent) 6%,var(--t-panel));}
+ :root.ac-mobile .msg-head {display:flex;align-items:center;flex-wrap:nowrap;gap:6px;margin-bottom:6px;font-size:11px;}
+ :root.ac-mobile .msg-head-main {width:auto;flex:1 1 0;min-width:0;gap:6px;flex-wrap:nowrap;overflow:hidden;}
+ :root.ac-mobile .msg-head-main>.msg-agent-popover {flex:0 1 auto;min-width:0;}
+ :root.ac-mobile .msg-head-main>.msg-agent-popover:has(.msg-mention) {display:none;}
+ :root.ac-mobile .msg-head-main .msg-sender {max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+ :root.ac-mobile .msg-head-meta {width:auto;flex:none;gap:4px;margin-left:auto;white-space:nowrap;}
+ :root.ac-mobile .msg-time-full,:root.ac-mobile .msg-head-meta .msg-seq {display:none;}
+ :root.ac-mobile .msg-time-compact {display:inline;color:var(--t-muted);font:11px/1.4 var(--t-sans);}
+ :root.ac-mobile .msg-body {font:15px/1.7 var(--t-sans);}
+ :root.ac-mobile .composer {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:end;gap:4px;flex:none;min-height:58px;max-height:45%;margin:0 10px max(8px,env(safe-area-inset-bottom));padding:6px;border:1px solid var(--t-faint);border-radius:16px;box-shadow:none;background:var(--t-panel);}
+ :root.ac-mobile .composer-more {grid-column:1;grid-row:1;align-self:end;}
+ :root.ac-mobile .composer-input {grid-column:2;grid-row:1;align-self:center;width:100%;min-width:0;min-height:44px;max-height:120px;flex:none;margin:0;padding:10px 4px;border:0;box-shadow:none;border-radius:0;font:16px/24px var(--t-sans);}
+ :root.ac-mobile .composer-actions {display:contents;}
+ :root.ac-mobile .composer-actions .composer-send {grid-column:3;grid-row:1;width:44px;height:44px;min-height:44px;margin:0;padding:0;border:0;border-radius:12px;box-shadow:none;align-self:end;background:var(--t-accent);color:var(--t-accent-ink);}
+ :root.ac-mobile .composer-send-label,:root.ac-mobile .composer-keyboard-hint {display:none;}
+ :root.ac-mobile .composer .studio-icon {--icon-size:20px;}
+ :root.ac-mobile .composer-secondary-actions:not([hidden]) {grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 2px 2px;border-top:1px solid var(--t-faint);}
+ :root.ac-mobile .composer-secondary-actions .d-btn {min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:var(--t-panel2);font:500 13px/1.4 var(--t-sans);}
+ :root.ac-mobile .composer>:is(.composer-reach,.composer-attachments,.composer-uploads,.composer-upload-error,.composer-paste-error) {grid-column:1/-1;max-height:100px;overflow:auto;margin:0;font-size:12px;}
+ :root.ac-mobile .composer .mention-menu {max-height:min(240px,45dvh);max-width:100%;left:0;right:0;}
+ :root.ac-mobile .mobile-channel-menu-overlay {inset:calc(var(--ac-viewport-top,0px)/var(--ac-layout-scale,1)) 0 auto;height:calc(var(--ac-viewport-height,100dvh)/var(--ac-layout-scale,1));}
+ :root.ac-mobile .mobile-channel-menu-sheet {max-height:90%;}
+ :root.ac-mobile .msg-menu-trigger {width:32px;height:32px;min-height:32px;padding:0;border:0;box-shadow:none;background:transparent;border-radius:8px;}
+}

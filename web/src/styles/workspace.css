@@ -172,3 +172,7 @@
 :root .browser-security>h1{font:650 24px/1.4 var(--t-sans);letter-spacing:-.6px;margin-top:0}
 :root .onboarding-card{border:1px solid var(--t-border);border-radius:22px;padding:28px}
 :root .onboarding-card .onboarding-close{border:0;background:transparent;min-height:36px;min-width:36px;display:grid;place-items:center}
+
+/* Phone navigation owns the group title and action menu in one compact row. */
+:root.ac-mobile .workspace-context{display:none}
+:root.ac-mobile .mobile-drawer-actions .commons-brand{font-size:16px}

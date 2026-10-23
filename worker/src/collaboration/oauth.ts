@@ -1,4 +1,6 @@
-import {renderOAuthConsent,renderOAuthProblem,oauthPresentation} from "./oauth-pages";
+import {nativeCliRedirect,nativeCliRedirects} from './native-cli';
+import {MUSE_NATIVE_REDIRECT,MUSE_PUBLIC_PKCE,nativeMuseRedirects,nativeMuseScope} from "./muse-native";
+import {renderOAuthConsent,renderOAuthGroupChoice,renderOAuthProblem,oauthPresentation} from "./oauth-pages";
 import type { Hono, Context } from "hono";
 import type { AppContext, AppEnv } from "../index";
 import type { TokenIdentity } from "../auth";
@@ -26,9 +28,11 @@ function uri(env:AppEnv):string{
   return u.origin;
 }
 function validRedirect(value:unknown,env:AppEnv):value is string{
+  if(nativeCliRedirect(value))return true;
   if(typeof value!=="string"||value.length>1000||/[\\\s%]/.test(value))return false;
   let u:URL;try{u=new URL(value);}catch{return false;}
   if(u.protocol!=="https:"||u.username||u.password||u.hash||u.search||u.pathname==="/")return false;
+  if(value===MUSE_NATIVE_REDIRECT)return true;
   const trusted=["https://chatgpt.com","https://platform.openai.com"];
   // Other providers are deliberately opt-in by deployment administrators.
   let allowlist:unknown;
@@ -231,8 +235,8 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     if(!input||typeof input!=="object"||Array.isArray(input))return simple("invalid_client_metadata");
     const item=input as Record<string,unknown>;
     if(!Array.isArray(item.redirect_uris)||!item.redirect_uris.length||item.redirect_uris.length>5||
-      item.redirect_uris.some(x=>!validRedirect(x,c.env))||
-      item.token_endpoint_auth_method!==undefined&&item.token_endpoint_auth_method!=="none")return simple("invalid_redirect_uri");
+      item.redirect_uris.some(x=>!validRedirect(x,c.env)))return simple("invalid_redirect_uri");
+    if(item.token_endpoint_auth_method!==undefined&&item.token_endpoint_auth_method!=="none")return simple("invalid_client_metadata");
     // DCR is intentionally available to public MCP clients, but it must not
     // provide an unbounded D1 write primitive to anonymous internet traffic.
     const now=Date.now();
@@ -243,7 +247,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
       .bind("oauth-dcr:"+clientIp,now,now-600_000,now-600_000).first<{attempts:number}>();
     if(!rate||rate.attempts>20)return simple("rate_limited",429);
     const clientId="accli_"+random();
-    const name=typeof item.client_name==="string"?item.client_name.slice(0,80):"ChatGPT MCP client";
+    const name=typeof item.client_name==="string"?item.client_name.slice(0,80):"MCP client";
     try {
       await c.env.DB.prepare("INSERT INTO connector_oauth_clients(client_id,name,redirects_json,created_at) VALUES(?,?,?,?)")
         .bind(clientId,name,JSON.stringify(item.redirect_uris),Date.now()).run();
@@ -256,22 +260,39 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     const p=c.req.query();
     const clientId=p.client_id??"",redirect=p.redirect_uri??"";
     const target=await client(c.env.DB,clientId);
+    const nativeMuse=!!target&&nativeMuseRedirects(target.redirects_json);
+    const nativeCli=!!target&&nativeCliRedirects(target.redirects_json);
     const resource=p.resource??(target?.channel_slug?publicUrlForSlug(c.env,target.channel_slug):"");
-    const scope=p.scope??(target?.provider==="muse"?"group.read":"");
-    const scopes=definedScopes(scope),slug=channelFromResource(resource,c.env);
+    const scope=p.scope??(target?.provider==="muse"||nativeMuse||nativeCli?"group.read":"");
+    const scopes=definedScopes(nativeMuse?nativeMuseScope(scope):scope),slug=channelFromResource(resource,c.env);
+    // A native public client without RFC 8707 resource must explicitly select
+    // an owned group. Never infer a group from a name, cookie or last visit.
+    const chooseGroup=(nativeMuse||nativeCli)&&!resource&&!target?.channel_slug;
     if(target?.channel_slug&&slug!==target.channel_slug)return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
-    if(!target||!slug||!scopes||p.response_type!=="code"||p.code_challenge_method!=="S256"||
+    if(!target||(!slug&&!chooseGroup)||!scopes||p.response_type!=="code"||p.code_challenge_method!=="S256"||
       !CHALLENGE.test(p.code_challenge??"")||!STATE.test(p.state??"")||
       !JSON.parse(target.redirects_json).includes(redirect))return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
     const current=await readBrowserSession(c.env.DB,c.req.raw);
     if(!current||current.stage!=="ready"){
       const path="/oauth/authorize?"+new URLSearchParams(p).toString();
-      const url=`${uri(c.env)}/api/auth/github/start?return_to=${encodeURIComponent(path)}`;
+      // Same-origin relative redirects preserve the browser's HTTPS scheme.
+      // The local preview proxy rewrites absolute same-host URLs to HTTP.
+      const url=`/api/auth/github/start?return_to=${encodeURIComponent(path)}`;
       return new Response(null,{status:302,headers:{location:url,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
     if(target?.owner_account&&target.owner_account!==current.account)return renderOAuthProblem(c.req.raw,"group_owner_required",403);
-    if(!await groupOwned(c.env.DB,slug,current.account))return renderOAuthProblem(c.req.raw,"group_owner_required",403);
     if(current.enabled!==1)return renderOAuthProblem(c.req.raw,"mfa_required",403);
+    if(chooseGroup){
+      const owned=await c.env.DB.prepare("SELECT slug,title FROM channels WHERE owner_account=? AND archived_at IS NULL ORDER BY slug LIMIT 100")
+        .bind(current.account).all<{slug:string;title:string|null}>();
+      const groups=[];
+      for(const group of owned.results)if(await mcpPermission(c.env.DB,group.slug,"group.read"))
+        groups.push({...group,resource:publicUrlForSlug(c.env,group.slug)});
+      if(!groups.length)return renderOAuthProblem(c.req.raw,"group_mcp_policy_denied",403);
+      return renderOAuthGroupChoice({clientName:target.name,groups,params:p},oauthPresentation(c.req.raw));
+    }
+    if(!slug)return renderOAuthProblem(c.req.raw,"invalid_authorization_request",400);
+    if(!await groupOwned(c.env.DB,slug,current.account))return renderOAuthProblem(c.req.raw,"group_owner_required",403);
     if(!await mcpPermission(c.env.DB,slug,"group.read"))return renderOAuthProblem(c.req.raw,"group_mcp_policy_denied",403);
     // OAuth allows a reduced grant. Read-only policy must not force users to
     // enable writes just because a client requests every advertised scope.
@@ -327,7 +348,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
         response_type:"code",resource:pending.resource,scope:(JSON.parse(pending.scopes_json) as string[]).join(" "),
         state:pending.state,code_challenge:pending.code_challenge,code_challenge_method:"S256",
         consent_retry:pending.browser_session_id!==current.id?"session_changed":"expired"}).toString();
-      return new Response(null,{status:303,headers:{location:next.toString(),"cache-control":"no-store","referrer-policy":"no-referrer"}});
+      return new Response(null,{status:303,headers:{location:next.pathname+next.search,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
     if(decision==="deny"){
       const removed=await c.env.DB.prepare(`DELETE FROM connector_oauth_pending
@@ -377,13 +398,27 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     }
     const registered=ID.test(clientId)?await client(c.env.DB,clientId):null;
     if(!registered)return simple("invalid_client",401);
-    if(registered.secret_hash){
+    if(registered.secret_hash&&registered.secret_hash!==MUSE_PUBLIC_PKCE){
       if(!/^acs_[a-f0-9]{64}$/.test(clientSecret))return simple("invalid_client",401);
       const actual=await sha256Hex(clientSecret);let delta=0;
       for(let i=0;i<actual.length;i++)delta|=actual.charCodeAt(i)^registered.secret_hash.charCodeAt(i);
       if(delta!==0)return simple("invalid_client",401);
     }else if(authorization||clientSecret)return simple("invalid_client",401);
-    const resource=p.get("resource")??(registered.channel_slug?publicUrlForSlug(c.env,registered.channel_slug):"");
+    let resource=p.get("resource")??(registered.channel_slug?publicUrlForSlug(c.env,registered.channel_slug):"");
+    // Only the exact native callback may omit resource. Recover the audience
+    // exclusively from a previously issued, client-bound code/refresh grant.
+    if(!p.has("resource")&&!resource&&(nativeMuseRedirects(registered.redirects_json)||nativeCliRedirects(registered.redirects_json))){
+      const grant=p.get("grant_type"),code=p.get("code")??"",refresh=p.get("refresh_token")??"";
+      if(grant==="authorization_code"&&/^acco_[a-f0-9]{64}$/.test(code)){
+        const record=await c.env.DB.prepare("SELECT resource FROM connector_oauth_codes WHERE code_hash=? AND client_id=? AND redirect_uri=? AND expires_at>?")
+          .bind(await sha256Hex(code),clientId,p.get("redirect_uri")??"",Date.now()).first<{resource:string}>();
+        resource=record?.resource??"";
+      }else if(grant==="refresh_token"&&/^acr_[a-f0-9]{64}$/.test(refresh)){
+        const record=await c.env.DB.prepare("SELECT resource FROM connector_oauth_grants WHERE refresh_hash=? AND client_id=? AND revoked_at IS NULL AND refresh_expires_at>?")
+          .bind(await sha256Hex(refresh),clientId,Date.now()).first<{resource:string}>();
+        resource=record?.resource??"";
+      }
+    }
     const slug=channelFromResource(resource,c.env);
     if(registered.channel_slug&&slug!==registered.channel_slug)return simple("invalid_target_resource");
     if(!slug)return simple("invalid_target_resource");

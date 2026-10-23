@@ -6,21 +6,21 @@ import assert from 'node:assert/strict';
 import {mkdir,writeFile,unlink} from 'node:fs/promises';
 import {resolve} from 'node:path';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
-const out=resolve('docs/ui-review/2026-10-24');await mkdir(out,{recursive:true});
+const out=resolve(process.env.QA_OUTPUT_DIR ?? 'docs/ui-review/2026-10-24');await mkdir(out,{recursive:true});
 const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
-const context=await browser.newContext({viewport:{width:1440,height:1000},recordVideo:{dir:out+'/motion',size:{width:1440,height:1000}}});
-const external=[],errors=[],checks=[],motion={};let completed=false;
+const context=await browser.newContext({viewport:{width:1440,height:1000},serviceWorkers:'block',recordVideo:{dir:out+'/motion',size:{width:1440,height:1000}}});
+const external=[],errors=[],writes=[],checks=[],motion={};let completed=false;
 await context.route('**/*',async route=>{
  const u=new URL(route.request().url());
- if(u.hostname==='127.0.0.1'&&u.port==='18950') return route.continue();
+ if(u.hostname==='127.0.0.1'&&u.port==='18950'){if(!['GET','HEAD'].includes(route.request().method())){writes.push(u.pathname);return route.fulfill({status:403,json:{error:{code:'synthetic_review_read_only'}}});}return route.continue();}
  external.push(u.origin);await route.abort();
 });
 const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>{localStorage.setItem('ap_locale','zh');if(localStorage.getItem('local_ui_review_initialized')!=='1'){localStorage.setItem('ap_onboarded','1');localStorage.setItem('local_ui_review_initialized','1');}});
 async function settle(){await page.waitForTimeout(380);}
 async function shot(name){await settle();await page.screenshot({path:out+'/'+name+'.png'});}
-async function noOverflow(label){assert.equal(await page.evaluate(()=>document.body.scrollWidth>innerWidth),false,label);checks.push(label);}
-async function openTools(){const t=page.locator('.chan-toolstrip-toggle');if(await t.getAttribute('aria-expanded')==='false'){await t.click();await settle();}}
+async function noOverflow(label){assert.equal(await page.evaluate(()=>Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)>innerWidth+1),false,label);checks.push(label);}
+async function openTools(){const mobile=page.locator('.mobile-channel-more');if(await mobile.isVisible()){if(await mobile.getAttribute('aria-expanded')==='false')await mobile.click();await page.locator('.mobile-channel-menu-overlay').waitFor({state:'visible'});return page.locator('.mobile-channel-menu-body');}const t=page.locator('.chan-toolstrip-toggle');if(await t.getAttribute('aria-expanded')==='false'){await t.click();await settle();}return page.locator('.chan-toolstrip-content');}
 async function closeDialog(){await page.keyboard.press('Escape');await settle();}
 try{
  await page.goto('http://127.0.0.1:18950/');await page.getByRole('link',{name:'使用 GitHub 登录'}).waitFor();
@@ -54,7 +54,8 @@ try{
   }
   if(name==='connections'){
    assert.equal(await page.locator('.commons-error').filter({hasText:'AbortError'}).count(),0);
-   assert.match(await page.locator('.connector-presence-overview').innerText(),/未订阅|尚未订阅/);
+   const overview=await page.locator('.connector-presence-overview').innerText();
+   assert.match(overview,/OAuth 已授权/);assert.match(overview,/尚未订阅/);assert.match(overview,/未保持 WebSocket 长连接/);assert.doesNotMatch(overview,/已有事件订阅/);checks.push('OAuth authorization, event subscription and persistent socket presence stay distinct');
    for(const [tab,n] of [['共享文件','files'],['代码协作','repository'],['直连 Agent','direct-agents']]){await page.getByRole('tab',{name:tab}).click();await shot(n+'-desktop');}
    await page.getByRole('tab',{name:'代码协作'}).click();await page.locator('.commons-proposal-card').first().waitFor();await page.locator('.commons-proposal-card').first().click();await page.locator('.commons-review .commons-diff').waitFor();await page.locator('.commons-review .commons-diff').scrollIntoViewIfNeeded();await shot('proposal-desktop');
    await page.setViewportSize({width:390,height:844});await page.locator('.commons-review .commons-diff').scrollIntoViewIfNeeded();await shot('proposal-mobile');await noOverflow('proposal mobile has no page overflow');await page.setViewportSize({width:1440,height:1000});
@@ -64,8 +65,10 @@ try{
  }
  checks.push('tasks, team, connections, files, repository and direct agent panels render');
  await page.locator('.app-settings-btn').click();await shot('settings-desktop');await page.setViewportSize({width:390,height:844});await shot('settings-mobile');
- await page.getByRole('button',{name:'Studio · 温暖深色'}).click();await shot('settings-dark-mobile');await closeDialog();await page.locator('.chan-toolstrip-toggle').click();await page.locator('.composer-input').fill('');await shot('chat-dark-mobile');await noOverflow('chat mobile has no page overflow');
- await page.locator('.workspace-nav-mobile').click();await shot('navigation-mobile');await page.locator('.workspace-nav-body .chan-pill').filter({hasText:'产品与设计'}).click();await settle();assert.equal(await page.locator('.workspace-nav-mobile').getAttribute('aria-expanded'),'false');checks.push('mobile navigation closes after a group switch');
+ await page.getByRole('button',{name:'Studio · 温暖深色'}).click();await shot('settings-dark-mobile');await closeDialog();await page.locator('.composer-input').fill('');await shot('chat-dark-mobile');await noOverflow('chat mobile has no page overflow');
+ const mobileTools=await openTools();await shot('tools-mobile');await mobileTools.locator('button').filter({hasText:'任务'}).first().click();await page.locator('.task-card').first().waitFor();assert.equal(await page.locator('.mobile-channel-menu-overlay').isVisible(),false);assert.equal(await page.locator('.task-card').count(),2);await closeDialog();checks.push('mobile more menu opens tasks and hands focus to the panel');
+ await page.locator('.mobile-group-toggle').click();await page.locator('.mobile-groups-overlay').waitFor();await shot('navigation-mobile');await page.locator('.mobile-groups-content .chan-pill').filter({hasText:'产品与设计'}).click();await settle();assert.equal(await page.locator('.mobile-group-toggle').getAttribute('aria-expanded'),'false');assert.equal(await page.locator('.mobile-groups-overlay').count(),0);checks.push('mobile navigation closes after a group switch');
+ await page.locator('.mobile-group-toggle').click();await page.locator('.mobile-drawer-actions button').filter({hasText:'设置'}).first().click();await page.locator('.settings-panel').waitFor();assert.equal(await page.locator('.mobile-groups-overlay').count(),0);await closeDialog();checks.push('mobile group drawer opens settings without leaving a second modal');
  await page.setViewportSize({width:1440,height:1000});await shot('chat-dark-desktop');
  await page.emulateMedia({reducedMotion:'reduce'});motion.reduced=await page.locator('.workspace-shell').evaluate(el=>({transition:getComputedStyle(el).transitionDuration,animation:getComputedStyle(el).animationName}));assert.equal(motion.reduced.transition,'0s');checks.push('reduced motion disables layout transitions');
  await page.locator('.app-logo').click();await shot('home-dark-desktop');
@@ -82,7 +85,7 @@ try{
  await page.setViewportSize({width:1440,height:1000});
  await page.route('**/api/channels',r=>r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{code:'fixture_unavailable'}})}));
  await page.evaluate(()=>localStorage.setItem('commons.navigation.collapsed','1'));await page.reload();await page.locator('.workspace-navigation-error').waitFor();await shot('groups-error-collapsed');checks.push('group loading failure stays visible with navigation collapsed');
- assert.deepEqual(errors,[]);assert.deepEqual(external,[]);checks.push('no uncaught browser errors or external network requests');
- await writeFile(out+'/browser-results.json',JSON.stringify({checks,motion,errors,external,viewport:[1440,1000,390,844]},null,2));
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);assert.deepEqual(writes,[]);checks.push('no uncaught browser errors, external network requests or write requests');
+ await writeFile(out+'/browser-results.json',JSON.stringify({checks,motion,errors,external,writes,viewport:[1440,1000,390,844]},null,2));
  console.log(JSON.stringify({checks,motion},null,2));completed=true;
-}finally{await context.close();if(completed&&page.video()){await page.video().saveAs(out+"/walkthrough.webm");await unlink(await page.video().path());}await browser.close();}
+}catch(error){await page.screenshot({path:out+'/failed-current-page.png'}).catch(()=>{});await writeFile(out+'/failed-results.json',JSON.stringify({error:String(error),checks,motion,errors,external,writes,url:page.url()},null,2));throw error;}finally{await context.close();if(completed&&page.video()){await page.video().saveAs(out+"/walkthrough.webm");await unlink(await page.video().path());}await browser.close();}

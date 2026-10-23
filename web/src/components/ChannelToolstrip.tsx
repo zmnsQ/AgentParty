@@ -1,4 +1,6 @@
 import {AnimatedDisclosure} from "./AnimatedDisclosure";
+import {useCompactViewport} from "../lib/useCompactViewport";
+import {MobileChannelMenu} from "./MobileChannelMenu";
 import { StudioIcon } from "./StudioIcon";
 import { useState, type ReactNode } from "react";
 import { useT } from "../i18n/useT";
@@ -30,16 +32,16 @@ interface ChannelToolstripProps {
 
 export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
   const t = useT();
+  const compact = useCompactViewport();
   const [expanded, setExpanded] = useState(readExpandedPreference);
 
   const toggle = () => {
-    setExpanded((current) => {
-      const next = !current;
-      writeExpandedPreference(next);
-      return next;
-    });
+    const next = !expanded;
+    setExpanded(next);
+    writeExpandedPreference(next);
   };
 
+  if(compact)return <MobileChannelMenu buttons={buttons} actions={actions}/>;
   return (
     <div
       className={`chan-toolstrip chan-toolstrip--${expanded ? "expanded" : "collapsed"}`}

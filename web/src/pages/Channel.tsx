@@ -1,3 +1,4 @@
+import { ModalPortal } from "../components/ModalPortal";
 import { StudioIcon } from "../components/StudioIcon";
 import {ChannelWelcome} from "../components/ChannelWelcome";
 import "../i18n/strings/Studio";
@@ -634,7 +635,7 @@ export function ChannelPanelModal({
   }, [focusableElements]);
 
   return (
-    <div className="channel-panel-overlay" role="dialog" aria-modal="true" aria-label={title}>
+    <ModalPortal><div className="channel-panel-overlay" role="dialog" aria-modal="true" aria-label={title}>
       <button
         className="channel-panel-scrim"
         type="button"
@@ -656,7 +657,7 @@ export function ChannelPanelModal({
         )}
         <div className="channel-panel-body">{children}</div>
       </section>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -4551,6 +4552,7 @@ export function ChannelPage({
         />
       )}
       <PresenceBar
+        attentionCount={hostBoardAttentionCount}
         identities={identityDisplay}
         presence={state.presence}
         participants={state.participants}
@@ -4674,7 +4676,7 @@ export function ChannelPage({
             )}
           </button>
           <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("collaboration")}>
-            <span aria-hidden="true">↗</span><span>{t("Collab.title")}</span>
+            <StudioIcon name="coordination"/><span>{t("Collab.title")}</span>
           </button>
           {/* #700 的「本机 agent」独立入口已并入「我的 agent」(AgentTokens) 面板的本机运行段，此处不再单列。 */}
           </>

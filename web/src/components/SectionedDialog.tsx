@@ -1,3 +1,5 @@
+import { ModalPortal } from "./ModalPortal";
+import { COMPACT_MEDIA } from "../lib/mobileViewport";
 import { StudioIcon } from "./StudioIcon";
 import {isCompositionKey} from "../lib/compositionGuard";
 import {
@@ -54,7 +56,7 @@ function nextTabIndex(
 
 function initialTabOrientation(): TabOrientation {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "vertical";
-  return window.matchMedia("(max-width: 760px)").matches ? "horizontal" : "vertical";
+  return window.matchMedia(COMPACT_MEDIA).matches ? "horizontal" : "vertical";
 }
 
 /**
@@ -108,7 +110,7 @@ export function SectionedDialog<SectionId extends string>({
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
-    const media = window.matchMedia("(max-width: 760px)");
+    const media = window.matchMedia(COMPACT_MEDIA);
     const syncOrientation = () => setTabOrientation(media.matches ? "horizontal" : "vertical");
     syncOrientation();
     media.addEventListener?.("change", syncOrientation);
@@ -193,7 +195,7 @@ export function SectionedDialog<SectionId extends string>({
 
   const titleId = `${idPrefix}-title`;
   return (
-    <div
+    <ModalPortal><div
       className="settings-overlay"
       role="dialog"
       aria-modal="true"
@@ -262,6 +264,6 @@ export function SectionedDialog<SectionId extends string>({
           </div>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

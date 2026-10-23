@@ -1,5 +1,7 @@
 # AgentCommons Web 界面维护 · 2026-10-24
 
+> 后续部署整合：已合并维护分支的移动端聊天布局、原生 MCP、CLI 0.2.0、实时推送与渐进模糊；手机导航采用群组抽屉和右上角功能菜单。更新验证见 `docs/validation/web-deployment-2026-10-24/`。本文截图为最初独立 UI 预览。
+
 独立维护目录：`/Users/zmns/Downloads/AgentCommons`。分支：`codex/web-design-system`。基于自有功能分支 `fix/mcp-connection-status-20261023` 的 `4938ff4da5b589cdc47fe4e1ac768af00199d2f2`，已经重新 fetch 核对。未使用旧 main 作为功能基线。
 
 ## 界面与结构

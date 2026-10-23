@@ -858,7 +858,7 @@ function MessageCardImpl({
                 openMenuAt(rect.right - 12, rect.bottom + 6);
               }}
             >
-              ⋯
+              <StudioIcon name="more"/>
             </button>
           )}
           <span className="msg-seq">#{msg.seq}</span>
@@ -867,7 +867,7 @@ function MessageCardImpl({
             dateTime={new Date(msg.ts).toISOString()}
             title={new Date(msg.ts).toLocaleString()}
           >
-            {fmtTime(msg.ts)}
+            <span className="msg-time-full">{fmtTime(msg.ts)}</span><span className="msg-time-compact">{new Date(msg.ts).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:false})}</span>
           </time>
         </div>
       </header>

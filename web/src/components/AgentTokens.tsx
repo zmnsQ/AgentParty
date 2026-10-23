@@ -1321,6 +1321,7 @@ export function AgentTokens({
   return (
     <div className="agenttokens">
       <button type="button" className="d-btn agenttokens-btn" onClick={toggle} aria-expanded={isOpen}>
+        <StudioIcon name="agent"/>
         {t("AgentTokens.open")}
       </button>
       {isOpen && (

@@ -1,3 +1,4 @@
+import {pushEventDefinition} from './mcp-event-stream';
 import type { AppEnv } from "../index";
 import type { TokenIdentity } from "../auth";
 import { sha256Hex } from "../auth";
@@ -156,7 +157,7 @@ export async function mcpEventMethod(name: string, params: unknown, slug: string
   identity: TokenIdentity, env: AppEnv): Promise<unknown> {
   if (name === "server/discover") return { resultType:"complete",supportedVersions:[VERSION],
     capabilities:{tools:{},events:{}} };
-  if (name === "events/list") return { events: getDef(slug) };
+  if (name === "events/list") return { events: [...getDef(slug),pushEventDefinition(slug)] };
   if (!record(params) || params.name !== EVENT) return error(-32602,"Invalid event request");
   try {
     if (name === "events/subscribe") {

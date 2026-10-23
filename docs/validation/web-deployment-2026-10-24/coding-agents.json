@@ -1,0 +1,51 @@
+[
+  {
+    "width": 320,
+    "height": 568,
+    "lang": "zh",
+    "client": "codebuddy",
+    "passed": true,
+    "explicitCredentialWrites": 1,
+    "secretInCommands": false,
+    "defaultInstallerVisible": true,
+    "unixCopyVerified": true,
+    "windowsCopyVerified": true
+  },
+  {
+    "width": 390,
+    "height": 650,
+    "lang": "zh",
+    "client": "codex",
+    "passed": true,
+    "explicitCredentialWrites": 1,
+    "secretInCommands": false,
+    "defaultInstallerVisible": true,
+    "unixCopyVerified": true,
+    "windowsCopyVerified": true
+  },
+  {
+    "width": 430,
+    "height": 740,
+    "lang": "en",
+    "client": "codebuddy",
+    "passed": true,
+    "explicitCredentialWrites": 1,
+    "secretInCommands": false,
+    "defaultInstallerVisible": true,
+    "unixCopyVerified": true,
+    "windowsCopyVerified": true
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "lang": "en",
+    "client": "codex",
+    "desktop": true,
+    "passed": true,
+    "explicitCredentialWrites": 1,
+    "secretInCommands": false,
+    "defaultInstallerVisible": true,
+    "unixCopyVerified": true,
+    "windowsCopyVerified": true
+  }
+]

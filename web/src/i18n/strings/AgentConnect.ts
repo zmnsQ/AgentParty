@@ -1,5 +1,6 @@
 import {registerDict,type LocaleDict} from "../dict";
 export const AgentConnectStrings:LocaleDict={en:{
+ "AgentConnect.coding.codebuddy":"CodeBuddy", "AgentConnect.coding.codebuddyHint":"Connect this group through MCP and optionally enable realtime session notifications.",
  "AgentConnect.choose":"Which agent do you want to connect?",
  "AgentConnect.hint":"Build one team: connect cloud assistants for discussion and coding agents for execution. You can add multiple agents of both kinds to the same group.",
  "AgentConnect.coexist":"Cloud and coding agents stay in one group. These are suggested responsibilities, not permission changes.",
@@ -23,7 +24,7 @@ export const AgentConnectStrings:LocaleDict={en:{
  "AgentConnect.executionBoundary":"An @ is not a grant of unrestricted access. The runner must be connected and authorized for the repository. Existing approval, sandbox and loop-protection controls still apply. Cloud-agent wake subscriptions are separate.",
  "AgentConnect.cloud":"Personal cloud assistants",
  "AgentConnect.dot":"ChatGPT dot","AgentConnect.dotHint":"Connect your existing dot through OAuth and MCP to discuss, plan and collaborate with the group’s coding agents.",
- "AgentConnect.muse":"Meta Muse (cloud)","AgentConnect.museHint":"Connect through the official Connector Platform. Platform approval may be required.",
+ "AgentConnect.muse":"Meta Muse (cloud)","AgentConnect.museHint":"Add the group MCP endpoint in Muse and approve access there. A native Client ID is available when your Muse version requires it.","AgentConnect.museMcp":"Direct MCP connection",
  "AgentConnect.cue":"Manus / Cue","AgentConnect.cueHint":"Find your existing Cue agent using the official API.",
  "AgentConnect.grok":"Grok Bot / Automation","AgentConnect.grokHint":"Remote MCP tools or an Automation webhook; personal Bot wake-up is unverified.",
  "AgentConnect.hermes":"Hermes Agent","AgentConnect.hermesHint":"Connect your running Hermes API Server and existing profile.",
@@ -48,6 +49,7 @@ export const AgentConnectStrings:LocaleDict={en:{
  "AgentConnect.dotDocs":"Official ChatGPT connection instructions ↗",
  "AgentConnect.mfaFailure":"Two-step verification is required. Open Account security and complete setup before enabling external access."
 },zh:{
+ "AgentConnect.coding.codebuddy":"CodeBuddy", "AgentConnect.coding.codebuddyHint":"直接连接本群 MCP，按需启用会话实时通知。",
  "AgentConnect.choose":"你要添加哪种 Agent？",
  "AgentConnect.hint":"把讨论和执行放进同一个团队：云端 Agent 一起讨论，编程 Agent 接手实施。两类可以同时添加，每类都可有多位。",
  "AgentConnect.coexist":"云端与编程 Agent 在同一个群共存。这里是建议分工，不会改变任何 Agent 的权限。",
@@ -71,7 +73,7 @@ export const AgentConnectStrings:LocaleDict={en:{
  "AgentConnect.executionBoundary":"@不代表无限授权。执行端必须已连接，并有目标仓库权限；原有审批、沙箱和防循环限制仍然生效。云端 Agent 的自动唤醒订阅需另外配置。",
  "AgentConnect.cloud":"个人云端智能体",
  "AgentConnect.dot":"ChatGPT dot","AgentConnect.dotHint":"通过 OAuth 和 MCP 连接已有 dot，参与讨论、制定方案，并与群内编程 Agent 协作。",
- "AgentConnect.muse":"Meta Muse（云端）","AgentConnect.museHint":"使用官方 Connector Platform 接入，可能需要平台审核资格。",
+ "AgentConnect.muse":"Meta Muse（云端）","AgentConnect.museHint":"在 Muse 添加本群 MCP 地址并完成授权；需要 Client ID 的版本可直接准备原生客户端。","AgentConnect.museMcp":"MCP 直接连接",
  "AgentConnect.cue":"Manus / Cue","AgentConnect.cueHint":"通过官方 API 查找并连接你已有的 Cue 智能体。",
  "AgentConnect.grok":"Grok Bot / Automation","AgentConnect.grokHint":"远程 MCP 工具或 Automation Webhook；个人 Bot 唤醒仍待实测。",
  "AgentConnect.hermes":"Hermes Agent","AgentConnect.hermesHint":"连接正在运行的 Hermes API Server 与已有 Profile。",

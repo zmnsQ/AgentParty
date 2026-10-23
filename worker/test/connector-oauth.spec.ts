@@ -98,7 +98,7 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     const body=await result.text();
     expect(result.headers.get("content-security-policy")).toContain("style-src 'self'");
     expect(result.headers.get("content-security-policy")).not.toContain("unsafe-inline");
-    expect(body).toContain('href="/commons-consent.css?v=studio-20261022"');
+    expect(body).toContain('href="/commons-consent.css?v=workspace-20261024"');
     expect(body).toContain(mark);
     expect(body).toContain(upstream);
     expect(body).toContain('href="https://github.com/zmnsQ"');
@@ -212,7 +212,12 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
       code_challenge:c.challenge,code_challenge_method:"S256",state:"oauth-state",scope:"group.read",resource:c.resource});
     const r=await req("/oauth/authorize?"+qs);
     expect(r.status).toBe(302);
-    expect(r.headers.get("location")).toContain("/api/auth/github/start");
+    const loginLocation=r.headers.get("location")!;
+    expect(loginLocation.startsWith("/api/auth/github/start?")).toBe(true);
+    expect(loginLocation.startsWith("//")).toBe(false);
+    const login=new URL(loginLocation,SITE);
+    expect(login.protocol).toBe("https:");expect(login.origin).toBe(SITE);
+    expect(login.searchParams.get("return_to")).toBe("/oauth/authorize?"+qs.toString());
     const authorized=await consent(c);
     expect(authorized.html).toContain(c.slug);
     expect(authorized.html).toContain("AgentParty");
@@ -378,7 +383,9 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
   });
   async function freshPage(response:Response,cookie:string){
     expect(response.status).toBe(303);
-    const location=new URL(response.headers.get("location")!);
+    const rawLocation=response.headers.get("location")!;
+    expect(rawLocation.startsWith("/oauth/authorize?")).toBe(true);
+    const location=new URL(rawLocation,SITE);
     expect(location.origin).toBe(SITE);expect(location.pathname).toBe("/oauth/authorize");
     expect(location.searchParams.has("code")).toBe(false);
     const page=await req(location.pathname+location.search,{headers:{cookie}});
@@ -391,7 +398,7 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     await env.DB.prepare("UPDATE connector_oauth_pending SET expires_at=? WHERE id=?").bind(Date.now()-1,old.id).run();
     const result=await postForm(c.cookie,old);
     expect(result.status).toBe(303);
-    expect(new URL(result.headers.get("location")!).searchParams.get("consent_retry")).toBe("expired");
+    expect(new URL(result.headers.get("location")!,SITE).searchParams.get("consent_retry")).toBe("expired");
     expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_codes WHERE pending_id=?").bind(old.id).first()).toEqual({n:0});
     const fresh=await freshPage(result,c.cookie);
     expect(fresh.id).not.toBe(old.id);expect(fresh.nonce).not.toBe(old.nonce);
@@ -409,7 +416,7 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
       .bind(newId,await sha256Hex(newRaw),c.account,Date.now(),Date.now()+60_000).run();
     const cookie="__Host-ap_session="+newRaw;
     const result=await postForm(cookie,old);expect(result.status).toBe(303);
-    expect(new URL(result.headers.get("location")!).searchParams.get("consent_retry")).toBe("session_changed");
+    expect(new URL(result.headers.get("location")!,SITE).searchParams.get("consent_retry")).toBe("session_changed");
     expect(await env.DB.prepare("SELECT count(*) AS n FROM connector_oauth_codes WHERE pending_id=?").bind(old.id).first()).toEqual({n:0});
     const fresh=await freshPage(result,cookie);
     expect(await env.DB.prepare("SELECT browser_session_id FROM connector_oauth_pending WHERE id=?").bind(fresh.id).first())

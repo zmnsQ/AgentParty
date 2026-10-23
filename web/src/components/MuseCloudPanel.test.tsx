@@ -26,7 +26,7 @@ describe('Muse Cloud staged connection UI',()=>{
  test('shows independent OAuth, pairing and review states without writes on render',async()=>{
   const root=await render(),body=text(root);
   expect(body).toContain('Not configured');expect(body).toContain('A paired device is required');expect(body).toContain('No verified review decision');
-  expect(root.findAllByType('li')).toHaveLength(4);expect(calls.every(x=>x.method==='GET')).toBe(true);expect(root.findByProps({type:'url'}).props.value).toBe('');
+  expect(root.findByProps({className:'muse-steps'}).findAllByType('li')).toHaveLength(4);expect(root.findByProps({className:'muse-native-steps'}).findAllByType('li')).toHaveLength(2);expect(calls.every(x=>x.method==='GET')).toBe(true);expect(root.findByProps({type:'url'}).props.value).toBe('');
  });
  test('MFA gate hides client registration',async()=>{
   canConfigure=false;const root=await render();expect(text(root)).toContain('two-step verification');expect(root.findAllByType('form')).toHaveLength(0);expect(calls.every(x=>x.method==='GET')).toBe(true);

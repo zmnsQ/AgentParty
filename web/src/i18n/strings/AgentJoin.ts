@@ -5,7 +5,7 @@ import { registerDict, type LocaleDict } from "../dict";
 export const AgentJoinStrings: LocaleDict = {
   en: {
     "AgentJoin.minting": "minting token…",
-    "AgentJoin.open": "＋ add an agent",
+    "AgentJoin.open": "Add Agent",
     "AgentJoin.nameError": "Name may only use letters/digits/._- , 1–64 chars, and can't be \"system\"",
     "AgentJoin.nameConflict": "That name is already taken in this channel — pick another",
     "AgentJoin.errAuth": "Session expired, please sign in again",
@@ -162,7 +162,7 @@ export const AgentJoinStrings: LocaleDict = {
   },
   zh: {
     "AgentJoin.minting": "铸 token…",
-    "AgentJoin.open": "＋ 让 agent 加入",
+    "AgentJoin.open": "添加 Agent",
     "AgentJoin.nameError": "名字只能用字母/数字/._- ，1–64 位，且不能是 system",
     "AgentJoin.nameConflict": "这个名字在频道里已被占用，换一个",
     "AgentJoin.errAuth": "登录已过期，请重新登录后再试",

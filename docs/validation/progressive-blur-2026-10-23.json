@@ -1,0 +1,72 @@
+{
+  "base_commit": "da11110e16bbc391a755b148c8b3d9220b21bd1f",
+  "change_scope": "Additive UI-only progressive background blur; no Worker, CLI, database or auth changes",
+  "frontend_release_checks": {
+    "passed": 335,
+    "failed": 0,
+    "typescript": true,
+    "production_build": true
+  },
+  "browser_acceptance": [
+    {
+      "viewport": "320x568",
+      "theme": "doodle",
+      "lang": "zh",
+      "passed": true,
+      "message_area_percent": 72.2,
+      "composer_height_css_px": 58
+    },
+    {
+      "viewport": "390x650",
+      "theme": "doodle",
+      "lang": "zh",
+      "passed": true,
+      "message_area_percent": 75.7,
+      "composer_height_css_px": 58
+    },
+    {
+      "viewport": "430x740",
+      "theme": "midnight",
+      "lang": "en",
+      "passed": true,
+      "message_area_percent": 78.6,
+      "composer_height_css_px": 58
+    },
+    {
+      "viewport": "390x650",
+      "theme": "midnight",
+      "lang": "zh",
+      "passed": true,
+      "message_area_percent": 75.7,
+      "composer_height_css_px": 58
+    },
+    {
+      "viewport": "1280x800",
+      "theme": "doodle",
+      "lang": "en",
+      "passed": true,
+      "message_area_percent": 46.8,
+      "composer_height_css_px": 162
+    }
+  ],
+  "interactive_checks": [
+    "menu dismissal via scrim",
+    "group drawer dismissal via scrim",
+    "Agent Join modal close",
+    "presence roster dialog close",
+    "message sending",
+    "blur pseudo-elements pointer-events none",
+    "message text not filtered",
+    "forced-colors disables backdrop blur"
+  ],
+  "progressive_fade_areas": [
+    "transcript top/bottom",
+    "desktop brand bar edge",
+    "modal/section headers",
+    "mobile group drawer backdrop",
+    "mobile actions sheet backdrop",
+    "dialog scrim centers"
+  ],
+  "real_ios_safari_verified": false,
+  "real_user_data_or_credentials_used": false
+}

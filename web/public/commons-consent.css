@@ -1,5 +1,5 @@
 /* Shares the exact main-app tokens. Script-free native forms; never hides denied scopes. */
-@import url('/commons-theme.css?v=studio-20261022');
+@import url('/commons-theme.css?v=workspace-20261024');
 *{box-sizing:border-box}
 :root{color-scheme:light}
 :root[data-theme=midnight]{color-scheme:dark}
@@ -138,3 +138,4 @@ body.commons-consent{font-family:var(--t-sans);background:var(--t-bg)}
 /* The same master as native, login and the workspace. */
 .commons-consent .oauth-brand{display:inline-flex;align-items:center;gap:10px;font-size:21px}
 .oauth-brand img{width:36px;height:36px;border-radius:10px}
+.oauth-group-label{display:block;font-weight:600;margin:12px 0 8px}.oauth-group-select{display:block;width:100%;min-height:48px;font:16px/1.5 system-ui,sans-serif;padding:12px;margin-bottom:16px;border:1px solid currentColor;border-radius:8px;color:inherit;background:transparent}body.commons-consent{overflow-wrap:anywhere}

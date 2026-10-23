@@ -57,8 +57,8 @@ describe("MCP is not a secret-URL authorization scheme",()=>{
     expect(await read.json()).toMatchObject({result:{isError:false}});
     const tools=await invoke(f.mcp,f.agent.token,{jsonrpc:"2.0",id:2,method:"tools/list"});
     const listing=await tools.json() as {result:{tools:Array<{name:string}>}};
-    expect(listing.result.tools.some(t=>t.name==="party_read_messages")).toBe(true);
-    expect(listing.result.tools.some(t=>t.name==="party_send_message")).toBe(false);
+    expect(listing.result.tools.some(t=>t.name==="commons_read_messages")).toBe(true);
+    expect(listing.result.tools.some(t=>t.name==="commons_send_message")).toBe(false);
     for(const name of ["party_send_message","party_upload_file","party_propose_changes"])
       expect((await invoke(f.mcp,f.agent.token,rpc(name,{}))).status).toBe(403);
     const events=await invoke(f.mcp,f.agent.token,{jsonrpc:"2.0",id:1,method:"events/subscribe",params:{name:"message.created"}});

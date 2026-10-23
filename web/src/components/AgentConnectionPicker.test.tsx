@@ -31,7 +31,7 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
       expect(button.findAllByType("input")).toHaveLength(0);
       await act(async()=>button.props.onClick());
     }
-    expect(selected).toEqual(["codex","claude","other"]);expect(local).toBe(3);expect(network).toBe(0);
+    expect(selected).toEqual(["codex","codebuddy","claude","other"]);expect(local).toBe(4);expect(network).toBe(0);
     expect(renderer!.root.findAllByType("details")).toHaveLength(0);
   });
   test("keeps all new choices, security explanations and instructions bilingual",async()=>{
