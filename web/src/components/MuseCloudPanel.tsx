@@ -41,8 +41,8 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
     {status(authorized?'check':'link',t('Muse.oauth'),t(authorized?'Muse.ready':clients.length?'Muse.configured':'Muse.unconfigured'))}
     {status('bell-on',t('Muse.wake'),t('Muse.pairRequired'))}{status('shield',t('Muse.review'),t('Muse.reviewUnknown'))}
    </dl>
-   <div className="muse-endpoint"><label>{t('Muse.endpoint')}<input readOnly value={state.mcp_endpoint} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.mcp_endpoint)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div>
-   <ol className="muse-steps">
+   <p className="commons-note">{locale==="zh"?"推荐：在 Muse 中直接添加下方 MCP 服务地址，并在 Muse 内完成连接授权。独立 OAuth 客户端注册属于高级选项。":"Recommended: add the MCP endpoint below directly in Muse and authorize there. OAuth client registration is optional."}</p><div className="muse-endpoint"><label>{t('Muse.endpoint')}<input readOnly value={state.mcp_endpoint} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.mcp_endpoint)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div>
+   <details className="muse-technical"><summary>{locale==="zh"?"高级：OAuth 客户端注册与调试":"Advanced OAuth client registration"}</summary><ol className="muse-steps">
     <li><span className="muse-step-index">1</span><div><h4>{t('Muse.step1')}</h4><p>{t('Muse.step1Help')}</p>
      {!state.can_configure?<p className="commons-note">{t('Muse.mfa')} <a href="/auth/security">{t('Muse.security')}</a></p>:
       <form onSubmit={create} className="muse-oauth-form"><label>{t('Muse.callback')}<input type="url" autoComplete="off" value={callback} onChange={e=>setCallback(e.target.value)} required maxLength={1400}/></label>
@@ -65,7 +65,7 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
       const data=await cloudBridgesApi.museReview(token,slug);const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='agent-commons-muse-review.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     })}><StudioIcon name="download"/>{t('Muse.download')}</button><a className="d-btn" href="https://platform.muse.ai/login?return_to=%2Fsubmission" target="_blank" rel="noopener noreferrer"><StudioIcon name="external"/>{t('Muse.portal')}</a></div><small>{t('Muse.noFakeApproval')}</small></div></li>
-   </ol>
+   </ol></details>
    <details className="muse-technical"><summary>{t('Muse.codeSeparate')}</summary><p>{t('Muse.codeHint')}</p><a href="https://github.com/meta-models/muse-code-sdk" target="_blank" rel="noopener noreferrer">Muse Code SDK <StudioIcon name="external" size={14}/></a></details>
   </>}
  </section>;
