@@ -109,7 +109,7 @@ doctor 检查真实身份、服务端工具和本机注册，但不伪装成模�
 
 升级：重新运行当前网站的安装脚本。安装器保存版本副本并原子替换稳定入口，已有 MCP 路径不会指向过期版本；没有自动更新，也不会安装回上游。
 
-断开：`agentcommons disconnect --profile <配置名> --yes`。只移除这条本机 MCP 和对应私有配置，远端 Token 仍须在群组管理中单独撤销。发现同名条目已被其他程序接管时拒绝删除。
+断开：`agentcommons disconnect --profile <配置名> --yes`。自动配置只移除这条本机 MCP 和对应私有配置；手动／IDE 配置只清理本机凭据，并提示你在 IDE 中移除对应 MCP 条目，不调用或要求安装客户端 CLI，不改动其他配置。远端 Token 仍须在群组管理中单独撤销。自动配置发现同名条目已被其他程序接管时拒绝删除。
 
 卸载 CLI：先断开各 profile，再删除安装器打印的 `agentcommons` 入口和 Agent Commons 安装目录。只有确认不再需要本机凭据时才删除 `~/.agentcommons`。不要删除 `.agentparty-commons`、Codex、CodeBuddy 或 Claude 的其他配置。
 
@@ -134,3 +134,9 @@ Windows 安装脚本和手动配置已提供，但未完成 Windows 真机运行
 修复 CodeBuddy 可变长度环境变量参数和诊断输出差异，以及 macOS 临时目录符号链接造成入口未执行的问题。Codex 配置检查使用结构化 JSON。校验失败时停止安装，不覆盖旧 party 命令、无关 MCP 配置和 shell 启动文件。
 
 完整记录：`validation/agentcommons-cli-2026-10-23.json`。
+
+## 0.1.1 安装验收补充
+
+修复手动／IDE 连接断开时仍调用客户端 CLI 的遗漏。新增 Codex、CodeBuddy、Claude 三个回归用例，断开手动连接不调用供应商命令、不改外部 MCP 设置，并清理本机凭据。0.1.1 本轮重跑 24 项 CLI 测试及 329 项前端发布检查，类型检查与生产构建通过；macOS 真实客户端测试记录对应 0.1.0，0.1.1 只调整手动断开逻辑。
+
+非 HTTPS 接入页现在提前提示并阻止创建凭据；浏览器回归使用明确的合成 HTTPS API origin，不依赖本地未提交的环境配置。

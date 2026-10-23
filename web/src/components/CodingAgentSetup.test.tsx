@@ -20,3 +20,9 @@ test('rapid duplicate clicks do not mint twice',async()=>{const root=await mount
 test('name conflicts give recovery guidance instead of rotating or creating another identity',async()=>{status=409;const root=await mount();await act(async()=>root.findByProps({className:'d-btn d-btn--primary coding-create'}).props.onClick());expect(root.findAllByProps({type:'password'})).toHaveLength(0);expect(text(root)).toContain('已有身份');expect(calls).toHaveLength(1);});
 test('English preserves own branding and the tool-access vs wake distinction',async()=>{locale='en';const root=await mount();expect(text(root)).toContain('Agent Commons CLI');expect(text(root)).toContain('MCP tools do not wake');expect(text(root)).not.toContain('CodingAgentSetup.');expect(calls).toHaveLength(0);});
 test('command builder rejects shell syntax and non-HTTPS origins',()=>{expect(()=>codingConnectCommand('http://example.test','group','test','codex')).toThrow();expect(()=>codingConnectCommand('https://example.test','group','bad;rm','codex')).toThrow();expect(codingConnectCommand('https://example.test','group','test','codex')).toContain('agentcommons connect');});
+
+for(const origin of ['http://localhost:4177','http://example.test'])test(`insecure wizard blocks credential creation: ${origin}`,async()=>{
+ stub('location',{origin});const root=await mount();const button=root.findByProps({className:'d-btn d-btn--primary coding-create'});
+ expect(button.props.disabled).toBe(true);expect(text(root)).toContain('HTTPS');
+ await act(async()=>button.props.onClick());expect(calls).toHaveLength(0);expect(root.findAllByProps({type:'password'})).toHaveLength(0);
+});

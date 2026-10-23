@@ -9,8 +9,8 @@ $Tmp = Join-Path ([IO.Path]::GetTempPath()) ('agentcommons-' + [Guid]::NewGuid()
 New-Item -ItemType Directory -Path $Tmp | Out-Null
 try {
   $File = Join-Path $Tmp 'agentcommons.mjs'
-  Invoke-WebRequest -Uri ($Base.TrimEnd('/') + '/agentcommons.mjs?v=d2bc730d9d5fa12c92bcfb8758f79e553b78bebba2bd1a8e1ec50ef962b7bf53') -OutFile $File
-  if ((Get-FileHash -Algorithm SHA256 $File).Hash.ToLowerInvariant() -ne 'd2bc730d9d5fa12c92bcfb8758f79e553b78bebba2bd1a8e1ec50ef962b7bf53') { throw 'CLI checksum mismatch. Nothing installed.' }
+  Invoke-WebRequest -Uri ($Base.TrimEnd('/') + '/agentcommons.mjs?v=7f8721aadd103b720cc5b9d98b29729cedfc182b0759511823e4bf8464b9c115') -OutFile $File
+  if ((Get-FileHash -Algorithm SHA256 $File).Hash.ToLowerInvariant() -ne '7f8721aadd103b720cc5b9d98b29729cedfc182b0759511823e4bf8464b9c115') { throw 'CLI checksum mismatch. Nothing installed.' }
   & $Node $File self-install
   if ($LASTEXITCODE -ne 0) { throw 'Agent Commons installation failed.' }
 } finally { Remove-Item -LiteralPath $Tmp -Recurse -Force }

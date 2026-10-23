@@ -102,3 +102,16 @@ for (const tampered of [false,true])test(`download installer ${tampered?'refuses
  if(tampered){assert.notEqual(installed.status,0);assert.equal(existsSync(join(f.home,'.local/share/agent-commons/agentcommons.mjs')),false);}
  else{assert.equal(installed.status,0,installed.stderr);assert.equal(readFileSync(join(f.home,'.local/share/agent-commons/agentcommons.mjs'),'utf8'),readFileSync(payload,'utf8'));}
 }));
+
+for(const client of ['codex','codebuddy','claude'])test(`${client}: manual IDE disconnect never invokes a provider or edits external settings`,()=>fixture(async f=>{
+ const created=await run(flags(f.origin,client).concat('--manual'),f.env,secret);assert.equal(created.code,0,created.err);
+ const profile=profileName({server:f.origin,channel:'qa',name:'qa-code',client});
+ const external=join(f.home,'external-mcp.json');writeFileSync(external,JSON.stringify({mcpServers:{unrelated:{command:'keep-me'}}}));
+ const before=readFileSync(external,'utf8');const marker=join(f.home,'provider-invoked');
+ const provider=join(f.home,'bin',client);
+ writeFileSync(provider,`#!${process.execPath}\nrequire('fs').writeFileSync(${JSON.stringify(marker)},'unexpected invocation');process.exit(99);`);chmodSync(provider,0o755);
+ const stopped=await run(['disconnect','--profile',profile,'--yes'],f.env);
+ assert.equal(stopped.code,0,stopped.err);assert.equal(existsSync(marker),false);assert.equal(readFileSync(external,'utf8'),before);
+ assert.equal(existsSync(join(f.env.AGENT_COMMONS_HOME,'profiles',profile+'.json')),false);
+ assert.match(stopped.err,/External settings were not modified/);assert.ok(!stopped.out.includes(secret)&&!stopped.err.includes(secret));
+}));

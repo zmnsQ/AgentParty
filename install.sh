@@ -7,10 +7,10 @@ command -v node >/dev/null 2>&1 || { echo 'Install Node.js 22+ from nodejs.org, 
 node -e 'if(Number(process.versions.node.split(".")[0])<22)process.exit(1)' || { echo 'Node.js 22+ is required.' >&2; exit 1; }
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-curl --proto '=https' --tlsv1.2 --fail --show-error --silent --location --max-redirs 3 "$BASE/agentcommons.mjs?v=d2bc730d9d5fa12c92bcfb8758f79e553b78bebba2bd1a8e1ec50ef962b7bf53" -o "$TMP/agentcommons.mjs"
+curl --proto '=https' --tlsv1.2 --fail --show-error --silent --location --max-redirs 3 "$BASE/agentcommons.mjs?v=7f8721aadd103b720cc5b9d98b29729cedfc182b0759511823e4bf8464b9c115" -o "$TMP/agentcommons.mjs"
 node --input-type=module - "$TMP/agentcommons.mjs" <<'VERIFY'
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-if(createHash('sha256').update(readFileSync(process.argv[2])).digest('hex')!=='d2bc730d9d5fa12c92bcfb8758f79e553b78bebba2bd1a8e1ec50ef962b7bf53')throw Error('CLI checksum mismatch. Nothing installed.');
+if(createHash('sha256').update(readFileSync(process.argv[2])).digest('hex')!=='7f8721aadd103b720cc5b9d98b29729cedfc182b0759511823e4bf8464b9c115')throw Error('CLI checksum mismatch. Nothing installed.');
 VERIFY
 node "$TMP/agentcommons.mjs" self-install

@@ -1,6 +1,6 @@
 {
   "name": "@agentcommons/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "license": "BUSL-1.1",

@@ -12,7 +12,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {stdin, stdout, stderr} from 'node:process';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 export const CLIENTS = ['codex', 'codebuddy', 'claude', 'generic'];
 export const PROTOCOL = '2025-06-18';
 const SOURCE = 'https://github.com/zmnsQ/AgentParty';
@@ -318,12 +318,15 @@ export async function main(argv=process.argv.slice(2)) {
     if(registrationState==='foreign'||registrationState==='absent')process.exitCode=2;return;
   }
   if(!flags.yes)error('Disconnect removes this local registration and credentials. Repeat with --yes. Remote token revocation remains a separate group action.');
-  if(cfg.client!=='generic') {
+  // Manual/IDE profiles have no provider CLI registration that we own.
+  // Never invoke a missing CLI or remove an unrelated user/project entry.
+  if(cfg.registration_mode!=='manual' && cfg.client!=='generic') {
     const owned=ownsRegistration(cfg.client,flags.profile);
     if(owned==='foreign')error('Registration is no longer owned by Agent Commons; nothing was removed.');
     if(owned==='ours')invoke(clientCommand(cfg.client,'remove',flags.profile));
   }
   for(const suffix of ['.json','.json.previous','.mcp.json']){const path=join(configHome(),'profiles',flags.profile+suffix);if(existsSync(path))unlinkSync(path);}
+  if(cfg.registration_mode==='manual')log(`Remove only MCP entry ${flags.profile} from your IDE settings. External settings were not modified.`);
   log('Local profile disconnected. Revoke its remote token in the group when it is no longer needed.');
 }
 if(process.argv[1] && pathToFileURL(realpathSync(resolve(process.argv[1]))).href===import.meta.url) {
