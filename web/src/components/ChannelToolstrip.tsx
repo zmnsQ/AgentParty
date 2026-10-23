@@ -59,8 +59,8 @@ export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
       </button>
       <div id="channel-toolstrip-content" className="chan-toolstrip-content">
         <div className="chan-tool-buttons">{buttons}</div>
-        <div className="chan-tool-actions">{actions}</div>
       </div>
+      <div className="chan-tool-actions">{actions}</div>
     </div>
   );
 }

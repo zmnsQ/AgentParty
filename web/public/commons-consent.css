@@ -134,3 +134,5 @@ body.commons-consent{font-family:var(--t-sans);background:var(--t-bg)}
 .commons-consent .oauth-result-icon{border:0;border-radius:14px;box-shadow:none;background:var(--d-yellow);color:var(--t-accent)}
 .commons-consent .oauth-footer{font-family:var(--t-sans);color:var(--t-muted)}
 @media(prefers-reduced-motion:reduce){.commons-consent .oauth-button{transition:none;transform:none}}
+
+.oauth-group-label{display:block;font-weight:600;margin:12px 0 8px}.oauth-group-select{display:block;width:100%;min-height:48px;font:16px/1.5 system-ui,sans-serif;padding:12px;margin-bottom:16px;border:1px solid currentColor;border-radius:8px;color:inherit;background:transparent}body.commons-consent{overflow-wrap:anywhere}

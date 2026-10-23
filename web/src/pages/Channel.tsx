@@ -1,3 +1,4 @@
+import { ModalPortal } from "../components/ModalPortal";
 import { StudioIcon } from "../components/StudioIcon";
 import {ChannelWelcome} from "../components/ChannelWelcome";
 import "../i18n/strings/Studio";
@@ -634,7 +635,7 @@ export function ChannelPanelModal({
   }, [focusableElements]);
 
   return (
-    <div className="channel-panel-overlay" role="dialog" aria-modal="true" aria-label={title}>
+    <ModalPortal><div className="channel-panel-overlay" role="dialog" aria-modal="true" aria-label={title}>
       <button
         className="channel-panel-scrim"
         type="button"
@@ -656,7 +657,7 @@ export function ChannelPanelModal({
         )}
         <div className="channel-panel-body">{children}</div>
       </section>
-    </div>
+    </div></ModalPortal>
   );
 }
 

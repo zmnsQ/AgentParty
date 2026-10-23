@@ -1,3 +1,4 @@
+import {MUSE_NATIVE_REDIRECT,MUSE_PUBLIC_PKCE} from "./muse-native";
 import type {Context,Hono} from 'hono';
 import type {AppContext,LoadedChannel} from '../index';
 import type {TokenIdentity} from '../auth';
@@ -50,17 +51,42 @@ export function registerMuseConnectorRoutes(app:Hono<AppContext>,deps:Deps){
  app.get(base,async c=>{
   const a=await deps.access(c,'manage');if(a instanceof Response)return a;
   const origin=c.env.AUTH_PUBLIC_ORIGIN;if(!origin)return fail('public_origin_required',503);
-  const clients=await c.env.DB.prepare(`SELECT c.client_id,c.name,c.redirects_json,c.disabled_at,p.created_at,
+  const clients=await c.env.DB.prepare(`SELECT c.client_id,c.name,c.redirects_json,c.disabled_at,p.created_at,p.secret_hash,
     (SELECT COUNT(*) FROM connector_oauth_grants g WHERE g.client_id=c.client_id AND g.revoked_at IS NULL AND g.refresh_expires_at>?) AS active_grants
     FROM connector_oauth_private_clients p JOIN connector_oauth_clients c ON c.client_id=p.client_id
     WHERE p.channel_slug=? AND p.owner_account=? AND p.provider='muse' ORDER BY p.created_at DESC LIMIT 10`)
-    .bind(Date.now(),a.slug,a.identity.account!).all<{client_id:string;name:string;redirects_json:string;disabled_at:number|null;created_at:number;active_grants:number}>();
-  return c.json({policy:await mcpSecurity(c.env.DB,a.slug),can_configure:await verifiedMfaOwner(c.env.DB,a.identity),
+    .bind(Date.now(),a.slug,a.identity.account!).all<{client_id:string;name:string;redirects_json:string;disabled_at:number|null;created_at:number;secret_hash:string;active_grants:number}>();
+  const native=await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM connector_oauth_grants g JOIN connector_oauth_clients c ON c.client_id=g.client_id
+    WHERE g.channel_slug=? AND g.account=? AND g.revoked_at IS NULL AND g.refresh_expires_at>? AND c.disabled_at IS NULL AND c.redirects_json=?`)
+    .bind(a.slug,a.identity.account!,Date.now(),JSON.stringify([MUSE_NATIVE_REDIRECT])).first<{n:number}>();
+  c.header('cache-control','no-store');
+  return c.json({native_authorized:(native?.n??0)>0,policy:await mcpSecurity(c.env.DB,a.slug),can_configure:await verifiedMfaOwner(c.env.DB,a.identity),
+   native_client_id:clients.results.find(x=>!x.disabled_at&&x.secret_hash===MUSE_PUBLIC_PKCE)?.client_id??null,
    clients:clients.results.map(x=>({client_id:x.client_id,name:x.name,redirect_uris:JSON.parse(x.redirects_json),
     disabled:x.disabled_at!==null,created_at:x.created_at,active_grants:x.active_grants})),
    configuration:museReviewManifest(origin,a.slug).authentication,
    mcp_endpoint:`${new URL(origin).origin}/api/channels/${a.slug}/mcp`,
    platform_review:{status:'not_submitted',verified:false},personal_wake:{status:'requires_device_pairing',verified:false}});
+ });
+ app.post(base+'/native-client',async c=>{
+  const a=await deps.access(c,'manage');if(a instanceof Response)return a;
+  if(!await verifiedMfaOwner(c.env.DB,a.identity))return fail('mfa_required',403);
+  const existing=await c.env.DB.prepare(`SELECT c.client_id FROM connector_oauth_private_clients p
+    JOIN connector_oauth_clients c ON c.client_id=p.client_id WHERE p.owner_account=? AND p.channel_slug=?
+    AND p.provider='muse' AND p.secret_hash=? AND c.disabled_at IS NULL LIMIT 1`)
+    .bind(a.identity.account!,a.slug,MUSE_PUBLIC_PKCE).first<{client_id:string}>();
+  if(existing)return c.json({client_id:existing.client_id,token_endpoint_auth_method:'none',authorized:false});
+  const id='accli_'+secret(),now=Date.now();
+  const count=await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM connector_oauth_private_clients p JOIN connector_oauth_clients c ON c.client_id=p.client_id WHERE p.channel_slug=? AND c.disabled_at IS NULL`)
+    .bind(a.slug).first<{n:number}>();if((count?.n??0)>=3)return fail('client_limit_reached',409);
+  await c.env.DB.batch([
+   c.env.DB.prepare('INSERT INTO connector_oauth_clients(client_id,name,redirects_json,created_at) VALUES(?,?,?,?)')
+    .bind(id,'Muse native MCP',JSON.stringify([MUSE_NATIVE_REDIRECT]),now),
+   c.env.DB.prepare("INSERT INTO connector_oauth_private_clients(client_id,provider,owner_account,channel_slug,secret_hash,created_at) VALUES(?,'muse',?,?,?,?)")
+    .bind(id,a.identity.account!,a.slug,MUSE_PUBLIC_PKCE,now),
+  ]);
+  c.header('cache-control','no-store');
+  return c.json({client_id:id,token_endpoint_auth_method:'none',authorized:false},201);
  });
  app.post(base+'/oauth-client',async c=>{
   const a=await deps.access(c,'manage');if(a instanceof Response)return a;

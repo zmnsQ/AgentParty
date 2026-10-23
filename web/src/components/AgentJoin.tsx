@@ -1,4 +1,5 @@
 import { StudioIcon } from "./StudioIcon";
+import { ModalPortal } from "./ModalPortal";
 // 频道页「＋ 让 agent 加入」：登录人类先给 agent 起个能认出来的名字（默认 <你>-<频道>，
 // 可改成 drawstyle-review 这类），再铸一枚 channel-scoped agent token，然后进入引导。
 //
@@ -835,7 +836,7 @@ export function AgentJoin({
       )}
 
       {composeOpen && (
-        <div
+        <ModalPortal><div
           ref={composeDialogRef}
           className="agent-join-overlay"
           role="dialog"
@@ -971,11 +972,11 @@ export function AgentJoin({
             </div>
             </>}
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {session !== null && (
-        <div
+        <ModalPortal><div
           ref={stepperDialogRef}
           className="agent-join-overlay"
           role="dialog"
@@ -1272,7 +1273,7 @@ export function AgentJoin({
               {t("AgentJoin.footerHint")} <a href="/docs">/docs</a>
             </p>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

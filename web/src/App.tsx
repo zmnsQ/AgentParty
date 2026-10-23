@@ -8,6 +8,7 @@ import { isOpaqueAccount } from "@agentparty/shared/identity";
 import { membershipApplyMailto, membershipStatusOf } from "./lib/membership";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChannelList } from "./components/ChannelList";
+import { ResponsiveSidebar } from "./components/ResponsiveSidebar";
 import { CreateChannel } from "./components/CreateChannel";
 import { DesktopSettings } from "./components/DesktopSettings";
 import { reportDesktopUiReady } from "./lib/desktopUi";
@@ -1401,7 +1402,7 @@ export function App() {
         </p>
       )}
       <div className="app-shell">
-        <aside className="app-side">
+        <ResponsiveSidebar activeSlug={slug} requestOpen={createGroupRequest} title={channels?.find(channel=>channel.slug===slug)?.title}>
           {canCreate && token !== null && (
             <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
           )}
@@ -1423,7 +1424,7 @@ export function App() {
             onOpen={openChannel}
             onRetry={reloadChannels}
           />
-        </aside>
+        </ResponsiveSidebar>
         <main className="app-main">
           {routeNotFound ? (
             <p className="banner banner--red" role="alert">

@@ -15,7 +15,7 @@ export interface EventBridgeState {active_subscriptions:number;pending_deliverie
 export interface McpPolicy {enabled:boolean;allow_write:boolean;allow_events:boolean;owner_mfa_enabled:boolean;require_mfa:true;updated_at:number|null;}
 export interface McpPolicyResponse {policy:McpPolicy;can_manage:boolean;}
 
-export interface MuseConnectorState {can_configure:boolean;mcp_endpoint:string;configuration:Record<string,unknown>;
+export interface MuseConnectorState {native_client_id?:string|null;native_authorized?:boolean;can_configure:boolean;mcp_endpoint:string;configuration:Record<string,unknown>;
  clients:Array<{client_id:string;name:string;redirect_uris:string[];disabled:boolean;created_at:number;active_grants:number}>;
  policy:McpPolicy;platform_review:{status:string;verified:false};personal_wake:{status:string;verified:false};}
 async function request<T>(token:string,path:string,method="GET",body?:unknown,signal?:AbortSignal):Promise<T>{
@@ -35,6 +35,7 @@ async function request<T>(token:string,path:string,method="GET",body?:unknown,si
 const root=(slug:string)=>`/api/channels/${encodeURIComponent(slug)}/bridges`;
 export const cloudBridgesApi={
   muse:(token:string,slug:string,signal?:AbortSignal)=>request<MuseConnectorState>(token,`${root(slug)}/muse`,"GET",undefined,signal),
+  createMuseNativeClient:(token:string,slug:string)=>request<{client_id:string;authorized:false}>(token,`${root(slug)}/muse/native-client`,"POST",{}),
   createMuseClient:(token:string,slug:string,redirect_uri:string)=>request<{client_id:string;client_secret:string}>(token,`${root(slug)}/muse/oauth-client`,"POST",{redirect_uri}),
   revokeMuseClient:(token:string,slug:string,id:string)=>request<{revoked:boolean}>(token,`${root(slug)}/muse/oauth-client/${encodeURIComponent(id)}`,"DELETE"),
   museReview:(token:string,slug:string)=>request<Record<string,unknown>>(token,`${root(slug)}/muse/review-package`),

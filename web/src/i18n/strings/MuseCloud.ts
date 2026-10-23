@@ -1,7 +1,7 @@
 import {registerDict,type LocaleDict} from '../dict';
 export const MuseCloudStrings:LocaleDict={en:{
- 'Muse.title':'Connect your personal Muse','Muse.intro':'Account access and personal-session notifications are separate connections. Complete the steps you need.',
- 'Muse.refresh':'Refresh status','Muse.oauth':'Account connection','Muse.wake':'Personal Muse notifications','Muse.review':'Platform review',
+ 'Muse.title':'Connect your personal Muse','Muse.intro':'Add the group MCP endpoint in Muse and finish sign-in and consent there. Personal-session notifications are configured separately.',
+ 'Muse.refresh':'Refresh status','Muse.oauth':'Account connection','Muse.wake':'Personal Muse notifications','Muse.review':'Optional directory review',
  'Muse.ready':'OAuth authorized','Muse.configured':'Client configured · authorization pending','Muse.unconfigured':'Not configured',
  'Muse.pairRequired':'A paired device is required','Muse.reviewUnknown':'No verified review decision',
  'Muse.endpoint':'Group MCP endpoint','Muse.copy':'Copy','Muse.copied':'Copied','Muse.loading':'Checking the current group…','Muse.error':'Could not check this connection. Your existing authorization has not been reset.',
@@ -19,8 +19,8 @@ export const MuseCloudStrings:LocaleDict={en:{
  'Muse.codeSeparate':'Looking for Muse Code?','Muse.codeHint':'Muse Code is a local coding runtime. It is not your existing personal Muse cloud session.',
  'Muse.noManage':'Only the group owner can configure or inspect this connection.',
 },zh:{
- 'Muse.title':'连接你的个人 Muse','Muse.intro':'账号工具访问与个人会话通知是两条连接。按需要完成对应步骤，不再混在一个状态里。',
- 'Muse.refresh':'刷新状态','Muse.oauth':'账号连接','Muse.wake':'个人会话通知','Muse.review':'平台审核',
+ 'Muse.title':'连接你的个人 Muse','Muse.intro':'在 Muse 添加本群 MCP 地址，再完成登录和授权。个人会话通知另行配置；目录审核工具是可选高级功能。',
+ 'Muse.refresh':'刷新状态','Muse.oauth':'账号连接','Muse.wake':'个人会话通知','Muse.review':'目录审核（可选）',
  'Muse.ready':'OAuth 已授权','Muse.configured':'客户端已配置 · 待授权','Muse.unconfigured':'尚未配置',
  'Muse.pairRequired':'需要配对你自己的设备','Muse.reviewUnknown':'尚无经过核实的审核结果',
  'Muse.endpoint':'本群 MCP 地址','Muse.copy':'复制','Muse.copied':'已复制','Muse.loading':'正在核对本群连接…','Muse.error':'暂时无法核对连接；不会因此重置你已有的授权。',

@@ -1,0 +1,83 @@
+/* Interaction layout, loaded after visual skins. Dialogs live in ModalPortal,
+   not inside a horizontal toolbar, transformed card or clipped application. */
+:root .chan-toolstrip { overflow: visible; flex-wrap: wrap; }
+:root .chan-toolstrip-content { min-width: 0; overflow-x: auto; overflow-y: hidden; }
+:root .chan-tool-actions { flex-wrap: wrap; }
+:root :is(.agent-join-overlay,.channel-panel-overlay,.settings-overlay) { z-index: 300; }
+.mobile-groupbar { flex: none; min-width: 0; background: var(--t-panel); border-bottom: 1px solid var(--t-faint); }
+.mobile-group-toggle { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 48px; padding: 8px 14px; border: 0; background: transparent; text-align: left; }
+.mobile-group-toggle > span { min-width: 0; flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-group-toggle small { flex: none; color: var(--t-muted); font-size: 12px; }
+.mobile-groups-overlay { position: fixed; inset: 0; z-index: 250; }
+.mobile-groups-scrim { position: absolute; inset: 0; width: 100%; border: 0; background: var(--ac-backdrop); }
+:root .app-side.mobile-groups-drawer { position: relative; display: flex; flex-direction: column; height: 100%; max-height: 100%; width: min(360px,92%); max-width: 100%; padding: 0; overflow: hidden; border: 0; background: var(--t-panel); box-shadow: var(--ac-shadow-modal); }
+.mobile-groups-drawer > header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: max(10px,env(safe-area-inset-top)) 14px 10px; border-bottom: 1px solid var(--t-faint); }
+.mobile-groups-drawer h2 { margin: 0; font-size: 18px; }
+.mobile-groups-content { min-height: 0; overflow: auto; padding: 16px 14px max(16px,env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+:root .mobile-groups-content .studio-channel-items { flex-direction: column; overflow: visible; }
+:root .mobile-groups-content .chan-pill { width: 100%; max-width: none; min-height: 48px; }
+:root .mobile-groups-content .chan-name { max-width: none; font-size: 14px; }
+:root .mobile-groups-content .side { display: flex; flex-direction: column; }
+@media (max-width: 760px), (max-device-width: 760px) and (pointer: coarse) {
+ :root #root { height: calc(var(--ac-viewport-height,100dvh) / var(--ac-layout-scale,1)); min-width: 0; }
+ :root .app { min-height: 0; height: auto; max-height: 100%; }
+ :root .app-shell { display: flex; flex-direction: column; width: 100%; min-width: 0; min-height: 0; gap: 0; padding: 0; }
+ :root .app-main { flex: 1 1 0; min-width: 0; min-height: 0; width: 100%; overflow: hidden; }
+ :root .chan { min-width: 0; min-height: 0; width: 100%; }
+ :root .app-head { flex: none; min-width: 0; min-height: 56px; gap: 6px; padding: max(6px,env(safe-area-inset-top)) 12px 6px; flex-wrap: wrap; }
+ :root .app-logo { font-size: 18px; margin-right: auto; }
+ :root :is(.app-docs,.app-product-link,.app-tag,.app-me) { display: none; }
+ :root :is(.app-settings-btn,.app-agent-center-btn,.notify-toggle-btn) { width: 44px; height: 44px; flex: none; }
+ :root .chan-toolstrip { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 6px; padding: 6px 10px; width: 100%; min-width: 0; overflow: visible; }
+ :root .chan-toolstrip-toggle { display: inline-flex; width: 44px; min-height: 44px; padding: 0; }
+ :root :is(.chan-toolstrip-toggle-label,.chan-toolstrip-toggle-arrow) { display: none; }
+ :root .chan-toolstrip-content { grid-column: 2; flex: none; min-width: 0; max-width: 100%; width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 0; }
+ :root .chan-toolstrip--collapsed .chan-toolstrip-content { display: none; }
+ :root .chan-tool-buttons { flex: none; gap: 2px; }
+ :root .chan-tool-actions { grid-column: 1 / -1; min-width: 0; max-width: 100%; margin: 0; justify-content: flex-start; gap: 6px; }
+ :root :is(.chan-admin-actions,.chan-admin-group) { flex-wrap: wrap; max-width: 100%; margin-left: 0; gap: 6px; }
+ :root .chan-admin-group + .chan-admin-group { border: 0; padding: 0; margin: 0; }
+ :root .chan-toolstrip .d-btn { min-height: 44px; font-size: 13px; }
+ :root .chan-tool-badge { display: none; }
+ :root .presence-bar { padding: 8px 12px; gap: 6px; flex-wrap: wrap; }
+ :root .stream { min-width: 0; min-height: 0; padding: 12px; scrollbar-gutter: auto; }
+ :root .stream .msg-card { width: 100%; min-width: 0; padding: 14px 12px; }
+ :root .msg-body { font-size: 15px; }
+ :root .msg-head { flex-wrap: wrap; }
+ :root .composer { flex: none; width: auto; min-width: 0; margin: 0 10px max(10px,env(safe-area-inset-bottom)); padding: 8px 10px; border-radius: 14px; }
+ :root .composer-input { flex: 0 0 100%; width: 100%; min-width: 0; font-size: 16px; min-height: 44px; max-height: 120px; }
+ :root .composer-actions { width: 100%; flex-wrap: wrap; gap: 6px; }
+ :root .composer-actions .d-btn { min-height: 44px; }
+ :root .composer-keyboard-hint { display: none; }
+ :root .home { padding: 22px 16px; }
+ :root :is(.home-grid,.team-lane-cards) { grid-template-columns: minmax(0,1fr); }
+ :root.ac-mobile :is(.agent-join-overlay,.channel-panel-overlay,.settings-overlay,.mobile-groups-overlay) { position: fixed; inset: calc(var(--ac-viewport-top,0px) / var(--ac-layout-scale,1)) 0 auto; width: 100%; height: calc(var(--ac-viewport-height,100dvh) / var(--ac-layout-scale,1)); max-height: none; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; align-items: stretch; }
+ :root.ac-mobile .agent-join-overlay .agent-join-card,
+ :root.ac-mobile .channel-panel-overlay .channel-panel-card,
+ :root.ac-mobile .settings-overlay .settings-panel { width: 100%; max-width: 100%; height: 100%; max-height: 100%; min-width: 0; min-height: 0; margin: 0; border: 0; border-radius: 0; box-sizing: border-box; transform: none; }
+ :root.ac-mobile .agent-join-overlay .agent-join-card { padding: max(14px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom)); overflow: auto; overscroll-behavior: contain; }
+ :root .agent-join-card > * { flex-shrink: 0; }
+ :root .agent-join-card-head { position: sticky; top: -1px; z-index: 2; align-items: center; background: var(--t-panel); padding-block: 4px 10px; border-bottom: 1px solid var(--t-faint); }
+ :root :is(.agent-join-close,.channel-panel-close,.settings-close) { min-width: 44px; min-height: 44px; flex: none; }
+ :root .agent-join-title { font-size: 20px; }
+ :root .agent-join-title .d-hl { display: block; overflow-wrap: anywhere; font-size: 13px; }
+ :root .agent-connect-categories { grid-template-columns: minmax(0,1fr); gap: 22px; }
+ :root .agent-connect-category > header { min-height: 0; }
+ :root .agent-connect-category .agent-connect-grid { grid-template-columns: minmax(0,1fr); }
+ :root .agent-team-flow ol { grid-template-columns: minmax(0,1fr); }
+ :root .channel-panel-card { display: flex; flex-direction: column; }
+ :root .channel-panel-head { flex: none; padding: max(10px,env(safe-area-inset-top)) 16px 10px; }
+ :root .channel-panel-body { flex: 1 1 0; width: 100%; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px 16px max(16px,env(safe-area-inset-bottom)); scrollbar-gutter: auto; }
+ :root .settings-layout { display: flex; flex-direction: column; min-height: 0; }
+ :root .settings-head { flex: none; padding: max(10px,env(safe-area-inset-top)) 16px 10px; }
+ :root .settings-nav { flex: none; padding: 8px; border-right: 0; border-bottom: 1px solid var(--t-faint); }
+ :root .settings-tabs { flex-direction: row; overflow-x: auto; }
+ :root .settings-tab { flex: none; min-height: 44px; white-space: nowrap; }
+ :root .settings-content { min-width: 0; min-height: 0; overflow: auto; padding: 16px; }
+ :root .agentmanager-workspace { grid-template-columns: minmax(0,1fr); }
+ :root.ac-mobile :is(.agent-join-card,.channel-panel-body,.settings-content) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 16px !important; max-width: 100%; min-width: 0; }
+ :root .commons-nav { grid-template-columns: minmax(0,1fr) auto; }
+ :root .commons-nav [role=tablist] { flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
+ :root .commons-tab { flex: none; min-height: 44px; }
+ :root.ac-keyboard-open :is(.mobile-groupbar,.presence-bar,.chan-toolstrip) { display: none; }
+}

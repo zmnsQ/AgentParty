@@ -1,6 +1,7 @@
 // @ts-expect-error Bun executes this test, while the web tsconfig intentionally loads only Vite globals.
 import { afterEach, describe, expect, test } from "bun:test";
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from "react-test-renderer";
+import { COMPACT_MEDIA } from "../lib/mobileViewport";
 import { SectionedDialog, type SectionedDialogSection } from "./SectionedDialog";
 
 type SectionId = "general" | "account" | "desktop";
@@ -25,7 +26,7 @@ class EventTargetHarness {
 }
 
 class MediaQueryHarness extends EventTargetHarness {
-  readonly media = "(max-width: 760px)";
+  readonly media = COMPACT_MEDIA;
   onchange: ((event: unknown) => void) | null = null;
 
   constructor(public matches: boolean) {
