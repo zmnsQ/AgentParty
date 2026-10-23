@@ -40,7 +40,7 @@ export function AgentConnectionPicker({onCloud,onLocal}:{
             key={provider} data-provider={provider} onClick={()=>onCloud(provider)}>
             <ProviderMark provider={provider}/><strong>{t(`AgentConnect.${provider}`)}</strong>
             <span>{t(`AgentConnect.${provider}Hint`)}</span>
-            <small>{t(provider==="dot"||provider==="muse"?"Studio.oauth":"Studio.api")}</small>
+            <small>{t(provider==="dot"?"Studio.oauth":provider==="muse"?"AgentConnect.museMcp":"Studio.api")}</small>
             <span className="studio-option-arrow"><StudioIcon name="arrow"/></span>
           </button>)}
         </div>
