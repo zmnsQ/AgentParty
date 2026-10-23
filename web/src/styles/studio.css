@@ -346,3 +346,40 @@
  :root .composer-input{min-height:42px;max-height:100px}
  :root .stream-empty{padding-block:16px}
 }
+
+
+/* Mobile viewport containment: prevent hidden controls and clipped panels. */
+@media (max-width: 760px) {
+  :root, :root body, :root #root { max-width: 100%; min-width: 0; overflow-x: clip; }
+  :root .app, :root .app-shell, :root .app-main, :root .app-side,
+  :root .home, :root .stream, :root .composer, :root .channel-panel-body,
+  :root .settings-content { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  :root .app { min-height: 0; height: 100dvh; max-height: 100dvh; }
+  :root .app-main { overflow: hidden; }
+  :root .app-head { flex: 0 0 auto; min-width: 0; }
+  :root .app-head > * { min-width: 0; }
+  :root .app-side { max-height: min(25dvh, 182px); }
+  :root .chan-toolstrip { display: flex; flex-wrap: wrap; min-width: 0; gap: 6px; }
+  :root .chan-toolstrip > * { min-width: 0; }
+  :root .composer { width: auto; flex: 0 0 auto; min-width: 0; }
+  :root .composer-input { min-width: 0; max-width: 100%; }
+  :root .composer-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  :root :is(.channel-panel-overlay,.sectioned-dialog-overlay,.agentjoin-overlay) {
+    width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;
+  }
+  :root :is(.channel-panel-card,.sectioned-dialog,.sectioned-dialog-panel,.settings-panel,.agentjoin-dialog) {
+    width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: hidden;
+  }
+  :root :is(.channel-panel-body,.settings-content,.sectioned-dialog-panel) {
+    min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+  }
+  :root :is(.channel-panel-body,.settings-content,.commons-hub) :is(pre,code) {
+    max-width: 100%; overflow-wrap: anywhere;
+  }
+  :root .home-grid, :root .team-lane-cards { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 430px) {
+  :root .app-head { gap: 6px; }
+  :root .app-logo { font-size: 18px; }
+  :root .composer-actions > * { max-width: 100%; }
+}
