@@ -25,7 +25,7 @@ try{for(const item of cases){
    assert.equal(await page.locator(".mobile-channel-menu-overlay").isVisible(),false);
   }else await page.locator(".agent-join-btn").click();
   await page.locator(".agent-join-overlay").waitFor();assert.equal(await page.locator(".agent-join-overlay").evaluate(e=>e.parentElement.tagName),"BODY");
-  await page.locator("[data-coding-provider=codex]").click();await page.locator(".agent-join-nameinput").fill("qa-only");await page.locator(".agent-join-actions button").click({trial:true});await page.locator(".agent-join-close").click();
+  await page.locator("[data-coding-provider=codex]").click();await page.locator(".coding-advanced summary").click();await page.getByRole("button",{name:/打开已有连接的兼容向导|Open legacy connection guide/}).click();await page.locator(".agent-join-nameinput").fill("qa-only");await page.locator(".agent-join-actions button").click({trial:true});await page.locator(".agent-join-close").click();
   if(!item.desktop)await page.locator(".mobile-channel-more").click();await page.locator(".agent-join-btn").click();
   if(!await page.locator("[data-provider=muse]").count())await page.getByRole("button",{name:/返回|Back|重新选择/}).click();
   await page.locator("[data-provider=muse]").click();await page.locator(".muse-endpoint input").first().waitFor();await page.locator(".channel-panel-close").click();

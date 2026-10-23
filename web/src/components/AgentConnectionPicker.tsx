@@ -7,7 +7,7 @@ import "../styles/agent-connect.css";
 
 export const CLOUD_AGENT_CHOICES=["dot","muse","cue","grok","hermes"] as const;
 export type CloudAgentChoice=typeof CLOUD_AGENT_CHOICES[number];
-export const CODING_AGENT_CHOICES=["codex","claude","other"] as const;
+export const CODING_AGENT_CHOICES=["codex","codebuddy","claude","other"] as const;
 export type CodingAgentChoice=typeof CODING_AGENT_CHOICES[number];
 
 /** Connection categories are complementary, not mutually exclusive roles.

@@ -1,0 +1,21 @@
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+import assert from 'node:assert/strict';import {mkdir,writeFile} from 'node:fs/promises';import {join} from 'node:path';
+const output=process.env.QA_OUTPUT_DIR||'/tmp/commons-native-qa',origin=process.env.QA_ORIGIN||'http://127.0.0.1:4176';await mkdir(output,{recursive:true});
+const browser=await chromium.launch({args:['--no-sandbox','--disable-dev-shm-usage']}),results=[];
+const cases=[{width:320,height:568,lang:'zh',client:'codebuddy'},{width:390,height:650,lang:'zh',client:'codex'},{width:430,height:740,lang:'en',client:'codebuddy'},{width:1280,height:800,lang:'en',client:'codex',desktop:true}];
+try{for(const c of cases){const context=await browser.newContext({viewport:{width:c.width,height:c.height},isMobile:!c.desktop,hasTouch:!c.desktop});const page=await context.newPage(),errors=[],writes=[];page.setDefaultTimeout(12000);page.on('pageerror',e=>errors.push(e.message));const secret='ap_'+'z'.repeat(48);
+ await page.route('**/api/**',async route=>{const req=route.request();if(req.method()!=='GET'){writes.push(new URL(req.url()).pathname);assert.equal(new URL(req.url()).pathname,'/api/agents');const body=req.postDataJSON();assert.equal(body.channel_scope,'qa-chat');await route.fulfill({status:201,json:{name:body.name,token:secret}});}else await route.fulfill({json:{clients:[],policy:{enabled:true,allow_write:true,allow_events:true},can_configure:true,mcp_endpoint:'https://commons.test/api/channels/qa-chat/mcp',configuration:{}}});});
+ try{await page.goto(`${origin}/test/fixtures/chat-first.html?lang=${c.lang}&theme=${c.lang==='en'?'midnight':'doodle'}`,{waitUntil:'domcontentloaded',timeout:90000});await page.locator('.composer-input').waitFor({timeout:60000});
+ if(!c.desktop)await page.locator('.mobile-channel-more').click();await page.locator('.agent-join-btn').click();await page.locator(`[data-coding-provider=${c.client}]`).click();await page.locator('.coding-setup').waitFor();assert.equal(writes.length,0);
+ assert.equal(await page.locator('.agent-join-overlay').evaluate(e=>e.parentElement.tagName),'BODY');await page.locator('.agent-join-close').click({trial:true});
+ const before=await page.locator('.coding-setup pre').allTextContents();assert.ok(before.some(x=>x.includes('/cli/install.sh')));assert.ok(before.every(x=>!x.includes('leeguooooo/agentparty/main/install.sh')));
+ await page.locator('.coding-agent-name').fill('qa-'+c.client);await page.locator('.coding-create').click();await page.locator('.coding-agent-token').waitFor();assert.equal(writes.length,1);assert.equal(await page.locator('.coding-agent-token').getAttribute('type'),'password');assert.equal(await page.locator('.coding-agent-token').inputValue(),secret);
+ let text=(await page.locator('.coding-setup pre').allTextContents()).join('\n');assert.ok(text.includes(`--client ${c.client}`));assert.ok(text.includes('agentcommons connect'));assert.ok(!text.includes(secret));assert.ok(!text.includes('party join'));
+ await page.getByRole('button',{name:'Windows',exact:true}).click();text=(await page.locator('.coding-setup pre').allTextContents()).join('\n');assert.ok(text.includes('/cli/install.ps1'));assert.ok(text.includes('--manual'));assert.equal(writes.length,1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+ await page.locator('.coding-setup').scrollIntoViewIfNeeded();await page.screenshot({path:join(output,`native-${c.width}-${c.client}.png`)});
+ await page.locator('.agent-join-close').click();assert.equal(await page.locator('.agent-join-overlay').count(),0);
+ if(!c.desktop)await page.locator('.mobile-channel-more').click();await page.locator('.agent-join-btn').click();await page.locator(`[data-coding-provider=${c.client}]`).click();assert.equal(await page.locator('.coding-agent-token').count(),0);assert.equal(writes.length,1);await page.locator('.agent-join-close').click();
+ assert.deepEqual(errors,[]);results.push({...c,passed:true,explicitCredentialWrites:1,secretInCommands:false});console.log('PASS',JSON.stringify(results.at(-1)));
+ }catch(e){await page.screenshot({path:join(output,`failed-${c.width}.png`)}).catch(()=>{});throw e;}finally{await context.close();}}
+}finally{await writeFile(join(output,'native-browser.json'),JSON.stringify(results,null,2));await browser.close();}

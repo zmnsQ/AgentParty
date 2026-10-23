@@ -1,3 +1,4 @@
+import {CodingAgentSetup} from "./CodingAgentSetup";
 // @ts-expect-error Bun executes this test, while the web tsconfig intentionally loads only Vite globals.
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
@@ -770,7 +771,7 @@ describe("AgentJoin 分步引导 (#1005)", () => {
       s.r.root.find((n) => n.props.className === "agent-join-cmd" && n.props["data-cmd"] === "join").props.children[0].props.children,
     );
     expect(joined.startsWith("curl -fsSL")).toBe(true);
-    expect(joined).toContain("install.sh | sh && AGENTPARTY_TOKEN=");
+    expect(joined).toContain("install-legacy.sh | sh && AGENTPARTY_TOKEN=");
   });
 
   // codex stop-time review on 3d65e20：无人值守脚本自带「版本闸 + 缺了才装」，① 再给一条
@@ -967,7 +968,7 @@ describe("AgentJoin 分步引导 (#1005)", () => {
     const toggle = r.root.find((n) => n.props.type === "checkbox" && typeof n.props.onChange === "function");
     act(() => toggle.props.onChange({ target: { checked: true } }));
     expect(joinCmd(r)).toBe(
-      "curl -fsSL https://raw.githubusercontent.com/leeguooooo/agentparty/main/install.sh | sh && cd '/work/demo' && party claude demo -- --resume 8aff5437-4afc-4be7-997c-a8c64584927d",
+      "curl -fsSL https://raw.githubusercontent.com/zmnsQ/AgentParty/feat/agent-commons-provider-bridges-20261021/install-legacy.sh | sh && cd '/work/demo' && party claude demo -- --resume 8aff5437-4afc-4be7-997c-a8c64584927d",
     );
   });
 
@@ -1114,6 +1115,7 @@ describe("mixed cloud and coding team onboarding",()=>{
     expect(r.root.findByProps({"data-coding-provider":"claude"})).toBeTruthy();
     expect(r.root.findByProps({"data-provider":"dot"})).toBeTruthy();
     await act(async()=>r.root.findByProps({"data-coding-provider":provider}).props.onClick());
+    await act(async()=>r.root.findByType(CodingAgentSetup).props.onLegacy());
     expect(r.root.findByProps({name:"agent-join-harness",value:provider}).props.checked).toBe(true);
     expect(savedAgents).toHaveLength(0);
     await act(async()=>r.root.findByProps({name:"agent-join-mode",value:"unattended"}).props.onChange());
@@ -1128,6 +1130,7 @@ describe("mixed cloud and coding team onboarding",()=>{
   test.each(["codex","claude"] as const)("%s connection retains its actual harness in the generated join command",async(provider:"codex"|"claude")=>{
     const r=render(undefined,null,{onCloudConnect:()=>{},presence:[],messages:[]});open(r);
     await act(async()=>r.root.findByProps({"data-coding-provider":provider}).props.onClick());
+    await act(async()=>r.root.findByType(CodingAgentSetup).props.onLegacy());
     await act(async()=>r.root.find(node=>node.props.className==="d-btn d-btn--primary"&&node.props.onClick).props.onClick());
     expect(savedAgents).toHaveLength(1);
     expect(savedAgents[0]!.command).toContain("--harness "+provider);

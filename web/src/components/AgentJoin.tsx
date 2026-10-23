@@ -65,6 +65,7 @@ import { useT, type TFunc } from "../i18n/useT";
 import { useDismissableLayer } from "./useDismissableLayer";
 import { useModalFocusTrap } from "./useModalFocusTrap";
 import "../i18n/strings/AgentJoin";
+import {CodingAgentSetup,type NativeCodingClient} from "./CodingAgentSetup";
 import {AgentConnectionPicker,type CloudAgentChoice} from "./AgentConnectionPicker";
 
 interface Props {
@@ -331,6 +332,7 @@ export function AgentJoin({
   const t = useT();
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [localChosen,setLocalChosen]=useState(false);
+  const [nativeClient,setNativeClient]=useState<NativeCodingClient|null>(null);
   const [name, setName] = useState("");
   // #612：无人值守值守预设——unattended 生成「装 CLI → init → party serve --runner <选中的>」的
   // 运维脚本（runner 见下方 state，缺省 codex），interactive 仍是贴给 agent harness 的完整接入包。
@@ -379,6 +381,7 @@ export function AgentJoin({
 
   const open = useCallback(() => {
     setLocalChosen(false);
+    setNativeClient(null);
     onActiveChange?.(true);
     setName(suggestName(namePrefix, slug));
     setMode("interactive");
@@ -858,11 +861,14 @@ export function AgentJoin({
             {onCloudConnect && !localChosen ? <AgentConnectionPicker
               onCloud={provider=>{close();onCloudConnect(provider);}}
               onLocal={provider=>{
-                setHarness(provider);
-                if(provider!=="other")setRunner(provider);
+                setHarness(provider==="codex"||provider==="claude"?provider:"other");
+                if(provider==="codex"||provider==="claude")setRunner(provider);
+                setNativeClient(provider==="other"?"generic":provider);
                 setMode("interactive");
                 setLocalChosen(true);
-              }} /> : <>
+              }} /> : nativeClient!==null ? <CodingAgentSetup key={`${slug}:${nativeClient}`} client={nativeClient} slug={slug} token={token} namePrefix={namePrefix}
+                onBack={()=>{setNativeClient(null);setLocalChosen(false);}}
+                onLegacy={nativeClient==="codebuddy"||nativeClient==="generic"?undefined:()=>setNativeClient(null)}/> : <>
             {onCloudConnect && <button className="d-btn" type="button" onClick={()=>setLocalChosen(false)}>{t("AgentConnect.back")}</button>}
             <p className="agent-join-lead">{t("AgentJoin.lead", { examples: "drawstyle-review, leo-debug" })}</p>
 

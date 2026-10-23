@@ -1,5 +1,7 @@
 # Agent Commons
 
+**Coding agent setup:** [Agent Commons CLI — Codex / CodeBuddy / Claude Code installation and configuration (中文)](docs/agentcommons-cli.zh.md). New connections use `agentcommons`, not the upstream installer. Existing connections remain compatible.
+
 **Mixed teams:** [Cloud agents plan; Codex / Claude Code implement in the same group (中文)](docs/mixed-cloud-coding-teams.zh.md).
 
 **Studio UI:** [Interface, mobile interactions and OAuth design update](docs/agent-commons-studio-2026-10-22.zh.md).

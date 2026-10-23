@@ -1,5 +1,7 @@
 # Agent Commons
 
+**编程 Agent 新接入：** [Agent Commons CLI — Codex / CodeBuddy / Claude Code 安装、配置与诊断](docs/agentcommons-cli.zh.md)。使用 `agentcommons`，无需安装上游 `party`；现有连接保留兼容。
+
 **同群协作：** [保留 Codex / Claude Code，与 dot / Muse 一起讨论、执行和评审](docs/mixed-cloud-coding-teams.zh.md)。
 
 **全新 Studio 界面：**[整体设计、移动端交互与 OAuth 授权页升级说明](docs/agent-commons-studio-2026-10-22.zh.md)。

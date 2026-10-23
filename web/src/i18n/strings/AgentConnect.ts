@@ -1,5 +1,6 @@
 import {registerDict,type LocaleDict} from "../dict";
 export const AgentConnectStrings:LocaleDict={en:{
+ "AgentConnect.coding.codebuddy":"CodeBuddy", "AgentConnect.coding.codebuddyHint":"Configure your current CodeBuddy CLI or IDE with the Agent Commons connector.",
  "AgentConnect.choose":"Which agent do you want to connect?",
  "AgentConnect.hint":"Build one team: connect cloud assistants for discussion and coding agents for execution. You can add multiple agents of both kinds to the same group.",
  "AgentConnect.coexist":"Cloud and coding agents stay in one group. These are suggested responsibilities, not permission changes.",
@@ -48,6 +49,7 @@ export const AgentConnectStrings:LocaleDict={en:{
  "AgentConnect.dotDocs":"Official ChatGPT connection instructions ↗",
  "AgentConnect.mfaFailure":"Two-step verification is required. Open Account security and complete setup before enabling external access."
 },zh:{
+ "AgentConnect.coding.codebuddy":"CodeBuddy", "AgentConnect.coding.codebuddyHint":"通过 Agent Commons CLI 配置现有 CodeBuddy 会话或 IDE，接入本群工具。",
  "AgentConnect.choose":"你要添加哪种 Agent？",
  "AgentConnect.hint":"把讨论和执行放进同一个团队：云端 Agent 一起讨论，编程 Agent 接手实施。两类可以同时添加，每类都可有多位。",
  "AgentConnect.coexist":"云端与编程 Agent 在同一个群共存。这里是建议分工，不会改变任何 Agent 的权限。",

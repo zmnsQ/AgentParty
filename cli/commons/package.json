@@ -1,0 +1,11 @@
+{
+  "name": "@agentcommons/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "BUSL-1.1",
+  "author": "zmnsQ",
+  "bin": {"agentcommons": "agentcommons.mjs"},
+  "engines": {"node": ">=22"},
+  "scripts": {"test": "node --test agentcommons.test.mjs", "build": "node build.mjs"}
+}

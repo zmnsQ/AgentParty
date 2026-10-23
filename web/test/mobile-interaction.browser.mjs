@@ -28,7 +28,7 @@ try{for(const item of cases){
   await page.locator(".agent-join-btn").click();
   assert.equal(await page.locator(".agent-join-overlay").evaluate(e=>e.parentElement.tagName),"BODY");
   const close=page.locator(".agent-join-close");await close.click({trial:true});
-  await page.locator("[data-coding-provider=codex]").click();
+  await page.locator("[data-coding-provider=codex]").click();await page.locator(".coding-advanced summary").click();await page.getByRole("button",{name:/打开已有连接的兼容向导|Open legacy connection guide/}).click();
   await page.locator(".agent-join-nameinput").fill("qa-codex");
   await page.locator(".agent-join-actions button").click({trial:true});
   await close.click();assert.equal(await page.locator(".agent-join-overlay").count(),0);

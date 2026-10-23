@@ -1,0 +1,135 @@
+{
+  "scope": "Independent Agent Commons CLI onboarding; isolated test data only",
+  "cli_version": "0.1.0",
+  "node_tests": {
+    "passed": 21,
+    "failed": 0
+  },
+  "web_release_check": {
+    "passed": 327,
+    "failed": 0,
+    "typecheck": true,
+    "production_build": true
+  },
+  "coding_browser_cases": [
+    {
+      "width": 320,
+      "height": 568,
+      "lang": "zh",
+      "client": "codebuddy",
+      "passed": true,
+      "explicitCredentialWrites": 1,
+      "secretInCommands": false
+    },
+    {
+      "width": 390,
+      "height": 650,
+      "lang": "zh",
+      "client": "codex",
+      "passed": true,
+      "explicitCredentialWrites": 1,
+      "secretInCommands": false
+    },
+    {
+      "width": 430,
+      "height": 740,
+      "lang": "en",
+      "client": "codebuddy",
+      "passed": true,
+      "explicitCredentialWrites": 1,
+      "secretInCommands": false
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "lang": "en",
+      "client": "codex",
+      "desktop": true,
+      "passed": true,
+      "explicitCredentialWrites": 1,
+      "secretInCommands": false
+    }
+  ],
+  "chat_regression_cases": [
+    {
+      "width": 320,
+      "height": 568,
+      "lang": "zh",
+      "theme": "doodle",
+      "messagePercent": 72.2,
+      "passed": true
+    },
+    {
+      "width": 390,
+      "height": 650,
+      "lang": "zh",
+      "theme": "doodle",
+      "messagePercent": 75.7,
+      "passed": true
+    },
+    {
+      "width": 430,
+      "height": 740,
+      "lang": "en",
+      "theme": "midnight",
+      "messagePercent": 78.6,
+      "passed": true
+    },
+    {
+      "width": 390,
+      "height": 650,
+      "lang": "en",
+      "theme": "midnight",
+      "messagePercent": 75.7,
+      "passed": true
+    },
+    {
+      "width": 980,
+      "height": 1633,
+      "screen": 390,
+      "lang": "zh",
+      "theme": "doodle",
+      "messagePercent": 72,
+      "passed": true
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "lang": "en",
+      "theme": "doodle",
+      "messagePercent": 46.8,
+      "passed": true
+    }
+  ],
+  "real_macos_cli_tests": [
+    {
+      "client": "codex",
+      "version": "codex-cli 0.136.0",
+      "installed": true,
+      "registered": true,
+      "idempotent": true,
+      "diagnosed": true,
+      "removed": true,
+      "model_started": false,
+      "real_credentials_used": false
+    },
+    {
+      "client": "codebuddy",
+      "version": "2.161.3",
+      "installed": true,
+      "registered": true,
+      "idempotent": true,
+      "diagnosed": true,
+      "removed": true,
+      "model_started": false,
+      "real_credentials_used": false
+    }
+  ],
+  "windows_runtime_tested": false,
+  "claude_real_runtime_tested": false,
+  "production_accounts_granted": false,
+  "models_started": false,
+  "backend_changed": false,
+  "schema_changed": false
+}
