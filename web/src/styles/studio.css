@@ -383,3 +383,30 @@
   :root .app-logo { font-size: 18px; }
   :root .composer-actions > * { max-width: 100%; }
 }
+
+
+/* Phone navigation is a single-column application, never a scaled desktop split. */
+@media (max-width: 760px) {
+ :root .app-shell { display:flex; flex-direction:column; width:100%; min-width:0; }
+ :root .app-side { width:100%; max-width:100%; flex:0 0 auto; border-right:0; border-bottom:1px solid var(--t-faint); }
+ :root .app-main { width:100%; flex:1 1 0; min-width:0; min-height:0; }
+ :root .app-side .studio-channel-items { width:100%; overflow-x:auto; }
+ :root .chan-toolstrip { width:100%; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; }
+ :root .chan-toolstrip > * { flex-shrink:0; }
+ :root .agent-join-overlay, :root .agentjoin-overlay {
+   position:fixed; inset:0; z-index:9999; display:flex; align-items:stretch;
+   justify-content:stretch; width:100vw; height:100dvh; max-height:100dvh;
+   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+   box-sizing:border-box; overflow:hidden;
+ }
+ :root .agent-join-card, :root .agentjoin-dialog,
+ :root .agent-join-card:has(.agent-connect-picker),
+ :root .agent-join-card:has(.agent-connect-categories) {
+   position:relative; inset:auto; transform:none; margin:0; width:100%; max-width:100%;
+   height:100%; max-height:100%; min-height:0; border-radius:0; box-sizing:border-box;
+   overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+ }
+ :root .agent-join-card-head { position:sticky; top:0; z-index:2; background:var(--t-panel); }
+ :root .agent-connect-picker, :root .agent-connect-categories { min-width:0; width:100%; }
+ :root .agent-connect-picker button, :root .agent-join-card button { touch-action:manipulation; }
+}
