@@ -33,3 +33,7 @@ cd worker && bun x vitest run test/muse-native-oauth.spec.ts test/connector-oaut
 ```
 
 服务器发布应先备份状态和配置，保持 Tunnel、DNS 和其他服务不变。新版本只替换应用代码与前端资源，保留持久化状态和回退版本；健康验证失败时回退符号链接，不覆盖用户数据库。
+
+## 公网代理回归补充
+
+公网验收发现本地 Wrangler 代理会把绝对同域登录跳转的 HTTPS scheme 改为 HTTP。OAuth 登录入口与授权过期重试改用固定同源相对路径，保留浏览器原有 HTTPS；外部 Muse / ChatGPT 注册回调仍保持严格验证的绝对 HTTPS 地址。群组、PKCE、state、nonce 和权限校验不变。新增断言覆盖登录 return_to 参数、同源相对路径，以及过期重试不签发授权。

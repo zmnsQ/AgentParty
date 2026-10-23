@@ -272,7 +272,9 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     const current=await readBrowserSession(c.env.DB,c.req.raw);
     if(!current||current.stage!=="ready"){
       const path="/oauth/authorize?"+new URLSearchParams(p).toString();
-      const url=`${uri(c.env)}/api/auth/github/start?return_to=${encodeURIComponent(path)}`;
+      // Same-origin relative redirects preserve the browser's HTTPS scheme.
+      // The local preview proxy rewrites absolute same-host URLs to HTTP.
+      const url=`/api/auth/github/start?return_to=${encodeURIComponent(path)}`;
       return new Response(null,{status:302,headers:{location:url,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
     if(target?.owner_account&&target.owner_account!==current.account)return renderOAuthProblem(c.req.raw,"group_owner_required",403);
@@ -343,7 +345,7 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
         response_type:"code",resource:pending.resource,scope:(JSON.parse(pending.scopes_json) as string[]).join(" "),
         state:pending.state,code_challenge:pending.code_challenge,code_challenge_method:"S256",
         consent_retry:pending.browser_session_id!==current.id?"session_changed":"expired"}).toString();
-      return new Response(null,{status:303,headers:{location:next.toString(),"cache-control":"no-store","referrer-policy":"no-referrer"}});
+      return new Response(null,{status:303,headers:{location:next.pathname+next.search,"cache-control":"no-store","referrer-policy":"no-referrer"}});
     }
     if(decision==="deny"){
       const removed=await c.env.DB.prepare(`DELETE FROM connector_oauth_pending
