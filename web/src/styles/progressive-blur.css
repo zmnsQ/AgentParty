@@ -1,0 +1,204 @@
+/* Progressive frosted edges. Only transitions and backdrops are softened:
+   never apply filter/blur to message text, inputs, menus, or actionable controls.
+   Backdrop pseudo-elements never catch taps; the scrims remain clickable. */
+:root {
+  --ac-frost-radius: 10px;
+  --ac-frost-edge-height: 24px;
+  --ac-frost-tint: color-mix(in srgb, var(--t-bg) 68%, transparent);
+}
+:root[data-theme="midnight"] {
+  --ac-frost-tint: color-mix(in srgb, var(--t-bg) 76%, transparent);
+}
+
+/* The scroll-to-chrome transition lives outside the transcript scroll area.
+   A pseudo-element on .stream would scroll away with the messages. */
+:root .app-head,
+:root .presence-bar,
+:root .chan-toolstrip,
+:root .mobile-groupbar,
+:root .composer {
+  position: relative;
+}
+:root .app-head { z-index: 3; }
+:root .chan-toolstrip { z-index: 2; }
+:root .presence-bar { z-index: 3; }
+:root .composer { z-index: 2; }
+
+/* Frost follows the moving messages, not the message cards themselves. */
+:root .presence-bar::after,
+:root .composer::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: var(--ac-frost-edge-height);
+  pointer-events: none;
+  z-index: 0;
+}
+:root .presence-bar::after {
+  bottom: calc(-1 * var(--ac-frost-edge-height));
+  background: linear-gradient(to bottom, var(--ac-frost-tint), transparent);
+}
+:root .composer::before {
+  inset-inline: -10px;
+  top: calc(-1 * var(--ac-frost-edge-height));
+  background: linear-gradient(to top, var(--ac-frost-tint), transparent);
+}
+/* Pseudo-elements never change the hit testing or stacking of composer children. */
+
+/* Desktop: softly release the brand bar into the app below it. */
+@media (min-width: 761px) and (pointer: fine) {
+  :root .app-head::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: -20px;
+    height: 20px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, color-mix(in srgb,var(--t-bg) 78%,transparent),transparent);
+  }
+}
+
+/* Scrollable panel headers: the blur is only in the 18px seam, not on labels. */
+:root .channel-panel-head,
+:root .settings-head,
+:root .agent-join-card-head {
+  position: relative;
+  z-index: 2;
+}
+:root .channel-panel-head::after,
+:root .settings-head::after,
+:root .agent-join-card-head::after {
+  content:"";
+  position:absolute;
+  inset-inline:0;
+  bottom:-18px;
+  height:18px;
+  pointer-events:none;
+  background:linear-gradient(to bottom,var(--ac-frost-tint),transparent);
+}
+
+/* Keep the modal overlay tint, but avoid adding a uniform blur beneath the
+   radial gradient: background panels should blur progressively from center. */
+:root :is(.channel-panel-overlay,.settings-overlay,.sectioned-dialog-overlay) {
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+
+/* Stable backdrop tint is always present, including on devices without blur.
+   Do not mask the scrim itself: that can break outside-tap dismissal. */
+:root .mobile-channel-menu-scrim,
+:root .mobile-groups-scrim,
+:root .channel-panel-scrim,
+:root .agent-join-scrim {
+  position:absolute;
+  background:var(--ac-backdrop);
+}
+:root .mobile-channel-menu-scrim::before,
+:root .mobile-groups-scrim::before,
+:root .channel-panel-scrim::before,
+:root .agent-join-scrim::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:color-mix(in srgb,var(--ac-backdrop) 34%,transparent);
+}
+:root .settings-overlay,
+:root .sectioned-dialog-overlay {
+  /* Modal cards are above this separate noninteractive optical layer. */
+  position:fixed;
+  isolation:isolate;
+}
+:root .settings-overlay::before,
+:root .sectioned-dialog-overlay::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:color-mix(in srgb,var(--ac-backdrop) 26%,transparent);
+}
+:root .settings-overlay > .settings-panel,
+:root .settings-overlay > .sectioned-dialog,
+:root .sectioned-dialog-overlay > .sectioned-dialog,
+:root .sectioned-dialog-overlay > .sectioned-dialog-panel {
+  position:relative;
+  z-index:1;
+}
+
+/* Progressive blur uses a gradient alpha mask. -webkit-* is required by Safari. */
+@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+  :root .presence-bar::after {
+    -webkit-backdrop-filter:blur(var(--ac-frost-radius));
+    backdrop-filter:blur(var(--ac-frost-radius));
+    -webkit-mask-image:linear-gradient(to bottom,black 8%,transparent 100%);
+    mask-image:linear-gradient(to bottom,black 8%,transparent 100%);
+  }
+  :root .composer::before {
+    -webkit-backdrop-filter:blur(var(--ac-frost-radius));
+    backdrop-filter:blur(var(--ac-frost-radius));
+    -webkit-mask-image:linear-gradient(to top,black 8%,transparent 100%);
+    mask-image:linear-gradient(to top,black 8%,transparent 100%);
+  }
+  :root .app-head::after,
+  :root .channel-panel-head::after,
+  :root .settings-head::after,
+  :root .agent-join-card-head::after {
+    -webkit-backdrop-filter:blur(9px);
+    backdrop-filter:blur(9px);
+    -webkit-mask-image:linear-gradient(to bottom,black 5%,transparent 100%);
+    mask-image:linear-gradient(to bottom,black 5%,transparent 100%);
+  }
+  :root .mobile-channel-menu-scrim::before {
+    -webkit-backdrop-filter:blur(10px);
+    backdrop-filter:blur(10px);
+    -webkit-mask-image:linear-gradient(to bottom,transparent 12%,black 90%);
+    mask-image:linear-gradient(to bottom,transparent 12%,black 90%);
+  }
+  :root .mobile-groups-scrim::before {
+    -webkit-backdrop-filter:blur(10px);
+    backdrop-filter:blur(10px);
+    -webkit-mask-image:linear-gradient(to right,black 0%,transparent 90%);
+    mask-image:linear-gradient(to right,black 0%,transparent 90%);
+  }
+  :root .channel-panel-scrim::before,
+  :root .agent-join-scrim::before,
+  :root .settings-overlay::before,
+  :root .sectioned-dialog-overlay::before {
+    -webkit-backdrop-filter:blur(7px);
+    backdrop-filter:blur(7px);
+    -webkit-mask-image:radial-gradient(ellipse at center,black 10%,transparent 95%);
+    mask-image:radial-gradient(ellipse at center,black 10%,transparent 95%);
+  }
+}
+
+/* Compact Safari and desktop-mode phone layout retain the same scroll edges. */
+@media (max-width:760px), (max-device-width:760px) and (pointer:coarse) {
+  :root { --ac-frost-edge-height: 18px; --ac-frost-radius: 8px; }
+  :root.ac-mobile .app--channel > .app-head::after { display:none; }
+  :root.ac-mobile .presence-mobile-summary { position:relative; z-index:1; }
+  :root.ac-mobile .composer::before { inset-inline:-10px; }
+}
+
+/* Respect users who request less transparency, as well as Windows HC mode.
+   Preserve the soft color fade without GPU blur and without animation. */
+@media (prefers-reduced-transparency:reduce), (forced-colors:active) {
+  :root {
+    --ac-frost-radius:0px;
+    --ac-frost-tint:transparent;
+  }
+  :root .presence-bar::after,
+  :root .composer::before,
+  :root .app-head::after,
+  :root .channel-panel-head::after,
+  :root .settings-head::after,
+  :root .agent-join-card-head::after,
+  :root :is(.mobile-channel-menu-scrim,.mobile-groups-scrim,.channel-panel-scrim,.agent-join-scrim)::before,
+  :root :is(.settings-overlay,.sectioned-dialog-overlay)::before {
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+    -webkit-mask-image:none;
+    mask-image:none;
+    background:transparent;
+  }
+}

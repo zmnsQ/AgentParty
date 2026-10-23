@@ -10,6 +10,7 @@ import "./styles/studio.css";
 import "./styles/management.css";
 import "./styles/mobile-shell.css";
 import "./styles/chat-first.css";
+import "./styles/progressive-blur.css";
 import {installMobileViewport} from "./lib/mobileViewport";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

@@ -18,6 +18,7 @@ import "../../src/styles/tokens.css";import "../../src/styles/foundation.css";
 import "../../src/styles/app.css";import "../../src/styles/studio.css";
 import "../../src/styles/management.css";import "../../src/styles/mobile-shell.css";
 import "../../src/styles/chat-first.css";
+import "../../src/styles/progressive-blur.css";
 const lang=new URLSearchParams(location.search).get("lang")||"zh";
 localStorage.setItem("ap_locale",lang);document.documentElement.dataset.theme=new URLSearchParams(location.search).get("theme")||"doodle";
 installMobileViewport();
