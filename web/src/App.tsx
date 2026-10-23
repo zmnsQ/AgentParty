@@ -1,3 +1,4 @@
+import {isCompactViewport} from "./lib/mobileViewport";
 import { StudioIcon } from "./components/StudioIcon";
 import { useBrowserAuth } from "./lib/useBrowserAuth";
 import { BrowserSecurity, GithubAuthSetup, SecondFactorGate } from "./components/BrowserSecurity";
@@ -572,7 +573,8 @@ export function App() {
   useEffect(() => {
     if (settingsOpen || !restoreSettingsFocusRef.current) return;
     restoreSettingsFocusRef.current = false;
-    (settingsFocusTarget() ?? settingsButtonRef.current)?.focus();
+    const mobileTarget = isCompactViewport() ? document.querySelector<HTMLButtonElement>(".mobile-group-toggle") : null;
+    (mobileTarget ?? settingsFocusTarget() ?? settingsButtonRef.current)?.focus();
   }, [settingsFocusTarget, settingsOpen]);
   const openLocalAgentCenter = useCallback(() => {
     setSettingsOpen(false);
@@ -1236,7 +1238,7 @@ export function App() {
   const deploymentOrigin = desktop ? activeOrigin : apiOrigin();
 
   return (
-    <div className="app">
+    <div className={"app"+(slug!==null?" app--channel":"")}>
       <header className="app-head">
         <a
           className="d-title app-logo"
@@ -1402,7 +1404,8 @@ export function App() {
         </p>
       )}
       <div className="app-shell">
-        <ResponsiveSidebar activeSlug={slug} requestOpen={createGroupRequest} title={channels?.find(channel=>channel.slug===slug)?.title}>
+        <ResponsiveSidebar activeSlug={slug} requestOpen={createGroupRequest} title={channels?.find(channel=>channel.slug===slug)?.title}
+          mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><StudioIcon name="group"/>Agent Commons</a><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}>
           {canCreate && token !== null && (
             <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
           )}

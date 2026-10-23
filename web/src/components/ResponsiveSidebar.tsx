@@ -6,7 +6,7 @@ import {useModalFocusTrap} from "./useModalFocusTrap";
 import {StudioIcon} from "./StudioIcon";
 
 /** Keep the desktop sidebar, but give phones a real group-switching drawer. */
-export function ResponsiveSidebar({children,activeSlug,title,requestOpen=0}:{children:ReactNode;activeSlug:string|null;title?:string|null;requestOpen?:number}){
+export function ResponsiveSidebar({children,activeSlug,title,requestOpen=0,mobileActions}:{children:ReactNode;activeSlug:string|null;title?:string|null;requestOpen?:number;mobileActions?:ReactNode}){
  const {locale}=useLocale(),zh=locale==="zh";
  const [compact,setCompact]=useState(isCompactViewport),[open,setOpen]=useState(false);
  const dialog=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null);
@@ -16,9 +16,9 @@ export function ResponsiveSidebar({children,activeSlug,title,requestOpen=0}:{chi
  useModalFocusTrap({active:compact&&open,containerRef:dialog,returnFocusRef:trigger,onEscape:()=>setOpen(false)});
  if(!compact)return <aside className="app-side">{children}</aside>;
  const label=zh?"群组":"Groups",close=zh?"关闭群组列表":"Close group list";
- return <><div className="mobile-groupbar"><button ref={trigger} type="button" className="mobile-group-toggle" aria-expanded={open} aria-haspopup="dialog" onClick={()=>setOpen(true)}><StudioIcon name="group"/><span>{title||activeSlug||label}</span><small>{zh?"切换群组":"Switch group"}</small><StudioIcon name="chevron-down"/></button></div>
+ return <><div className="mobile-groupbar"><button ref={trigger} type="button" className="mobile-group-toggle" aria-expanded={open} aria-haspopup="dialog" onClick={()=>setOpen(true)}><StudioIcon name="group"/><span>{title||activeSlug||label}</span><StudioIcon name="chevron-down"/></button>{activeSlug&&<div id="mobile-channel-menu-slot"/>}</div>
  {open&&<ModalPortal><div ref={dialog} className="mobile-groups-overlay" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
  <button type="button" className="mobile-groups-scrim" tabIndex={-1} aria-label={close} onClick={()=>setOpen(false)}/>
- <aside className="app-side mobile-groups-drawer"><header><h2>{label}</h2><button className="d-btn" type="button" aria-label={close} onClick={()=>setOpen(false)}><StudioIcon name="close"/></button></header><div className="mobile-groups-content" onClick={e=>{if((e.target as HTMLElement).closest(".chan-pill"))setOpen(false);}}>{children}</div></aside>
+ <aside className="app-side mobile-groups-drawer"><header><h2>{label}</h2><button className="d-btn" type="button" aria-label={close} onClick={()=>setOpen(false)}><StudioIcon name="close"/></button></header><div className="mobile-groups-content" onClick={e=>{if((e.target as HTMLElement).closest(".chan-pill"))setOpen(false);}}>{children}{mobileActions&&<div className="mobile-drawer-actions" onClick={()=>setOpen(false)}>{mobileActions}</div>}</div></aside>
  </div></ModalPortal>}</>;
 }

@@ -821,7 +821,7 @@ export function AgentJoin({
         onClick={open}
         disabled={phase.kind === "loading"}
       >
-        {phase.kind === "loading" ? t("AgentJoin.minting") : t("AgentJoin.open")}
+        <StudioIcon name="plus"/><span>{phase.kind === "loading" ? t("AgentJoin.minting") : t("AgentJoin.open").replace(/^＋\s*|^\+\s*/, "")}</span>
       </button>
       {lastSession !== null && phase.kind === "idle" && (
         <button type="button" className="d-btn agent-join-resume" onClick={resume}>
