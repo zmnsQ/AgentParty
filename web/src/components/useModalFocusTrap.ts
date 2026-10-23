@@ -16,6 +16,7 @@ interface ModalFocusTrapOptions {
   initialFocusRef?: RefObject<HTMLElement | null>;
   returnFocusRef?: RefObject<HTMLElement | null>;
   onEscape?(): void;
+  shouldRestoreFocus?(): boolean;
 }
 
 function focusableElements(container: HTMLElement | null): HTMLElement[] {
@@ -39,9 +40,12 @@ export function useModalFocusTrap({
   initialFocusRef,
   returnFocusRef,
   onEscape,
+  shouldRestoreFocus,
 }: ModalFocusTrapOptions): void {
   const onEscapeRef = useRef(onEscape);
   onEscapeRef.current = onEscape;
+  const restoreRef = useRef(shouldRestoreFocus);
+  restoreRef.current = shouldRestoreFocus;
 
   useEffect(() => {
     if (!active) return;
@@ -90,9 +94,12 @@ export function useModalFocusTrap({
     return () => {
       win?.removeEventListener?.("keydown", onKeyDown);
       // 显式目标若已随卸载消失，退回打开前的焦点，而不是把焦点丢给 body。
+      if (restoreRef.current?.() === false) return;
       const explicit = returnFocusRef?.current ?? null;
       const target = explicit !== null && explicit.isConnected !== false ? explicit : previouslyFocused;
       if (target?.isConnected === false) return;
+      const hidden = target?.closest?.("[hidden]");
+      if (hidden) { doc?.querySelector<HTMLElement>(".mobile-channel-more")?.focus(); return; }
       target?.focus?.();
     };
   }, [active, containerRef, initialFocusRef, returnFocusRef]);

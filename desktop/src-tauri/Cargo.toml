@@ -1,8 +1,8 @@
 [package]
 name = "agentparty-desktop"
 version = "0.2.275"
-description = "AgentParty desktop shell"
-authors = ["AgentParty"]
+description = "Agent Commons desktop application by zmnsQ, based on the original AgentParty project"
+authors = ["zmnsQ"]
 license = "BUSL-1.1"
 edition = "2021"
 

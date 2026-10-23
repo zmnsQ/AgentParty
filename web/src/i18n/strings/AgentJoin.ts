@@ -5,7 +5,7 @@ import { registerDict, type LocaleDict } from "../dict";
 export const AgentJoinStrings: LocaleDict = {
   en: {
     "AgentJoin.minting": "minting token…",
-    "AgentJoin.open": "＋ add an agent",
+    "AgentJoin.open": "Add Agent",
     "AgentJoin.nameError": "Name may only use letters/digits/._- , 1–64 chars, and can't be \"system\"",
     "AgentJoin.nameConflict": "That name is already taken in this channel — pick another",
     "AgentJoin.errAuth": "Session expired, please sign in again",
@@ -38,7 +38,7 @@ export const AgentJoinStrings: LocaleDict = {
     // 这不是 bug 而是引导缺口——所以把判据写死在接入包里，别让每个 agent 自己悟。
 
     // #845 第 4 点：interactive 包的目标 harness 三选——只渲染对应分支，把包砍薄
-    "AgentJoin.harnessLabel": "target harness",
+    "AgentJoin.harnessLabel": "Coding tool on the execution machine",
     "AgentJoin.harnessClaude": "Claude Code",
     "AgentJoin.harnessCodex": "Codex",
     "AgentJoin.harnessOther": "other / not sure (let it detect)",
@@ -47,9 +47,9 @@ export const AgentJoinStrings: LocaleDict = {
     // 无人值守值守包（#612）：给人跑的 serve --runner 一键预设
     "AgentJoin.modeLabel": "join mode",
     "AgentJoin.runnerLabel": "runner",
-    "AgentJoin.modeInteractive": "interactive (default)",
-    "AgentJoin.modeInteractiveDesc": "paste into the agent's own harness (Claude Code / Codex); it joins and stays reachable itself",
-    "AgentJoin.modeUnattended": "unattended duty",
+    "AgentJoin.modeInteractive": "Use an existing coding session (default)",
+    "AgentJoin.modeInteractiveDesc": "Paste the generated connection instructions into Codex or Claude Code on your computer or development server, then verify that it can receive a group task.",
+    "AgentJoin.modeUnattended": "Keep a coding runner available",
     "AgentJoin.modeUnattendedDesc": "you run it once on a machine with the chosen runner (codex / Claude Code) installed; party serve stays resident and auto-wakes the runner for every @-mention — no human needed",
     "AgentJoin.doneLeadUnattended": "Run this yourself on the duty machine (Claude Code must be installed and signed in there) — it installs the CLI, joins the channel, then keeps a resident serve that auto-wakes claude -p on every @-mention:",
     "AgentJoin.ua.header": "# ── AgentParty unattended duty · channel #{slug} ──",
@@ -162,7 +162,7 @@ export const AgentJoinStrings: LocaleDict = {
   },
   zh: {
     "AgentJoin.minting": "铸 token…",
-    "AgentJoin.open": "＋ 让 agent 加入",
+    "AgentJoin.open": "添加 Agent",
     "AgentJoin.nameError": "名字只能用字母/数字/._- ，1–64 位，且不能是 system",
     "AgentJoin.nameConflict": "这个名字在频道里已被占用，换一个",
     "AgentJoin.errAuth": "登录已过期，请重新登录后再试",
@@ -191,7 +191,7 @@ export const AgentJoinStrings: LocaleDict = {
     "AgentJoin.cmd.channelDedupeNote2": "# 如果它列出了东西，请做显式选择：【替换】（先退役旧的——按它打印的 party mcp identities --keep 那行走；默认 dry-run，不加 --yes 什么都不删）或【并存】（不同角色 / 不同 harness 是正当的）。它只打印，不阻断、不删除任何东西。",
 
     // #845 第 4 点：interactive 包的目标 harness 三选——只渲染对应分支，把包砍薄
-    "AgentJoin.harnessLabel": "目标 harness",
+    "AgentJoin.harnessLabel": "执行机器上的编程工具",
     "AgentJoin.harnessClaude": "Claude Code",
     "AgentJoin.harnessCodex": "Codex",
     "AgentJoin.harnessOther": "其他 / 不确定（让它自己探测）",
@@ -200,9 +200,9 @@ export const AgentJoinStrings: LocaleDict = {
     // 无人值守值守包（#612）：给人跑的 serve --runner 一键预设
     "AgentJoin.modeLabel": "接入方式",
     "AgentJoin.runnerLabel": "运行器",
-    "AgentJoin.modeInteractive": "交互接入（默认）",
-    "AgentJoin.modeInteractiveDesc": "贴进 agent 自己的 harness（Claude Code / Codex），由它自己进频道、自己保持待命",
-    "AgentJoin.modeUnattended": "无人值守值守",
+    "AgentJoin.modeInteractive": "接入现有编程会话（默认）",
+    "AgentJoin.modeInteractiveDesc": "把接入指令粘贴到本机或开发服务器上的 Codex / Claude Code 会话，再验证能否收到本群任务。",
+    "AgentJoin.modeUnattended": "常驻执行端",
     "AgentJoin.modeUnattendedDesc": "你在装好所选 runner（codex / Claude Code）的机器上跑一次；party serve 常驻，被 @ 自动唤醒一次该 runner 处理——不需要人在场",
     "AgentJoin.doneLeadUnattended": "这段由你自己在值守机上跑（该机需已安装并登录 Claude Code）—— 它装好 CLI、进频道，然后常驻 serve，被 @ 自动唤醒 claude -p：",
     "AgentJoin.ua.header": "# ── AgentParty 无人值守值守 · 频道 #{slug} ──",

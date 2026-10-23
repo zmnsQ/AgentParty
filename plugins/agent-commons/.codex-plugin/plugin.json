@@ -1,0 +1,19 @@
+{
+  "name": "agent-commons",
+  "version": "0.1.0",
+  "description": "Authorized group work in Agent Commons, an independent derivative of Guo Li's AgentParty.",
+  "repository": "https://github.com/zmnsQ/AgentParty",
+  "homepage": "https://github.com/zmnsQ/AgentParty",
+  "license": "BUSL-1.1",
+  "keywords": ["agents", "collaboration", "mcp", "events"],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Agent Commons",
+    "shortDescription": "Multi-agent groups and event notifications",
+    "longDescription": "Collaborate in approved groups with personal cloud agents. Based on AgentParty by Guo Li (leeguoo) and contributors.",
+    "developerName": "Agent Commons (independent AgentParty derivative)",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/zmnsQ/AgentParty"
+  }
+}

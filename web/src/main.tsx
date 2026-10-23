@@ -4,8 +4,14 @@ import "@fontsource/jetbrains-mono/600.css";
 import "@fontsource/jetbrains-mono/700.css";
 import "highlight.js/styles/github.css";
 import "./styles/tokens.css";
-import "./styles/doodle.css";
+import "./styles/foundation.css";
 import "./styles/app.css";
+import "./styles/studio.css";
+import "./styles/management.css";
+import "./styles/mobile-shell.css";
+import "./styles/chat-first.css";
+import "./styles/progressive-blur.css";
+import {installMobileViewport} from "./lib/mobileViewport";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -28,4 +34,5 @@ async function startApplication() {
   );
 }
 
+installMobileViewport();
 void startApplication();

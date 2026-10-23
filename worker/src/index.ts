@@ -126,6 +126,9 @@ import {
 } from "./integrations/lark";
 import { openapiDocument } from "./openapi";
 import { registerCollaborationRoutes } from "./collaboration/routes";
+import { registerConnectorOauth, oauthRestPermission } from "./collaboration/oauth";
+import {registerEventDrain} from "./collaboration/event-drain";
+
 
 declare const __AGENTPARTY_BUILD_VERSION__: string | undefined;
 declare const __AGENTPARTY_BUILD_COMMIT__: string | undefined;
@@ -177,6 +180,12 @@ export type AppEnv = Env & {
   AGENTPARTY_SHUTDOWN_AT?: string;
   COLLABORATION_ENCRYPTION_KEY?: string;
   COLLABORATION_HERMES_ALLOWED_ORIGINS?: string;
+  COLLABORATION_GROK_TRIGGER_ORIGINS?: string;
+  COLLABORATION_EVENTS_ALLOWED_ORIGINS?: string;
+  COLLABORATION_EVENTS_EGRESS_URL?: string;
+  COLLABORATION_EVENTS_EGRESS_TOKEN?: string;
+  COLLABORATION_EVENTS_EGRESS_POLICY?: string;
+  COLLABORATION_OAUTH_REDIRECT_ORIGINS?: string;
 };
 
 export type AppContext = {
@@ -1795,6 +1804,11 @@ const requireBearer = createMiddleware<AppContext>(async (c, next) => {
       ? await lookupToken(c.env.DB, bearer.token, oidcConfigFromEnv(c.env, [CLI_CLIENT_ID]), c.env.DESKTOP_PAIRING_SECRET)
       : null;
     if (!identity) {
+      const match = /^\/api\/channels\/([a-z0-9][a-z0-9-]{0,63})\/mcp$/.exec(c.req.path);
+      if (match && c.env.AUTH_PUBLIC_ORIGIN?.startsWith("https://")) {
+        const metadata = `${c.env.AUTH_PUBLIC_ORIGIN}/.well-known/oauth-protected-resource/api/channels/${match[1]}/mcp`;
+        c.header("WWW-Authenticate", `Bearer resource_metadata="${metadata}", error="invalid_token"`);
+      }
       return c.json(errorBody("unauthorized", "invalid or revoked token"), 401);
     }
     if (c.env.AUTH_REQUIRE_GITHUB_LOGIN === "true" && identity.role === "human" && !identity.browserSessionId && !identity.desktopSessionId) {
@@ -1802,6 +1816,11 @@ const requireBearer = createMiddleware<AppContext>(async (c, next) => {
     }
     if (bearer?.source === "query" && identity.role !== "readonly") {
       return c.json(errorBody("unauthorized", "query-string websocket tokens must be readonly"), 403);
+    }
+    // An OAuth MCP credential is not a general-purpose AgentParty API key.
+    // Tool forwarding is constrained to a fixed group REST action allowlist.
+    if (!(await oauthRestPermission(identity,c.env,c.req.path,c.req.method))) {
+      return c.json(errorBody("forbidden", "Connector OAuth scope or endpoint not allowed"),403);
     }
     c.set("identity", identity);
   }
@@ -2856,6 +2875,8 @@ function isBlockedWebhookHost(rawHost: string): boolean {
 }
 
 const app = new Hono<AppContext>();
+registerConnectorOauth(app);
+registerEventDrain(app);
 const DESKTOP_CORS_ORIGINS = new Set([
   "tauri://localhost",
   "http://tauri.localhost",
@@ -2940,7 +2961,7 @@ registerBrowserAuth(app, { enroll: enrollInstanceMember });
 
 app.get("/api/health", (c) => {
   c.header("cache-control", "no-store");
-  return c.json({ ok: true, ...DEPLOYMENT_METADATA });
+  return c.json({ ok: true, ...DEPLOYMENT_METADATA, product: "Agent Commons", author: "zmnsQ", project_source: "https://github.com/zmnsQ/AgentParty", original_project: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" } });
 });
 
 // CLI↔worker 版本协商源点（#137）：服务端 version/commit/deployed_at + 声明的最低客户端版本 + 是否硬拒。
@@ -3004,6 +3025,10 @@ app.get("/api/config", (c) => {
       })),
     },
     cli_client_id: CLI_CLIENT_ID,
+    product_name: "Agent Commons",
+    project_author: "zmnsQ",
+    project_source: "https://github.com/zmnsQ/AgentParty",
+    based_on: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" },
   });
 });
 
@@ -3762,9 +3787,18 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
     return c.json(errorBody("forbidden", "not allowed in this channel"), 403);
   }
   const rows = await c.env.DB.prepare(
-    `SELECT t.name, t.owner, t.channel_scope, t.created_at, n.nickname
+    `SELECT t.name, t.owner, t.channel_scope, t.created_at, n.nickname,
+            g.id AS oauth_grant_id, g.revoked_at AS oauth_revoked_at,
+            g.refresh_expires_at AS oauth_refresh_expires_at, g.access_expires_at AS oauth_access_expires_at,
+            g.scopes_json AS oauth_scopes, c.name AS oauth_client_name,
+            c.redirects_json AS oauth_redirects, c.disabled_at AS oauth_client_disabled,
+            pc.provider AS oauth_provider,
+            CASE WHEN g.access_hash=t.hash THEN 1 ELSE 0 END AS oauth_token_matches
        FROM tokens t
        LEFT JOIN agent_nicknames n ON n.name = t.name
+       LEFT JOIN connector_oauth_grants g ON g.agent_name=t.name AND g.account=t.owner AND g.channel_slug=t.channel_scope
+       LEFT JOIN connector_oauth_clients c ON c.client_id=g.client_id
+       LEFT JOIN connector_oauth_private_clients pc ON pc.client_id=c.client_id
       WHERE t.owner = ?
         AND t.role = 'agent'
         AND t.channel_scope = ?
@@ -3773,8 +3807,28 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
       ORDER BY t.created_at DESC, t.name`,
   )
     .bind(identity.account, slug)
-    .all<{ name: string; owner: string; channel_scope: string; created_at: number; nickname: string | null }>();
-  return c.json({ agents: rows.results ?? [] });
+    .all<{ name: string; owner: string; channel_scope: string; created_at: number; nickname: string | null;
+      oauth_grant_id: string | null; oauth_revoked_at: number | null; oauth_refresh_expires_at: number | null;
+      oauth_access_expires_at: number | null; oauth_scopes: string | null; oauth_client_name: string | null;
+      oauth_redirects: string | null; oauth_provider:string|null; oauth_client_disabled: number | null; oauth_token_matches: number }>();
+  const now=Date.now();
+  return c.json({ agents: rows.results.map(row=>{
+    // Explicit allowlist: never expose access/refresh hashes, credentials or cookies.
+    const basic={name:row.name,owner:row.owner,channel_scope:row.channel_scope,created_at:row.created_at,nickname:row.nickname};
+    if(!row.oauth_grant_id)return {...basic,credential_kind:"token"};
+    let redirects:unknown=[],scopes:unknown=[];
+    try{redirects=JSON.parse(row.oauth_redirects??"[]");scopes=JSON.parse(row.oauth_scopes??"[]");}catch{/* fail closed */}
+    const chatgpt=Array.isArray(redirects)&&redirects.some(value=>{
+      try{return typeof value==="string"&&new URL(value).origin==="https://chatgpt.com";}catch{return false;}
+    });
+    const active=row.oauth_revoked_at===null&&row.oauth_client_disabled===null&&row.oauth_token_matches===1&&
+      Math.max(row.oauth_refresh_expires_at??0,row.oauth_access_expires_at??0)>now;
+    return {...basic,credential_kind:"oauth",oauth:{
+      client_name:row.oauth_client_name??"OAuth client",provider:row.oauth_provider==="muse"?"muse":chatgpt?"chatgpt":"other",
+      status:active?"authorized":"reconnect_required",
+      scopes:Array.isArray(scopes)?scopes.filter((v):v is string=>typeof v==="string"):[],
+    }};
+  }) });
 });
 
 // #165 页面入口：human owner 可给自己铸造的 channel-scoped agent 设置全局昵称。
@@ -3861,6 +3915,8 @@ app.delete("/api/channels/:slug/agents/:name", requireBearer, async (c) => {
     c.env.DB.prepare(
       "DELETE FROM channel_members WHERE channel_slug = ? AND account = ?",
     ).bind(slug, name),
+    c.env.DB.prepare("UPDATE connector_oauth_grants SET revoked_at=?,updated_at=? WHERE channel_slug=? AND agent_name=? AND revoked_at IS NULL")
+      .bind(now,now,slug,name),
   ]);
   const tombstoned = await c.env.DB.prepare(
     `SELECT principal AS name
@@ -3993,6 +4049,9 @@ app.post("/api/channels/:slug/agents/:name/rotate", requireBearer, async (c) => 
     .bind(name, identity.account, slug)
     .first<{ id: number }>();
   if (!row) return c.json(errorBody("not_found", "agent token not found"), 404);
+  const oauthManaged=await c.env.DB.prepare("SELECT id FROM connector_oauth_grants WHERE agent_name=? AND account=? AND channel_slug=?")
+    .bind(name,identity.account,slug).first();
+  if(oauthManaged)return c.json(errorBody("conflict", "OAuth credentials are managed by the connected client. Reauthorize or revoke the connection instead."),409);
   const nextToken = randomToken();
   const now = Date.now();
   await c.env.DB.prepare(
@@ -4583,6 +4642,10 @@ app.post("/api/channels", async (c) => {
   const body = (await c.req.json().catch(() => null)) as
     | { slug?: unknown; title?: unknown; kind?: unknown; mode?: unknown; visibility?: unknown; auto_suffix?: unknown }
     | null;
+  // UI-created rooms omit slug entirely: a cryptographically random, opaque
+  // identifier is allocated server-side. Existing CLI/API callers providing
+  // explicit slugs retain their old, exact-address behavior.
+  const generatedSlug = body !== null && body.slug === undefined;
   const slug = typeof body?.slug === "string" ? body.slug : "";
   // #695 slug 撞名不再硬 409：显式建频道（party channel create）传 auto_suffix，撞名自动取下一个空位
   // slug（foo → foo-2 → foo-3 …）。默认关（init 的 create-or-join、invite 的 scoped 建频道都要精确 slug，
@@ -4592,8 +4655,14 @@ app.post("/api/channels", async (c) => {
   const mode = body?.mode === undefined ? "normal" : body.mode;
   // 默认 private = 零破坏（spec §3.1）
   const visibility = body?.visibility === undefined ? "private" : body.visibility;
-  const title = typeof body?.title === "string" ? body.title : null;
-  if (!SLUG_RE.test(slug) || typeof kind !== "string" || !KINDS.includes(kind)) {
+  const rawTitle = typeof body?.title === "string" ? body.title : null;
+  const title = generatedSlug ? rawTitle?.trim() ?? null : rawTitle;
+  // Newly-created human rooms have a display name. A slug is *not* a name:
+  // it is a stable internal URL/API key whose uniqueness is handled below.
+  if (generatedSlug && (!title || title.length > 80)) {
+    return c.json(errorBody("bad_request", "channel name required (1-80 characters)"), 400);
+  }
+  if ((!generatedSlug && !SLUG_RE.test(slug)) || typeof kind !== "string" || !KINDS.includes(kind)) {
     return c.json(errorBody("bad_request", "valid slug and kind (standing|temp) required"), 400);
   }
   if (typeof mode !== "string" || !MODES.includes(mode)) {
@@ -4609,7 +4678,7 @@ app.post("/api/channels", async (c) => {
   // 见 issue #31）：创建自己的 scope 不算逃出 scope。仍禁止建任意其它频道——外部方拿到 scoped token 越不了权，
   // 至多创建它被邀请的那一个 slug，且该 slug 已存在时是 409 no-op，不能以房主账号名义抢占别的 slug / 建 public。
   const createScope = c.get("identity").channel_scope;
-  if (createScope != null && createScope !== slug) {
+  if (createScope != null && (generatedSlug || createScope !== slug)) {
     return c.json(errorBody("forbidden", "channel-scoped token can only create its own scope channel"), 403);
   }
   const now = Date.now();
@@ -4665,10 +4734,15 @@ app.post("/api/channels", async (c) => {
   // INSERT 是唯一真相源：并发下两方算出同一候选，只有一方插入成功，另一方接着试下一个，无需额外锁。
   // scoped token 建的是它被邀请的那一个精确 slug（见上方 scope 闸），不参与改名；故基于 slug 本身即可。
   let createdSlug = slug;
-  const maxSuffixAttempts = autoSuffix ? SLUG_SUFFIX_MAX_ATTEMPTS : 1;
+  const maxSuffixAttempts = generatedSlug ? 5 : autoSuffix ? SLUG_SUFFIX_MAX_ATTEMPTS : 1;
   let inserted = false;
   for (let attempt = 0; attempt < maxSuffixAttempts; attempt++) {
-    const candidate = attempt === 0 ? slug : suffixedSlug(slug, attempt + 1);
+    // 16 secure random bytes = 128 bits. No timestamp, predictable counter or
+    // user-derived title enters the channel ID. The D1 UNIQUE index is the
+    // concurrency authority; only a genuine collision is retried.
+    const candidate = generatedSlug
+      ? `ch-${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("")}`
+      : attempt === 0 ? slug : suffixedSlug(slug, attempt + 1);
     try {
       await insertChannel(candidate);
       createdSlug = candidate;
@@ -4680,12 +4754,14 @@ app.post("/api/channels", async (c) => {
       if (!isUniqueConstraintError(error)) {
         return c.json(errorBody("unavailable", "channel create failed"), 503);
       }
-      // 撞名：非 auto_suffix 直接 409（老客户端契约不变）；auto_suffix 试下一个后缀。
-      if (!autoSuffix) return c.json(errorBody("conflict", "slug already exists"), 409);
+      // Generated IDs simply draw a new cryptographic candidate. Legacy
+      // explicit-slug callers keep their previous 409/auto_suffix behavior.
+      if (!generatedSlug && !autoSuffix) return c.json(errorBody("conflict", "slug already exists"), 409);
       continue;
     }
   }
   if (!inserted) {
+    if (generatedSlug) return c.json(errorBody("unavailable", "could not allocate unique channel id"), 503);
     return c.json(errorBody("conflict", `no free slug variant for "${slug}" within ${SLUG_SUFFIX_MAX_ATTEMPTS} tries`), 409);
   }
   if (kind === "temp") {
@@ -10045,7 +10121,10 @@ app.get("/api/channels/:slug/ws", async (c) => {
  */
 async function serveBeforeShutdown(request: Request, env: AppEnv, ctx: ExecutionContext): Promise<Response> {
   const { pathname } = new URL(request.url);
-  if (pathname.startsWith("/api/") || pathname === "/openapi.json") return app.fetch(request, env, ctx);
+  // OAuth 2.1 discovery, consent and token endpoints must reach the Worker
+  // before the SPA fallback. A static 200 index.html here breaks OAuth DCR.
+  const authProtocol = pathname.startsWith("/oauth/") || pathname.startsWith("/.well-known/oauth-");
+  if (pathname.startsWith("/api/") || pathname === "/openapi.json" || authProtocol) return app.fetch(request, env, ctx);
   if (request.method === "GET" || request.method === "HEAD") {
     const asset = await env.ASSETS.fetch(request);
     if (asset.status !== 404) return asset;

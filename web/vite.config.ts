@@ -12,7 +12,19 @@ export default defineConfig({
   define: {
     __PARTY_CLI_VERSION__: JSON.stringify(cliVersion),
   },
-  plugins: [react()],
+  plugins: [react(), {
+    name: "commons-oauth-theme",
+    generateBundle() {
+      this.emitFile({type:"asset",fileName:"commons-theme.css",
+        source:readFileSync(fileURLToPath(new URL("./src/styles/tokens.css",import.meta.url)),"utf8")});
+    },
+    configureServer(server) {
+      server.middlewares.use("/commons-theme.css",(_req,res)=>{
+        res.setHeader("Content-Type","text/css; charset=utf-8");
+        res.end(readFileSync(fileURLToPath(new URL("./src/styles/tokens.css",import.meta.url)),"utf8"));
+      });
+    },
+  }],
   build: {
     outDir: "dist",
     rollupOptions: {

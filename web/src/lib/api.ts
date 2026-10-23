@@ -461,6 +461,8 @@ export interface ChannelAgentInfo {
   channel_scope: string;
   created_at: number;
   nickname?: string | null;
+  credential_kind?: "token" | "oauth";
+  oauth?: { client_name:string;provider:"chatgpt"|"muse"|"other";status:"authorized"|"reconnect_required";scopes:string[] };
 }
 
 export type ProjectAgentRunner = "codex" | "claude" | "codex-sdk" | "shell";
@@ -977,7 +979,9 @@ export async function rotateChannelAgent(token: string, slug: string, name: stri
 // 页面建频道（spec §3.1）：登录人类账号可建公开/私有频道；scoped/readonly token 会被服务端 403。
 // owner_account 由服务端从会话推导。201 只回 {slug,title,kind,mode,visibility}，列表随后刷新补全。
 export interface NewChannel {
-  slug: string;
+  /** Existing callers may still supply an explicit, legacy slug.
+   * New UI requests omit it; the server creates a unique opaque ID. */
+  slug?: string;
   title?: string;
   mode?: "normal" | "party";
   visibility?: Visibility;

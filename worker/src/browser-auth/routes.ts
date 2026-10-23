@@ -24,7 +24,18 @@ function origin(env: AppEnv): string {
   } catch { return fail('authentication_not_configured', 503); }
 }
 function csrf(c: Ctx): void {
-  if (c.req.header('origin') !== origin(c.env) || c.req.header('x-agentparty-browser') !== '1') fail('origin_not_allowed', 403);
+  const publicOrigin = origin(c.env);
+  const requestUrl = new URL(c.req.url);
+  const receivedOrigin = c.req.header('origin');
+  // Cloudflare terminates browser HTTPS but the isolated Wrangler/workerd
+  // loopback transport may project both the request URL and Origin as HTTP.
+  // Accept this projection ONLY for the exact configured public hostname.
+  // Never trust a caller-supplied forwarded-proto header or another hostname.
+  const isLoopbackProjection = requestUrl.protocol === 'http:'
+    && requestUrl.host === new URL(publicOrigin).host
+    && receivedOrigin === requestUrl.origin;
+  if ((receivedOrigin !== publicOrigin && !isLoopbackProjection)
+    || c.req.header('x-agentparty-browser') !== '1') fail('origin_not_allowed', 403);
   const site = c.req.header('sec-fetch-site');
   if (site && site !== 'same-origin' && site !== 'none') fail('origin_not_allowed', 403);
 }
@@ -160,6 +171,12 @@ function mutationTail(c: Ctx, current: BrowserSession, changeId: string) {
       .bind(Date.now(), current.account, current.id, current.account, changeId),
     c.env.DB.prepare(`UPDATE desktop_sessions SET revoked_at=? WHERE account=? AND revoked_at IS NULL AND ${exists}`)
       .bind(Date.now(), current.account, current.account, changeId),
+    // Changing MFA security policy invalidates every issued connector grant.
+    c.env.DB.prepare(`UPDATE tokens SET revoked_at=? WHERE role='agent' AND name IN
+      (SELECT agent_name FROM connector_oauth_grants WHERE account=?) AND ${exists}`)
+      .bind(Date.now(),current.account,current.account,changeId),
+    c.env.DB.prepare(`UPDATE connector_oauth_grants SET revoked_at=? WHERE account=? AND revoked_at IS NULL AND ${exists}`)
+      .bind(Date.now(),current.account,current.account,changeId),
   ];
 }
 export function registerBrowserAuth(app: Hono<AppContext>, deps: { enroll(db: D1Database, account: string, by: string): Promise<unknown> }) {
@@ -242,7 +259,7 @@ export function registerBrowserAuth(app: Hono<AppContext>, deps: { enroll(db: D1
     const encrypted = await sealCredential(seed, c.env.COLLABORATION_ENCRYPTION_KEY, `totp:${current.account}`);
     await c.env.DB.prepare('UPDATE browser_sessions SET pending_totp=?,pending_expires_at=? WHERE id=? AND revoked_at IS NULL')
       .bind(encrypted, Date.now() + 10 * 60_000, current.id).run();
-    return c.json({ secret: seed, otpauth_uri: `otpauth://totp/${encodeURIComponent(`AgentParty Commons:${current.login}`)}?${new URLSearchParams({ secret: seed, issuer: 'AgentParty Commons', algorithm: 'SHA1', digits: '6', period: '30' })}` });
+    return c.json({ secret: seed, otpauth_uri: `otpauth://totp/${encodeURIComponent(`Agent Commons:${current.login}`)}?${new URLSearchParams({ secret: seed, issuer: 'Agent Commons', algorithm: 'SHA1', digits: '6', period: '30' })}` });
   }));
   app.post(`${PREFIX}/security/confirm`, wrap(async c => {
     csrf(c); const current = await session(c, true, true); const input = await body(c);
@@ -290,11 +307,11 @@ export function registerBrowserAuth(app: Hono<AppContext>, deps: { enroll(db: D1
       || !/^[1-9][0-9]{0,15}$/.test(c.env.AUTH_GITHUB_APP_OWNER_ID ?? '')) return fail('setup_not_authorized', 403);
     const root = origin(c.env); const state = await createState(c, 'registration');
     return c.json({ action: `https://github.com/settings/apps/new?state=${state.state}`, manifest: {
-      name: `Commons Login ${c.env.AUTH_GITHUB_APP_OWNER_ID}`,
+      name: 'Agent Commons Login (zmnsQ)',
       url: root, redirect_url: `${root}${PREFIX}/registration/callback`, callback_urls: [`${root}${PREFIX}/callback`],
       hook_attributes: { url: `${root}/api/auth/github/webhook-disabled`, active: false },
       public: false, default_permissions: {}, default_events: [], request_oauth_on_install: false,
-      description: 'Private GitHub sign-in for AgentParty Commons, derived from AgentParty. No repository permissions requested.',
+      description: 'Agent Commons by zmnsQ, based on AgentParty by Guo Li (leeguoo) and contributors. 私有身份登录，基于原项目二次开发；不申请仓库权限。',
     } });
   }));
   app.get(`${PREFIX}/registration/callback`, wrap(async c => {

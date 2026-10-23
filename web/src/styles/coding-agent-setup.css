@@ -1,0 +1,20 @@
+.coding-setup{display:flex;flex-direction:column;gap:18px;min-width:0;font-family:var(--t-sans)}
+.coding-setup h3,.coding-setup h4{margin:0 0 8px;font-weight:600;line-height:1.5}
+.coding-setup h3{font-size:23px}.coding-setup h4{font-size:16px}
+.coding-setup p{font-size:13px;line-height:1.8;color:var(--t-muted);margin:8px 0;overflow-wrap:anywhere}
+.coding-step{border-top:1px solid var(--t-faint);padding-top:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.coding-step label{display:flex;flex-direction:column;gap:8px;font-size:13px;min-width:0}
+.coding-step input:not([type=checkbox]){width:100%;min-width:0;min-height:44px;border:1px solid var(--t-faint);border-radius:9px;background:var(--t-panel);padding:10px 12px;color:var(--t-text);font:16px var(--t-sans)}
+.coding-os,.coding-links{display:flex;flex-wrap:wrap;gap:10px}.coding-os button[aria-pressed=true]{background:var(--d-red-soft);border-color:var(--t-accent)}
+.coding-command{min-width:0;max-width:100%;padding:12px;border:1px solid var(--t-faint);border-radius:10px;background:var(--t-panel2)}
+.coding-command pre{max-width:100%;margin:0 0 10px;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 var(--t-mono);color:var(--t-text)}
+.coding-setup .d-btn{align-self:flex-start;min-height:44px;white-space:normal;text-align:left}
+.coding-step .coding-check{flex-direction:row;align-items:center}.coding-advanced summary{min-height:44px;cursor:pointer;font-size:13px;padding-block:10px}
+.coding-advanced{border:1px solid var(--t-faint);border-radius:10px;padding:10px 14px}
+@media(max-width:600px){.coding-setup h3{font-size:21px}.coding-os .d-btn{flex:1}.coding-command{padding:10px}.coding-setup .d-btn{max-width:100%}}
+
+/* Installer is an ordinary, expanded section before the connection steps. */
+.coding-install{min-width:0;display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--t-faint);border-radius:12px;background:var(--t-panel)}
+.coding-install h4,.coding-install p{margin:0}.coding-install a{font-size:13px;align-self:flex-start}
+.coding-install .coding-command{margin:0}.coding-install-notice{color:var(--t-text)}
+@media(max-width:600px){.coding-install{padding:12px}.coding-install .coding-install-copy{width:100%;justify-content:center;text-align:center}}

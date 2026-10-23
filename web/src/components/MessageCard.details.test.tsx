@@ -258,7 +258,7 @@ describe("MessageCard touch and keyboard details (#357)", () => {
     expect(pill.props.className).not.toContain("msg-delivery--undelivered");
     expect(pill.findByProps({ className: "msg-status-name-state" }).children.join("")).toBe("queued");
     // ⏳ 家族图标：waiting，不是 failed。
-    expect(pill.findByProps({ className: "msg-receipt-icon ap-sprite ap-sprite--waiting" })).toBeDefined();
+    expect(pill.findByProps({ className: "studio-icon msg-receipt-icon", "data-icon": "waiting" })).toBeDefined();
   });
 
   test("a timed-out delivery renders a distinct terminal 'undelivered', never a permanent ⏳ (#667)", () => {

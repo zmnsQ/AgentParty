@@ -1,3 +1,4 @@
+import {registerMuseConnectorRoutes} from "./muse-connector";
 import type { Context, Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import {
@@ -9,7 +10,10 @@ import type { AppContext, AppEnv, LoadedChannel } from "../index";
 import { isHumanChannelOwner } from "../acl";
 import { randomToken, sha256Hex, type TokenIdentity } from "../auth";
 import { handleChannelMcp } from "./mcp";
+import { mcpSecurity, verifiedMfaOwner } from "./mcp-security";
 import { registerProposalRoutes } from "./proposals";
+import { registerGrokAutomationRoutes } from "./grok-automation";
+import { deliverMcpEvents, mcpEventReadiness } from "./mcp-events";
 import { GitHubReadError, inspectRepository, listPullRequests, listRepositoryCommits, validCredential, validRepositoryName, validBranch } from "./github";
 import { openCredential, sealCredential, VaultError } from "./vault";
 import {
@@ -425,6 +429,21 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
   app.post("/api/channels/:slug/cloud-agents/:id/runs/:runId/sync", route((c) => controlRun(c, "sync")));
   app.post("/api/channels/:slug/cloud-agents/:id/runs/:runId/cancel", route((c) => controlRun(c, "cancel")));
 
+  // Official Manus/Cue agent.list discovery. Requires a human owner; the API key
+  // is used for this one request and is never persisted or returned.
+  app.post("/api/channels/:slug/bridges/manus/discover", route(async (c) => {
+    const granted = await access(c, "manage");
+    if (granted instanceof Response) return granted;
+    const input = await jsonObject(c);
+    if (!input || !validCredential(input.credential)) return fail(c, 400, "An API key is required.");
+    const { discover } = await import("./transport");
+    const agents = await discover({
+      provider: "manus", endpoint: "https://api.manus.ai", credential: input.credential as string,
+    }, options(c.env));
+    return c.json({ agents: agents.slice(0, 100).map(a => ({
+      id: a.id, name: a.name, conversation_id: a.remoteConversationId ?? null,
+    })), result_type: "official-manus-agent-list", requires_api_key: true });
+  }));
   app.get("/api/channels/:slug/files", route(async (c) => {
     const granted = await access(c); if (granted instanceof Response) return granted;
     const limit = Number(c.req.query("limit") ?? "50"); const cursor = c.req.query("cursor");
@@ -495,11 +514,65 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
     }));
   }
 
+  app.get("/api/channels/:slug/mcp-security",route(async c=>{
+    const grant=await access(c,"read");if(grant instanceof Response)return grant;
+    return c.json({policy:await mcpSecurity(c.env.DB,grant.slug),can_manage:isHumanChannelOwner(grant.identity,grant.channel)});
+  }));
+  app.put("/api/channels/:slug/mcp-security",route(async c=>{
+    const grant=await access(c,"manage");if(grant instanceof Response)return grant;
+    const input=await jsonObject(c);
+    if(!input||Object.keys(input).some(k=>!["enabled","allow_write","allow_events"].includes(k))||
+      ["enabled","allow_write","allow_events"].some(k=>typeof input[k]!=="boolean"))
+      return fail(c,400,"Invalid MCP security policy.","invalid_policy");
+    if(input.enabled && !(await verifiedMfaOwner(c.env.DB,grant.identity)))
+      return fail(c,403,"Enable authenticator verification in Account security, sign in, then enable this connection.","mfa_required");
+    const now=Date.now();
+    const statements=[c.env.DB.prepare(`INSERT INTO channel_mcp_security(channel_slug,enabled,allow_write,allow_events,updated_by,updated_at)
+      VALUES(?,?,?,?,?,?) ON CONFLICT(channel_slug) DO UPDATE SET enabled=excluded.enabled,
+      allow_write=excluded.allow_write,allow_events=excluded.allow_events,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
+      .bind(grant.slug,input.enabled?1:0,input.enabled&&input.allow_write?1:0,input.enabled&&input.allow_events?1:0,grant.identity.account??grant.identity.name,now)];
+    // Disabling revokes grants, not just UI state. Re-enabling requires fresh consent.
+    if(!input.enabled){
+      // Closing external access also invalidates unfinished consent/code flows.
+      // Reopening a group must not redeem an approval captured before closure.
+      statements.push(c.env.DB.prepare("DELETE FROM connector_oauth_pending WHERE channel_slug=?").bind(grant.slug));
+      statements.push(c.env.DB.prepare("DELETE FROM connector_oauth_codes WHERE channel_slug=?").bind(grant.slug));
+      statements.push(c.env.DB.prepare(`UPDATE tokens SET revoked_at=? WHERE name IN
+        (SELECT agent_name FROM connector_oauth_grants WHERE channel_slug=?)`).bind(now,grant.slug));
+      statements.push(c.env.DB.prepare("UPDATE connector_oauth_grants SET revoked_at=?,updated_at=? WHERE channel_slug=? AND revoked_at IS NULL").bind(now,now,grant.slug));
+    }
+    if(!input.enabled||!input.allow_events){
+      statements.push(c.env.DB.prepare("UPDATE mcp_event_subscriptions SET revoked_at=?,updated_at=? WHERE channel_slug=? AND revoked_at IS NULL").bind(now,now,grant.slug));
+      statements.push(c.env.DB.prepare("UPDATE mcp_event_outbox SET state='revoked',lease_token=NULL,lease_until=0,updated_at=? WHERE channel_slug=? AND state='pending'").bind(now,grant.slug));
+    }
+    await c.env.DB.batch(statements);
+    return c.json({policy:await mcpSecurity(c.env.DB,grant.slug),can_manage:true});
+  }));
+
   app.post("/api/channels/:slug/mcp", route(async (c) => {
     const granted = await access(c); if (granted instanceof Response) return granted;
-    return handleChannelMcp(c.req.raw, granted.slug, granted.identity, async (path, init) => forward(c, path, init));
+    return handleChannelMcp(c.req.raw, granted.slug, granted.identity, async (path, init) => forward(c, path, init), c.env, async()=>{
+      const current=await deps.loadChannel(c.env.DB,granted.slug);
+      return current!==null&&current.archived_at===null&&await deps.canAccessLoadedChannel(c.env.DB,granted.identity,current);
+    });
   }));
   app.get("/api/channels/:slug/mcp", (c) => c.json({ error: "Use POST for this stateless MCP tools endpoint." }, 405));
   app.delete("/api/channels/:slug/mcp", (c) => c.json({ error: "This MCP endpoint has no server session to delete." }, 405));
   registerProposalRoutes(app, { access, forward, repositoryCredential, canParticipateInChannel: deps.canParticipateInChannel });
+  app.post("/api/channels/:slug/bridges/events/flush", route(async c => {
+    const granted=await access(c,"run"); if(granted instanceof Response) return granted;
+    return c.json(await deliverMcpEvents(c.env,granted.slug));
+  }));
+  app.get("/api/channels/:slug/bridges/events/status", route(async c => {
+    const granted=await access(c,"manage"); if(granted instanceof Response) return granted;
+    const active=await c.env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_subscriptions WHERE channel_slug=? AND revoked_at IS NULL AND expires_at>?")
+      .bind(granted.slug,Date.now()).first<{n:number}>();
+    const pending=await c.env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_outbox WHERE channel_slug=? AND state='pending'")
+      .bind(granted.slug).first<{n:number}>();
+    const perAgent=await c.env.DB.prepare("SELECT agent_name,COUNT(*) AS active_subscriptions FROM mcp_event_subscriptions WHERE channel_slug=? AND revoked_at IS NULL AND expires_at>? GROUP BY agent_name")
+      .bind(granted.slug,Date.now()).all<{agent_name:string;active_subscriptions:number}>();
+    return c.json({active_subscriptions:active?.n??0,pending_deliveries:pending?.n??0,agents:perAgent.results,...mcpEventReadiness(c.env)});
+  }));
+  registerGrokAutomationRoutes(app, { access });
+  registerMuseConnectorRoutes(app,{access});
 }

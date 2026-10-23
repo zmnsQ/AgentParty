@@ -1,3 +1,4 @@
+import {StudioIcon} from "./StudioIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChannelFile } from "@agentparty/shared/collaboration";
 import type { Attachment } from "@agentparty/shared";
@@ -114,18 +115,18 @@ function ScopedChannelFiles({ token, slug, canUpload, client, upload = uploadAtt
     <div className="commons-section-head"><h2>{t("Collab.files")}</h2><button className="d-btn" type="button" disabled={loading || busy !== null} onClick={() => { setError(null); void load(); }}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
     <p className="commons-muted">{t("Collab.fileHint")}</p>
     {canUpload && <div className={`commons-dropzone ${busy === "upload" ? "is-busy" : ""}`} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = busy === null ? "copy" : "none"; }} onDrop={(event) => { event.preventDefault(); void addFiles(Array.from(event.dataTransfer.files)); }}>
-      <span className="commons-empty-symbol" aria-hidden="true">↑</span><p>{t("Collab.fileDrop")}</p>
+      <span className="commons-empty-symbol" aria-hidden="true"><StudioIcon name="upload" size={26}/></span><p>{t("Collab.fileDrop")}</p>
       <input ref={input} type="file" multiple hidden disabled={busy !== null} onChange={(event) => { const picked = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void addFiles(picked); }} />
-      <button className="d-btn commons-primary" type="button" disabled={busy !== null} onClick={() => input.current?.click()}>{t(busy === "upload" ? "Collab.busy" : "Collab.fileUpload")}</button>
+      <button className="d-btn commons-primary" type="button" disabled={busy !== null} onClick={() => input.current?.click()}><StudioIcon name="plus"/>{t(busy === "upload" ? "Collab.busy" : "Collab.fileUpload")}</button>
       <label className="commons-check"><input type="checkbox" checked={shareAfterUpload} disabled={busy !== null} onChange={(event) => setShareAfterUpload(event.target.checked)} />{t("Collab.fileShareOption")}</label>
     </div>}
     {error && <p className="commons-error" role="alert">{error}</p>}{notice && <p className="commons-success" role="status">{notice}</p>}
     <div className="commons-section-head"><label className="commons-search"><span className="commons-muted">{t("Collab.fileSearch")}</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label><span className="commons-muted">{t("Collab.loadedCount", { count: files.length })}</span></div>
     {!loading && !error && visible.length === 0 && <p className="commons-empty">{t(query ? "Collab.fileNoMatch" : "Collab.fileEmpty")}</p>}
     <div className="commons-file-list">{visible.map((file) => <article key={file.key} className="commons-file">
-      <div className="commons-file-icon" aria-hidden="true">{file.filename.split(".").pop()?.slice(0, 5).toUpperCase() || "FILE"}</div>
+      <div className="commons-file-icon" aria-hidden="true"><StudioIcon name={/\.(ts|tsx|js|json|py|md)$/i.test(file.filename)?"code":"files"} size={20}/></div>
       <div className="commons-file-meta"><strong>{file.filename}</strong><span>{t("Collab.fileSize", { size: formatSize(file.size), date: collaborationDate(file.uploaded_at, locale) })}{file.uploaded_by ? ` · ${file.uploaded_by}` : ""}</span></div>
-      <div className="commons-actions"><button className="d-btn" type="button" onClick={() => void download(file)}>{t("Collab.fileDownload")}</button>{canUpload && <button className="d-btn" type="button" disabled={busy !== null} onClick={() => void post(file)}>{t(busy === file.key ? "Collab.busy" : "Collab.fileShare")}</button>}</div>
+      <div className="commons-actions"><button className="d-btn" type="button" onClick={() => void download(file)}><StudioIcon name="download"/>{t("Collab.fileDownload")}</button>{canUpload && <button className="d-btn" type="button" disabled={busy !== null} onClick={() => void post(file)}><StudioIcon name="send"/>{t(busy === file.key ? "Collab.busy" : "Collab.fileShare")}</button>}</div>
     </article>)}</div>
     {cursor && <button className="d-btn commons-load-more" type="button" disabled={loading || busy !== null} onClick={() => void load(cursor)}>{t(loading ? "Collab.loading" : "Collab.loadMore")}</button>}
   </section>;

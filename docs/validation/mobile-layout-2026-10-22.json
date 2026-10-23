@@ -1,0 +1,849 @@
+{
+  "engine": "isolated Chrome headless / CDP",
+  "fixture": "real React components; synthetic API data; no account access",
+  "count": 84,
+  "passed": 84,
+  "runtime_errors": 0,
+  "cases": [
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "login",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 320,
+      "surfaceScroll": 320,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 320,
+      "surfaceScroll": 320,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 320,
+      "surfaceScroll": 320,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "files",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 320,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "login",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 375,
+      "surfaceScroll": 375,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 375,
+      "surfaceScroll": 375,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 375,
+      "surfaceScroll": 375,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "files",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 375,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "login",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 390,
+      "surfaceScroll": 390,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 390,
+      "surfaceScroll": 390,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 390,
+      "surfaceScroll": 390,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "files",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 390,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "login",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 430,
+      "surfaceScroll": 430,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 430,
+      "surfaceScroll": 430,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 430,
+      "surfaceScroll": 430,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "files",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 430,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "login",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 768,
+      "surfaceScroll": 768,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 768,
+      "surfaceScroll": 768,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 768,
+      "surfaceScroll": 768,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "files",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 768,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "login",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1280,
+      "surfaceScroll": 1280,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1280,
+      "surfaceScroll": 1280,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1280,
+      "surfaceScroll": 1280,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "files",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "zh",
+      "width": 1280,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "login",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 320,
+      "surfaceScroll": 320,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 308,
+      "surfaceScroll": 308,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 320,
+      "surfaceScroll": 320,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "files",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 320,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 320,
+      "surfaceClient": 290,
+      "surfaceScroll": 290,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "login",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 375,
+      "surfaceScroll": 375,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 375,
+      "surfaceScroll": 375,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 375,
+      "surfaceScroll": 375,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "files",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 375,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 375,
+      "surfaceClient": 345,
+      "surfaceScroll": 345,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "login",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 390,
+      "surfaceScroll": 390,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 390,
+      "surfaceScroll": 390,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 390,
+      "surfaceScroll": 390,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "files",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 390,
+      "surfaceClient": 360,
+      "surfaceScroll": 360,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "login",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 430,
+      "surfaceScroll": 430,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 430,
+      "surfaceScroll": 430,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 430,
+      "surfaceScroll": 430,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "files",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 430,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 430,
+      "surfaceClient": 400,
+      "surfaceScroll": 400,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "login",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 768,
+      "surfaceScroll": 768,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 768,
+      "surfaceScroll": 768,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 768,
+      "surfaceScroll": 768,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "files",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 768,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 768,
+      "surfaceClient": 718,
+      "surfaceScroll": 718,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "login",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1280,
+      "surfaceScroll": 1280,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "setup",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1280,
+      "surfaceScroll": 1280,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "mfa",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1280,
+      "surfaceScroll": 1280,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "agents",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "bridges",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "files",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    },
+    {
+      "lang": "en",
+      "width": 1280,
+      "view": "repositories",
+      "ok": true,
+      "docWidth": 1280,
+      "surfaceClient": 1066,
+      "surfaceScroll": 1066,
+      "selectedVisible": true
+    }
+  ]
+}

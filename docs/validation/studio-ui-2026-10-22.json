@@ -1,0 +1,1069 @@
+{
+  "reference": "Caho1/open-claude-ui@c1f923ae0051a871941b98a0e2e3183a545e6a85",
+  "app_browser": {
+    "source": "Real React production components in isolated Chrome with synthetic API fixtures; no user data or live API writes",
+    "passed": 87,
+    "cases": [
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1440,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "home",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "empty",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "chat",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "picker",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "connect",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "login",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1440,
+        "screen": "create",
+        "horizontalOverflow": false,
+        "unsolicitedWrites": 0
+      },
+      {
+        "screen": "create-escape",
+        "focusOnName": true,
+        "escapeDismiss": true
+      },
+      {
+        "screen": "composer-ime",
+        "prematureSend": false
+      },
+      {
+        "screen": "reduced-motion",
+        "duration": "0s"
+      }
+    ]
+  },
+  "oauth_browser": {
+    "source": "Production server-side view + exact shared theme tokens; synthetic display data, isolated Chrome CDP",
+    "passed": 37,
+    "cases": [
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 390,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1280,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1280,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "doodle",
+        "width": 1280,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 320,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 390,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1280,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1280,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "zh",
+        "theme": "midnight",
+        "width": 1280,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 390,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1280,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1280,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 1280,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 320,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 390,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1280,
+        "mode": "consent",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1280,
+        "mode": "renewed",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 3
+      },
+      {
+        "locale": "en",
+        "theme": "midnight",
+        "width": 1280,
+        "mode": "error",
+        "horizontalOverflow": false,
+        "actionsAtLeast48px": true,
+        "permissions": 0
+      },
+      {
+        "locale": "en",
+        "theme": "doodle",
+        "width": 320,
+        "mode": "long-fields",
+        "horizontalOverflow": false
+      }
+    ]
+  },
+  "native_oauth_flow": {
+    "runtime": "Wrangler 4.147.0 D1 + production OAuth handlers + isolated Chrome native forms",
+    "data": "synthetic accounts only; browser retains real https://chatgpt.com callback URL, intercepted before network; no user provider account contacted",
+    "passed": 3,
+    "cases": [
+      {
+        "scenario": "fresh",
+        "callback_received": true,
+        "callback_origin": "https://chatgpt.com",
+        "callback_method": "GET",
+        "referrer_present": false,
+        "token_status": 200,
+        "token_issued": true,
+        "scope": "group.read"
+      },
+      {
+        "scenario": "expired",
+        "callback_received": true,
+        "callback_origin": "https://chatgpt.com",
+        "callback_method": "GET",
+        "referrer_present": false,
+        "token_status": 200,
+        "token_issued": true,
+        "scope": "group.read"
+      },
+      {
+        "scenario": "different-session",
+        "callback_received": true,
+        "callback_origin": "https://chatgpt.com",
+        "callback_method": "GET",
+        "referrer_present": false,
+        "token_status": 200,
+        "token_issued": true,
+        "scope": "group.read"
+      }
+    ]
+  },
+  "scope": "Synthetic accounts and API fixtures; actual React components and OAuth handlers. No live user messages or grant changes."
+}

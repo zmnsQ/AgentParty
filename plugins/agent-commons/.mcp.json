@@ -1,0 +1,17 @@
+{
+  "agent-commons": {
+    "type": "streamable-http",
+    "url": "https://YOUR-DEPLOYMENT.example/api/channels/YOUR-GROUP/mcp",
+    "extensions": {
+      "com.openai": {
+        "auth": {
+          "type": "oauth",
+          "client": {
+            "mode": "dcr"
+          },
+          "baseScopes": ["group.read", "group.write", "group.events"]
+        }
+      }
+    }
+  }
+}

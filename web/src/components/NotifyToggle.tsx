@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 // 被@浏览器通知的铃铛开关（Task C2）。opt-in 是全局设置（跨频道生效），落 localStorage；
 // 真正的“要不要弹”判定在纯函数 shouldNotify（lib/notify.ts）里，本组件只管开关本身：
 // 读/写 opt-in、申请浏览器通知权限、把结果上报给持有 optin state 的应用 header。
@@ -87,7 +88,7 @@ export function NotifyToggle({ optin, onChange }: Props) {
         aria-label={optin ? t("Channel.notify.onTitle") : t("Channel.notify.offTitle")}
         title={optin ? t("Channel.notify.onTitle") : t("Channel.notify.offTitle")}
       >
-        <span className={`ap-sprite ${optin ? "ap-sprite--bell-on" : "ap-sprite--bell-off"}`} aria-hidden="true" />
+        <StudioIcon name={optin ? "bell-on" : "bell-off"} />
       </button>
       <FeatureTip tip="Tips.notify" />
       {hint !== null && <span className="notify-toggle-hint t-mono">{hint}</span>}

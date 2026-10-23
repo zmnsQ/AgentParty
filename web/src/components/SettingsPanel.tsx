@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import { isTauriEnvironment } from "../lib/desktopUpdater";
 // 全局设置只承载个人与设备设置。跨频道的本机 Agent 监控、启停、常驻和日志
 // 已移到独立 LocalAgentCenter，避免打开偏好设置就启动多套本机 IPC/轮询。
@@ -5,6 +6,8 @@ import { useCallback, useState, type ReactNode } from "react";
 import { useT } from "../i18n/useT";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HandleSetup } from "./HandleSetup";
+import { OriginalProjectCredit } from "./OriginalProjectCredit";
+import "../i18n/strings/Studio";
 import { useNotifyOptinToggle } from "./NotifyToggle";
 import {
   SectionedDialog,
@@ -68,7 +71,7 @@ export function SettingsPanel({
 
   const sections: SectionedDialogSection<SettingsSectionId>[] = [
     {
-      id: "preferences",
+      id: "preferences", icon: "settings",
       label: t("App.settings.section.preferences"),
       content: (
         <>
@@ -90,7 +93,9 @@ export function SettingsPanel({
                   aria-pressed={option.code === theme}
                   onClick={() => pickTheme(option.code)}
                 >
-                  {t(option.labelKey)}
+                  <StudioIcon name={option.code === "midnight" ? "moon" : "sun"} />
+                  <span>{t(option.labelKey)}</span>
+                  {option.code === theme && <StudioIcon name="check" size={14} />}
                 </button>
               ))}
             </div>
@@ -104,7 +109,7 @@ export function SettingsPanel({
               aria-pressed={notifyOptin}
               onClick={toggleNotify}
             >
-              <span className="settings-toggle-dot" aria-hidden="true" />
+              <span className="ui-switch-track" aria-hidden="true"><span /></span>
               {notifyOptin ? t("App.settings.notify.on") : t("App.settings.notify.off")}
             </button>
             <p className="settings-hint">{t("App.settings.notify.hint")}</p>
@@ -119,7 +124,7 @@ export function SettingsPanel({
 
   if (me !== null) {
     sections.push({
-      id: "account",
+      id: "account", icon: "human",
       label: t("App.settings.section.account"),
       content: (
         <>
@@ -155,7 +160,7 @@ export function SettingsPanel({
             {!isTauriEnvironment() && me.provider === "github" && <p><a className="d-btn" href="/auth/security">{t("App.settings.section.account")} · GitHub / 2FA</a></p>}
             {onLogout !== null && (
               <button type="button" className="settings-logout" onClick={onLogout}>
-                {t("App.settings.logout")}
+                <StudioIcon name="logout" />{t("App.settings.logout")}
               </button>
             )}
           </section>
@@ -166,7 +171,7 @@ export function SettingsPanel({
 
   if (desktopAppSettings !== null) {
     sections.push({
-      id: "desktop",
+      id: "desktop", icon: "monitor",
       label: t("App.settings.section.desktop"),
       content: desktopAppSettings,
     });
@@ -174,15 +179,14 @@ export function SettingsPanel({
 
   if (onShowOnboarding !== undefined) {
     sections.push({
-      id: "help",
+      id: "help", icon: "help",
       label: t("App.settings.section.help"),
       content: (
         <>
           <h3 className="settings-module-title">{t("App.settings.section.help")}</h3>
           <section className="settings-section">
-            <strong>AgentParty Commons</strong>
-            <p>{t("Collab.source")}</p>
-            <p><a href="https://github.com/leeguooooo/AgentParty" target="_blank" rel="noreferrer">AgentParty</a> · <a href="https://github.com/leeguooooo/AgentParty/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("Collab.license")}</a></p>
+            <OriginalProjectCredit />
+            <p className="studio-design-credit"><a href="https://github.com/Caho1/open-claude-ui" target="_blank" rel="noopener noreferrer">{t("Studio.reference")}</a> · <a href="/third-party-notices.txt" target="_blank" rel="noopener noreferrer">MIT</a></p>
             <p>{t("Collab.updatesDisabled")}</p>
           </section>
           <section className="settings-section">

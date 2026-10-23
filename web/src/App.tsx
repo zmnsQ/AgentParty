@@ -1,3 +1,5 @@
+import {isCompactViewport} from "./lib/mobileViewport";
+import { StudioIcon } from "./components/StudioIcon";
 import { useBrowserAuth } from "./lib/useBrowserAuth";
 import { BrowserSecurity, GithubAuthSetup, SecondFactorGate } from "./components/BrowserSecurity";
 // 应用骨架：登录闸 → 头部 + 左侧频道列表 + 右侧（首页 | 频道页）
@@ -7,6 +9,7 @@ import { isOpaqueAccount } from "@agentparty/shared/identity";
 import { membershipApplyMailto, membershipStatusOf } from "./lib/membership";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChannelList } from "./components/ChannelList";
+import { ResponsiveSidebar } from "./components/ResponsiveSidebar";
 import { CreateChannel } from "./components/CreateChannel";
 import { DesktopSettings } from "./components/DesktopSettings";
 import { reportDesktopUiReady } from "./lib/desktopUi";
@@ -196,6 +199,7 @@ export function App() {
   const channelReloadInFlight = useRef<{ key: string; promise: Promise<void> } | null>(null);
   const [me, setMe] = useState<MeInfo | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [createGroupRequest,setCreateGroupRequest] = useState(0);
   const [notifyOptin, setNotifyOptin] = useState<boolean>(() => readNotifyOptin());
   const [oidc, setOidc] = useState<OidcConfig | null>(null);
   const [authProviders, setAuthProviders] = useState<AuthProviderConfig[]>([]);
@@ -569,7 +573,8 @@ export function App() {
   useEffect(() => {
     if (settingsOpen || !restoreSettingsFocusRef.current) return;
     restoreSettingsFocusRef.current = false;
-    (settingsFocusTarget() ?? settingsButtonRef.current)?.focus();
+    const mobileTarget = isCompactViewport() ? document.querySelector<HTMLButtonElement>(".mobile-group-toggle") : null;
+    (mobileTarget ?? settingsFocusTarget() ?? settingsButtonRef.current)?.focus();
   }, [settingsFocusTarget, settingsOpen]);
   const openLocalAgentCenter = useCallback(() => {
     setSettingsOpen(false);
@@ -960,7 +965,7 @@ export function App() {
       return (
         <>
           <main className="gate desktop-session-gate">
-            <h1 className="d-title gate-title">Agent<span className="d-hl">Party</span></h1>
+            <h1 className="d-title gate-title">Agent<span className="d-hl"> Commons</span></h1>
             <p className="banner" role="status" aria-live="polite">{t("App.desktop.restoring")}</p>
           </main>
           <DesktopRecoveryUpdater />
@@ -971,7 +976,7 @@ export function App() {
       return (
         <>
           <main className="gate desktop-session-gate">
-            <h1 className="d-title gate-title">Agent<span className="d-hl">Party</span></h1>
+            <h1 className="d-title gate-title">Agent<span className="d-hl"> Commons</span></h1>
             <section className="d-card gate-card">
               <p className="banner banner--red" role="alert">{t("App.desktop.restoreFailed")}</p>
               <ServerSwitcher
@@ -1081,7 +1086,7 @@ export function App() {
     return (
       <main className="gate">
         <h1 className="d-title gate-title">
-          Agent<span className="d-hl">Party</span>
+          Agent<span className="d-hl"> Commons</span>
         </h1>
         <p className="banner" role="status" aria-live="polite">
           {t("App.status.signingIn")}
@@ -1095,7 +1100,7 @@ export function App() {
     return (
       <main className="gate">
         <h1 className="d-title gate-title">
-          Agent<span className="d-hl">Party</span>
+          Agent<span className="d-hl"> Commons</span>
         </h1>
         {joinStatus?.phase === "error" ? (
           <>
@@ -1233,7 +1238,7 @@ export function App() {
   const deploymentOrigin = desktop ? activeOrigin : apiOrigin();
 
   return (
-    <div className="app">
+    <div className={"app"+(slug!==null?" app--channel":"")}>
       <header className="app-head">
         <a
           className="d-title app-logo"
@@ -1243,7 +1248,7 @@ export function App() {
             navigate("/");
           }}
         >
-          Agent<span className="d-hl">Party</span>
+          Agent<span className="d-hl"> Commons</span>
         </a>
         <span className="d-hand app-tag">{t("App.tagline")}</span>
         <a className="app-docs t-mono" href="/docs">
@@ -1296,7 +1301,7 @@ export function App() {
             title={t("App.handle.setCta")}
           >
             <span className="handlesetup-trigger-edit" aria-hidden="true">
-              ✎
+              <StudioIcon name="edit"/>
             </span>
             <span className="handlesetup-trigger-value">{t("App.handle.chipUnset")}</span>
           </button>
@@ -1324,7 +1329,7 @@ export function App() {
             aria-expanded={localAgentCenterOpen}
             onClick={openLocalAgentCenter}
           >
-            <span className="ap-sprite ap-sprite--agent" aria-hidden="true" />
+            <StudioIcon name="agent" />
           </button>
         )}
         {slug !== null && (
@@ -1340,7 +1345,7 @@ export function App() {
           title={t("App.settings.title")}
           onClick={openSettings}
         >
-          <span className="ap-sprite ap-sprite--settings" aria-hidden="true" />
+          <StudioIcon name="settings" />
         </button>
       </header>
       <DesktopInstallPrompt desktop={desktop} />
@@ -1393,15 +1398,16 @@ export function App() {
               onClick={() => setHandleBannerDismissed(true)}
               aria-label={t("App.handle.bannerDismiss")}
             >
-              ✕
+              <StudioIcon name="close" />
             </button>
           </span>
         </p>
       )}
       <div className="app-shell">
-        <aside className="app-side">
+        <ResponsiveSidebar activeSlug={slug} requestOpen={createGroupRequest} title={channels?.find(channel=>channel.slug===slug)?.title}
+          mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><StudioIcon name="group"/>Agent Commons</a><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}>
           {canCreate && token !== null && (
-            <CreateChannel token={token} onCreated={onChannelCreated} />
+            <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
           )}
           {/* 桌面版：贴网页邀请链接进入频道（#297）。桌面壳没地址栏，粘贴框把 /join 或 /c 链接
               解析后走网页同款兑换——participate 走 /join/<code> 兑换 effect，watch 落分享态。 */}
@@ -1421,7 +1427,7 @@ export function App() {
             onOpen={openChannel}
             onRetry={reloadChannels}
           />
-        </aside>
+        </ResponsiveSidebar>
         <main className="app-main">
           {routeNotFound ? (
             <p className="banner banner--red" role="alert">
@@ -1480,7 +1486,7 @@ export function App() {
               onAuthFailed={onAuthFailed}
             />
           ) : (
-            <Home channels={channels} onOpen={openChannel} />
+            <Home channels={channels} onOpen={openChannel} onCreate={canCreate?()=>setCreateGroupRequest(n=>n+1):undefined} />
           )}
         </main>
       </div>

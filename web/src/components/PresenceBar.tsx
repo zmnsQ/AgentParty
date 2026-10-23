@@ -1,5 +1,9 @@
 // 顶部 presence 条：每参与者一个手绘胶囊（名字 + 蜡笔状态点 + note + 相对时间），
 // 右端挂连接状态。"对方卡在哪"一眼可见（spec §9 第 3 块）。
+import {useCompactViewport} from "../lib/useCompactViewport";
+import {useLocale} from "../i18n/locale";
+import {ModalPortal} from "./ModalPortal";
+import {StudioIcon} from "./StudioIcon";
 import { LiveSessionEntryButton, hasLiveSession } from "./LiveSessionView";
 import { LocalOcsSessions } from "./LocalOcsSessions";
 import type { OcsRosterFrame } from "@agentparty/shared";
@@ -38,6 +42,7 @@ interface Props {
   headerControls?: ReactElement | null;
   // 频道焦点栏（#682）折进头部主行：紧凑内联渲染「球在谁手里 / 在等你」，不再单占一条（用户反馈）。
   focus?: ReactElement | null;
+  attentionCount?: number;
   // issue #272（审计重开）：点 presence roster 里的某个人/agent，打开它的单 Agent 详情弹窗。
   onOpenAgentDetail?: (name: string) => void;
   // #1103：成员条上的 live session 入口。有流就亮，没流禁用并说明原因。
@@ -430,6 +435,7 @@ export function PresenceBar({
   roles = [],
   headerControls,
   focus,
+  attentionCount = 0,
   onOpenAgentDetail,
   liveSessions,
   onOpenLiveSession,
@@ -439,7 +445,7 @@ export function PresenceBar({
   onReconnect,
   initialRosterOpen = false,
 }: Props) {
-  const t = useT();
+  const t = useT(), compact = useCompactViewport(), {locale} = useLocale();
   // 相对时间 30s 刷一次
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -864,7 +870,12 @@ export function PresenceBar({
 
   return (
     <div className="presence-bar">
-      <div className="presence-head">
+      {compact ? <button ref={rosterToggleRef} type="button" className="presence-mobile-summary" aria-haspopup="dialog" aria-expanded={rosterOpen} onClick={toggleRoster}>
+        <span className="presence-mobile-dot" data-status={status} aria-hidden="true"/>
+        <span>{status==="open"?t("PresenceBar.liveCount",{live:livePeople,total:totalPeople}):(locale==="zh"?"连接未就绪":"Connection not ready")}</span>
+        {(attentionCount+duplicateCount+blockedCount+unhandledMentionCount)>0&&<span className="presence-mobile-attention">{locale==="zh"?"有待处理事项":"Needs attention"}</span>}
+        <StudioIcon name="chevron-right" size={14}/>
+      </button> : <div className="presence-head">
         <div className="presence-meta" aria-label="channel presence summary">
           {/* #1044：头像堆叠 + 在线数是这一行的主角（「谁在这里」一眼可见），点开完整名单。
               人圆 / agent 方；状态环见 avatarReach。行话徽章（WATCH/PARTY/N duplicate）全部换成人话芯片。 */}
@@ -958,9 +969,9 @@ export function PresenceBar({
         >
           {status === "open" ? "●" : `◌ ${status}…`}
         </span>
-      </div>
+      </div>}
       {rosterOpen && (
-        <div
+        <ModalPortal><div
           ref={rosterDialogRef}
           className="channel-panel-overlay presence-roster-overlay"
           role="dialog"
@@ -980,6 +991,7 @@ export function PresenceBar({
               </button>
             </header>
             <div className="channel-panel-body presence-roster-body">
+              {compact&&<div className="mobile-roster-overview" onClick={event=>{if(event.currentTarget.contains(event.target as Node)&&(event.target as Element).closest("button"))closeRoster();}}>{focus}{duplicateCount>0&&<p>{t("PresenceBar.alert.duplicate",{count:duplicateCount})}</p>}{headerControls}</div>}
               {removeError !== null && <p className="roster-error" role="alert">{removeError}</p>}
               {rankedItems.length === 0 ? (
                 <p className="t-mono presence-empty">{t("PresenceBar.empty")}</p>
@@ -1022,7 +1034,7 @@ export function PresenceBar({
               )}
             </div>
           </section>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

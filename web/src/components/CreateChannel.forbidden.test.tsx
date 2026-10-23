@@ -19,7 +19,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-// 打开面板 → 填一个合法 slug → 提交 → 返回内联红字文案
+// 打开面板 → 填写群组名称（ID 由服务器自动生成）→ 提交 → 返回内联红字文案
 async function submitAndReadError(body: string): Promise<string> {
   globalThis.fetch = (async () => new Response(body, { status: 403 })) as typeof fetch;
   await act(async () => {
@@ -34,7 +34,7 @@ async function submitAndReadError(body: string): Promise<string> {
     r.root.findByProps({ className: "d-pill chan-pill newchan-open" }).props.onClick();
   });
   await act(async () => {
-    r.root.findByProps({ className: "t-mono newchan-input" }).props.onChange({ target: { value: "ludo" } });
+    r.root.findByProps({ className: "newchan-input" }).props.onChange({ target: { value: "ludo" } });
   });
   await act(async () => {
     await r.root.findByProps({ className: "d-btn d-btn--primary" }).props.onClick();

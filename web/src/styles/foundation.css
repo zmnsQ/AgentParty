@@ -1,0 +1,46 @@
+/* Agent Commons unified primitives. No raster icons, hard offset shadows, terminal decorations or per-theme icon assets. */
+*{box-sizing:border-box}
+html,body{margin:0;max-width:100%;background:var(--t-bg);color:var(--t-text)}
+body{font:14px/1.65 var(--t-sans);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
+button{cursor:pointer}button[disabled]{cursor:not-allowed}
+::selection{background:var(--d-red-soft);color:var(--t-text)}
+:focus-visible{outline:2px solid var(--t-accent);outline-offset:3px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--ac-border-strong);border:2px solid transparent;background-clip:padding-box;border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+.studio-icon{width:var(--icon-size,18px);height:var(--icon-size,18px);flex:0 0 auto;display:inline-block;vertical-align:-.2em;color:inherit;pointer-events:none}
+.d-card,.doodle-frame{background:var(--t-panel);border:1px solid var(--t-border);border-radius:var(--ac-radius-md);padding:16px;box-shadow:none}
+.d-btn,.d-pill{display:inline-flex;align-items:center;justify-content:center;gap:8px;position:relative;min-height:36px;padding:8px 13px;border:1px solid var(--t-border);border-radius:var(--ac-radius-sm);background:var(--t-panel);color:var(--t-text);font:550 13px/1.4 var(--t-sans);text-decoration:none;transition:background var(--ac-duration-fast),border-color var(--ac-duration-fast),transform var(--ac-duration-press)}
+.d-btn:hover,.d-pill:hover{background:var(--ac-hover);border-color:var(--ac-border-strong)}
+.d-btn:active:not(:disabled),.d-pill:active:not(:disabled){transform:scale(.98)}
+.d-btn--primary{background:var(--t-accent);border-color:transparent;color:var(--t-accent-ink)}
+.d-btn--primary:hover{background:color-mix(in srgb,var(--t-accent) 92%,var(--t-text));border-color:transparent}
+.d-btn--danger{color:var(--t-red);background:var(--d-red-soft);border-color:transparent}
+.d-btn--ghost{border-color:transparent;background:transparent}
+.d-pill.is-active{background:var(--d-red-soft);border-color:transparent;font-weight:600}
+.d-btn:disabled,.d-pill:disabled{opacity:.48}
+.d-dot{width:7px;height:7px;border:0;border-radius:50%;background:var(--p-offline);flex:none}
+.d-dot--working{background:var(--p-working)}.d-dot--waiting{background:var(--p-waiting)}.d-dot--blocked{background:var(--p-blocked)}.d-dot--done{background:var(--p-done)}.d-dot--offline{background:var(--p-offline)}
+.d-hl{background:transparent;color:var(--t-accent);padding:0;border:0;box-shadow:none}
+.d-title,.d-hand{font-family:var(--t-sans);color:var(--t-text);letter-spacing:-.02em}
+.t-mono{font-family:var(--t-mono)}
+.d-meta{display:flex;align-items:center;gap:10px;font:12px/1.5 var(--t-sans);color:var(--t-muted)}
+.msg-body{max-width:100%;min-width:0;color:var(--t-body);font:14px/1.85 var(--t-sans);overflow-wrap:anywhere}
+.msg-body>:first-child{margin-top:0}.msg-body>:last-child{margin-bottom:0}
+.msg-body :is(p,li,blockquote){overflow-wrap:anywhere}
+.msg-body a{color:var(--t-link);text-underline-offset:3px}
+.msg-body .ap-mention{color:var(--t-link);font-weight:600;text-decoration:none}
+.msg-body pre,.msg-body :not(pre)>code{font-family:var(--t-mono);border:1px solid var(--code-border);background:var(--code-bg);border-radius:5px}
+.msg-body :not(pre)>code{padding:.12em .35em;font-size:.9em}
+.msg-body pre{padding:14px 16px;line-height:1.65;font-size:12.5px;border-radius:10px;overflow:auto;box-shadow:none}
+.msg-body pre code{border:0;background:none;padding:0}
+.msg-body blockquote{margin:12px 0;padding:6px 14px;border-left:3px solid var(--ac-border-strong);background:var(--t-panel2);border-radius:0 8px 8px 0}
+.msg-status{display:flex;align-items:center;gap:12px;min-width:0;font:11px/1.5 var(--t-sans);color:var(--t-muted)}
+.msg-status>span{min-width:0;overflow-wrap:anywhere}
+.msg-status::before,.msg-status::after{content:"";flex:1;height:1px;background:var(--t-border)}
+.d-empty{font:13px/1.8 var(--t-sans);color:var(--t-muted);text-align:center;padding:28px 16px}
+.d-rule{height:1px;background:var(--t-border);border:0}
+@media(max-width:760px){.d-btn,.d-pill{min-height:44px}.studio-icon{--icon-size:18px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}

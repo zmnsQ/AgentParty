@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
   isAutostartEnabled,
@@ -338,7 +339,7 @@ export function DesktopSettings({
           return !current;
         })}
       >
-        <span className="ap-sprite ap-sprite--settings" aria-hidden="true" />
+        <StudioIcon name="settings" />
       </button>
       {open && (
         <DesktopSettingsPanel

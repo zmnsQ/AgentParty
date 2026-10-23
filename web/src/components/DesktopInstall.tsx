@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 import { useRef, useState } from "react";
 import { useT } from "../i18n/useT";
 import { useModalFocusTrap } from "./useModalFocusTrap";
@@ -18,7 +19,7 @@ function DesktopInstallDialog({ onClose, returnFocusRef }: DialogProps) {
       <div ref={panelRef} className="desktop-install-dialog" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
         <header className="desktop-install-head">
           <div><p className="desktop-install-kicker t-mono">{t("App.desktop.installKicker")}</p><h2 id="desktop-install-title">{t("App.desktop.installTitle")}</h2></div>
-          <button type="button" className="desktop-install-close" aria-label={t("App.desktop.installClose")} onClick={onClose}>×</button>
+          <button type="button" className="desktop-install-close" aria-label={t("App.desktop.installClose")} onClick={onClose}><StudioIcon name="close" /></button>
         </header>
         <p className="desktop-install-lead">{t("App.desktop.installLead")}</p>
         <ul className="desktop-install-benefits">

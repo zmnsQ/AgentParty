@@ -1,0 +1,53 @@
+/* Current-project credit is prominent, upstream attribution is separate. */
+.original-project-credit {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--t-faint, currentColor);
+  border-radius: 6px;
+  background: var(--t-panel, transparent);
+  color: var(--t-text, inherit);
+  font-size: .79rem;
+  line-height: 1.5;
+  text-align: start;
+}
+.original-project-credit strong {
+  font-weight: 750;
+  letter-spacing: .012em;
+  overflow-wrap: anywhere;
+}
+.original-project-credit span { min-width: 0; overflow-wrap: anywhere; }
+.original-project-credit__links { display: block; line-height: 1.8; }
+.original-project-credit a {
+  display: inline;
+  color: var(--t-blue, inherit);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.original-project-credit a:focus-visible {
+  outline: 2px solid var(--t-blue, currentColor);
+  outline-offset: 2px;
+}
+.original-project-credit--compact {
+  gap: .22rem;
+  padding: .7rem .85rem;
+  font-size: .74rem;
+}
+.gate > .original-project-credit {
+  width: min(100%, 550px);
+  margin: 0 auto 1.1rem;
+}
+.commons-hero .original-project-credit {
+  margin-top: .75rem;
+  max-width: 610px;
+}
+@media (max-width: 600px) {
+  .original-project-credit { padding: .85rem .9rem; font-size: .75rem; }
+  .original-project-credit--compact { font-size: .72rem; padding: .65rem .75rem; }
+  .original-project-credit__links { line-height: 1.85; }
+  .gate > .original-project-credit { margin-bottom: .65rem; }
+}

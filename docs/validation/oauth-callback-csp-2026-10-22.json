@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-22",
+  "baseline_commit": "d7d0472f24d74aa7712fcb01585f89ddf81db357",
+  "test_environment": "isolated Chromium native HTML form + production OAuth handlers + temporary D1",
+  "network_isolation": "Browser keeps https://chatgpt.com/connector_platform_oauth_redirect; CDP fulfills only that request before external network. No personal ChatGPT account contacted.",
+  "before": {
+    "scenario": "old-production",
+    "callback_received": false,
+    "authorization_code_saved": true,
+    "consent_consumed": true,
+    "first_click_stuck_on_consent": true,
+    "second_click_shows_invalid_consent": true
+  },
+  "after": {
+    "runtime": "Wrangler 4.147.0 D1 + production OAuth handlers + isolated Chrome native forms",
+    "data": "synthetic accounts only; browser retains real https://chatgpt.com callback URL, intercepted before network; no user provider account contacted",
+    "passed": 3,
+    "cases": [
+      {
+        "scenario": "fresh",
+        "callback_received": true,
+        "callback_origin": "https://chatgpt.com",
+        "callback_method": "GET",
+        "referrer_present": false,
+        "token_status": 200,
+        "token_issued": true,
+        "scope": "group.read"
+      },
+      {
+        "scenario": "expired",
+        "callback_received": true,
+        "callback_origin": "https://chatgpt.com",
+        "callback_method": "GET",
+        "referrer_present": false,
+        "token_status": 200,
+        "token_issued": true,
+        "scope": "group.read"
+      },
+      {
+        "scenario": "different-session",
+        "callback_received": true,
+        "callback_origin": "https://chatgpt.com",
+        "callback_method": "GET",
+        "referrer_present": false,
+        "token_status": 200,
+        "token_issued": true,
+        "scope": "group.read"
+      }
+    ]
+  },
+  "full_gate": {
+    "command": "bun run check:commons",
+    "exit_code": 0,
+    "passed": 633,
+    "breakdown": {
+      "http": 53,
+      "worker": 257,
+      "web": 202,
+      "cli": 111,
+      "config": 4,
+      "muse_sdk": 6
+    }
+  },
+  "security": "No Origin/MFA/nonce/session/redirect URI/resource/scope/PKCE weakening. Only the selected registered callback origin is added to consent form-action."
+}

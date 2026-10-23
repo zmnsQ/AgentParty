@@ -1,9 +1,104 @@
-.browser-security{width:min(94vw,580px);margin:2rem auto;padding:clamp(1.2rem,4vw,2.2rem);box-sizing:border-box;line-height:1.65}
-.browser-security h1{font-size:1.65rem;margin:1rem 0}.browser-security h2{font-size:1.1rem;margin:1rem 0 .5rem}
-.browser-auth-stack{display:flex;flex-direction:column;gap:.85rem;margin:1rem 0}.browser-auth-stack label{display:flex;flex-direction:column;gap:.4rem}
-.browser-auth-stack input[type=checkbox]{align-self:flex-start}.browser-auth-qr{align-self:center;max-width:100%;height:auto;border-radius:8px;background:white}
-.browser-auth-secret{display:block;overflow-wrap:anywhere;padding:.8rem;font-size:.9rem}.browser-auth-status{font-weight:700}
-.browser-auth-muted{opacity:.7;font-size:.85rem}.browser-recovery{border:1px solid currentColor;border-radius:10px;padding:1rem;margin:1rem 0}
-.browser-recovery pre{font-size:.85rem;overflow:auto;line-height:1.8}.browser-recovery button{margin:.4rem .4rem .4rem 0}
-.browser-auth-advanced{margin-top:1.5rem}.browser-auth-advanced summary{cursor:pointer;opacity:.7}
-.github-login-primary{display:block;text-align:center;text-decoration:none;width:100%;box-sizing:border-box}
+/* Compact GitHub login and authenticator settings. Keeps safe-area and readable inputs on iPhone. */
+.browser-security {
+  box-sizing: border-box;
+  width: min(100%, 580px);
+  min-width: 0;
+  max-width: 100%;
+  margin: 14px auto;
+  padding: clamp(16px, 4vw, 32px);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.browser-security h1 {
+  font-size: clamp(1.35rem, 3vw, 1.65rem);
+  margin: .8rem 0;
+}
+.browser-security h2 { font-size: 1.1rem; margin: 1rem 0 .5rem; }
+.browser-auth-stack { display: flex; flex-direction: column; gap: 14px; margin: 14px 0; min-width: 0; }
+.browser-auth-stack label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.browser-auth-stack input:not([type=checkbox]) { box-sizing: border-box; width: 100%; min-width: 0; }
+.browser-auth-stack input[type=checkbox] { align-self: flex-start; }
+.browser-auth-stack .d-btn { justify-content: center; text-align: center; white-space: normal; }
+.browser-auth-qr { align-self: center; max-width: 100%; height: auto; border-radius: 8px; background: #fff; }
+.browser-auth-secret { display: block; overflow-wrap: anywhere; padding: 12px; font-size: .9rem; }
+.browser-auth-status { font-weight: 700; }
+.browser-auth-muted { opacity: .75; font-size: .85rem; }
+.browser-recovery { border: 1px solid var(--t-faint, currentColor); border-radius: 8px; padding: 16px; margin: 16px 0; min-width: 0; }
+.browser-recovery pre { max-width: 100%; font-size: .85rem; overflow: auto; line-height: 1.8; }
+.browser-recovery button { margin: 6px 6px 6px 0; }
+.browser-auth-advanced { margin-top: 16px; }
+.browser-auth-advanced summary { cursor: pointer; opacity: .8; }
+.github-login-primary { display: flex; align-items: center; text-align: center; text-decoration: none; width: 100%; box-sizing: border-box; }
+.browser-auth-attribution {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--t-faint, currentColor);
+}
+.browser-auth-attribution .original-project-credit { width: 100%; max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  /* #root is height-constrained: flex-start allows complete vertical scrolling on short phones. */
+  .gate:has(.browser-security) {
+    align-items: stretch;
+    justify-content: flex-start;
+    min-width: 0;
+    padding: max(12px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(16px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .browser-security {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: clamp(14px, 4vw, 18px);
+  }
+  .browser-security h1 { margin: .35rem 0 .6rem; font-size: clamp(1.35rem, 6vw, 1.6rem); }
+  .browser-auth-stack { gap: 12px; }
+  .browser-auth-stack input:not([type=checkbox]), .browser-security .gate-input {
+    font-size: 16px; /* prevent Safari input-focus zoom */
+    min-height: 44px;
+  }
+  .browser-security .d-btn, .browser-auth-stack .d-btn {
+    min-height: 44px;
+    max-width: 100%;
+  }
+  .browser-security details, .browser-security pre, .browser-security code { max-width: 100%; }
+  .browser-recovery { padding: 12px; }
+  .browser-recovery button { width: 100%; margin: 6px 0; }
+  .browser-auth-attribution { margin-top: 18px; }
+  .gate:has(> .gate-card) {
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: max(16px, env(safe-area-inset-top, 0px))
+      max(12px, env(safe-area-inset-right, 0px))
+      max(16px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+  }
+  .gate:has(> .gate-card) .gate-title {
+    max-width: 100%;
+    text-align: center;
+    font-size: clamp(30px, 8vw, 40px);
+    overflow-wrap: anywhere;
+  }
+  .gate:has(> .gate-card) .gate-sub { margin-bottom: 8px; text-align: center; }
+  .gate:has(> .gate-card) .gate-card {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 400px;
+    padding: 16px;
+  }
+  .gate:has(> .gate-card) .gate-byline {
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .gate:has(> .gate-card) .gate-lang { margin-top: 10px; }
+}

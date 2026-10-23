@@ -94,7 +94,7 @@ export function mcpServerName(agentName: string): string {
 
 /** install.sh 的 raw URL：CLI/web 两个出口共用同一个常量，别再各写一遍。 */
 export const INSTALL_SH_RAW_URL =
-  "https://raw.githubusercontent.com/leeguooooo/agentparty/main/install.sh";
+  "https://raw.githubusercontent.com/zmnsQ/AgentParty/feat/agent-commons-provider-bridges-20261021/install-legacy.sh";
 
 /** 接入包认得的 harness 形态。`other` = 未知/非 codex 非 claude；`party join` 会自己探测。 */
 export type JoinPackHarness = "claude" | "codex" | "other";

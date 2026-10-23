@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 // #662：owner 进入/刷新页面时主动汇总——列出自己名下跑着过时 CLI 的 agent，引导用接入包升级。
 // 与 MessageCard 的单条被动徽标（msg-client-version--outdated）互补：那是「某条消息发送时的快照」，
 // 这里是 presence 级、owner 视角的一次性提醒，落点是「重跑接入包 = 重装最新 CLI」。
@@ -90,7 +91,7 @@ export function OutdatedAgentsNotice({ presence, accountKey, onUpgrade, latestVe
   return (
     <div className="banner banner--yellow outdated-agents-notice" role="status" aria-live="polite" data-outdated-count={outdated.length}>
       <div className="outdated-agents-notice-head">
-        <span className="outdated-agents-notice-title">⚠ {title}</span>
+        <span className="outdated-agents-notice-title"><StudioIcon name="failed" /> {title}</span>
         <button
           type="button"
           className="d-btn outdated-agents-notice-dismiss"

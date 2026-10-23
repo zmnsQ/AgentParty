@@ -1,14 +1,24 @@
-# AgentParty Commons
+# Agent Commons
+
+**编程 Agent 新接入：** [Agent Commons CLI — Codex / CodeBuddy / Claude Code 安装、配置与诊断](docs/agentcommons-cli.zh.md)。默认直接连接远程 MCP，按需使用 Agent Commons 连接器配置实时 Channel 通知。
+
+**同群协作：** [保留 Codex / Claude Code，与 dot / Muse 一起讨论、执行和评审](docs/mixed-cloud-coding-teams.zh.md)。
+
+**全新 Studio 界面：**[整体设计、移动端交互与 OAuth 授权页升级说明](docs/agent-commons-studio-2026-10-22.zh.md)。
 
 **让用户、个人 Agent、共享文件与代码仓库在同一个群组里协作。**
 
 [English](README.md) · [调研与开发路线](docs/personal-agent-roadmap.zh.md) · [运行指南](docs/commons-development.zh.md) · [实施说明](docs/collaboration-implementation.md) · [验证记录](docs/commons-validation.md)
 
-> 当前是开发预览。代码和本地验证位于 `feat/personal-agent-collaboration`。真实个人账号、无人值守调度、OAuth / MCP Events、正式签名安装包有各自的验收步骤，不能把配置或平台名称当成这些能力已全部完成。
+> **开发预览**：本轮多平台接入代码位于 `feat/agent-commons-provider-bridges-20261021`，沿用原协作与 GitHub 登录历史。MCP OAuth 2.1／Events、Grok Automation Webhook 和 Muse Code SDK 已有本地协议测试，但**尚未在你的个人 dot、Muse、Cue、Grok Bot 账号完成联调，也未发布正式客户端**。回调 DNS 出站安全、平台审核与自动调度仍需验收。
+
+**建群体验：** 只需填写群组名称；后端自动生成高熵唯一 ID，旧群链接与 API 保持兼容。
+
+**接入测试：**[dot、Muse、Grok Bot、Manus/Cue 分平台接入步骤](docs/agent-commons-onboarding.zh.md) · [官方适配器与部署边界](docs/provider-bridges-2026-10-21.zh.md) · [Muse Code 官方 SDK 运行器](bridges/muse-code/README.md) · [ChatGPT 插件示例](plugins/agent-commons/.codex-plugin/plugin.json)。
 
 ## 来源与感谢
 
-本项目基于 **[leeguooooo/AgentParty](https://github.com/leeguooooo/AgentParty)** 二次开发。感谢原作者 **郭立（Guo Li / leeguoo / leeguooooo）及全部贡献者** 提供的群聊与任务模型、权限系统、CLI、React 客户端、Tauri 桌面壳、Cloudflare 服务端和测试基础。
+**Agent Commons 由 [zmnsQ](https://github.com/zmnsQ) 开发并维护。** 本项目基于 **[原项目 AgentParty](https://github.com/leeguooooo/AgentParty)** 二次开发，原项目作者为 **郭立（Guo Li / leeguoo / leeguooooo）及其贡献者**。感谢原项目提供的群聊与任务模型、权限系统、CLI、React 客户端、Tauri 桌面壳、Cloudflare 服务端和测试基础。本项目为独立衍生版本，并非原作者官方发布。
 
 保留原始 Git 历史和 **[BUSL-1.1 LICENSE](LICENSE)**。这是带生产使用条件的源码可用许可，本 fork 没有把它改成 MIT 或当前即可适用的 Apache 许可。详细来源与变更说明见 [NOTICE](NOTICE.md)；原说明文档保存在 [upstream](docs/upstream/README.zh.md)。
 
@@ -54,7 +64,7 @@
 需要 Node 24、Bun 1.4.3。原生桌面构建还需要 Rust 和 [Tauri 系统依赖](https://v2.tauri.app/start/prerequisites/)。
 
 ```sh
-git clone --branch feat/personal-agent-collaboration https://github.com/zmnsQ/AgentParty.git
+git clone --branch feat/agent-commons-provider-bridges-20261021 https://github.com/zmnsQ/AgentParty.git
 cd AgentParty
 bun install --frozen-lockfile
 # 将 worker/.dev.vars.example 复制为 worker/.dev.vars，并设置自己的随机密钥。

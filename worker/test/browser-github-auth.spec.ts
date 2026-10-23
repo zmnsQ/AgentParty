@@ -63,6 +63,42 @@ async function enable(c: Awaited<ReturnType<typeof login>>) {
   return { secret, codes: result.recovery_codes };
 }
 
+describe('HTTPS tunnel origin preservation', () => {
+  it('recognizes the exact local-HTTP projection of the configured public HTTPS host', async () => {
+    const e = config();
+    const ctx = createExecutionContext();
+    const request = new Request('http://ap.test/api/auth/github/registration/start', {
+      method: 'POST',
+      headers: {
+        origin: 'http://ap.test', 'x-agentparty-browser': '1',
+        'sec-fetch-site': 'same-origin', 'content-type': 'application/json',
+      },
+      body: JSON.stringify({ setup_key: 'not-a-valid-initialization-key' }),
+    });
+    const response = await worker.fetch(request, e, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: 'already_configured' } });
+  });
+
+  it('rejects the local-HTTP projection for any other host', async () => {
+    const e = config();
+    const ctx = createExecutionContext();
+    const request = new Request('http://other.test/api/auth/github/registration/start', {
+      method: 'POST',
+      headers: {
+        origin: 'http://other.test', 'x-agentparty-browser': '1',
+        'sec-fetch-site': 'same-origin', 'content-type': 'application/json',
+      },
+      body: JSON.stringify({ setup_key: 'not-a-valid-initialization-key' }),
+    });
+    const response = await worker.fetch(request, e, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: 'origin_not_allowed' } });
+  });
+});
+
 describe('GitHub browser login and second-factor boundaries', () => {
   it('matches RFC 6238 SHA1 vectors and prevents consumed-step replay', async () => {
     const seed = base32(new TextEncoder().encode('12345678901234567890'));
@@ -238,6 +274,11 @@ describe('GitHub browser login and second-factor boundaries', () => {
     const r=await call(e,`${P}/registration/start`,'',{setup_key:'a'.repeat(64)});expect(r.status).toBe(200);
     const data=await r.json() as {manifest:Record<string,unknown>;action:string};
     expect(data.manifest).toMatchObject({public:false,default_permissions:{},default_events:[],hook_attributes:{active:false}});
+    expect(data.manifest).toMatchObject({
+      name:"Agent Commons Login (zmnsQ)",
+      description:expect.stringContaining("Agent Commons by zmnsQ"),
+    });
+    expect(data.manifest.description).toContain("AgentParty");
     expect(data.action).toMatch(/^https:\/\/github.com\/settings\/apps\/new\?state=/);
     expect(r.headers.get('set-cookie')).toContain('__Host-ap_setup=');
   });

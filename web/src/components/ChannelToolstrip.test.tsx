@@ -65,7 +65,7 @@ describe("ChannelToolstrip discoverability (#355)", () => {
     expect(r.root.findByProps({ "aria-label": "channel tools" }).props.className).toContain("chan-toolstrip--expanded");
     expect(toggle(r).props["aria-expanded"]).toBe(true);
     expect(toggle(r).props["aria-controls"]).toBe("channel-toolstrip-content");
-    expect(toggle(r).findByProps({ className: "ap-sprite ap-sprite--tools" })).toBeDefined();
+    expect(toggle(r).findByProps({ "data-icon": "tools" })).toBeDefined();
     expect(toggle(r).findByProps({ className: "chan-toolstrip-toggle-label" }).children).toEqual(["channel tools"]);
   });
 
@@ -106,6 +106,6 @@ describe("ChannelToolstrip discoverability (#355)", () => {
     expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip-toggle-label \{[\s\S]*display: none;/);
     expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip--collapsed \.chan-toolstrip-content \{\s*display: none;/);
     expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.chan-toolstrip-content \{[\s\S]*overflow-x: auto;/);
-    expect(css).toMatch(/\.chan-tool-btn \.ap-sprite\s*{[^}]*--ap-icon-size:\s*28px;[^}]*background-size:\s*440% 330%;/s);
+    expect(readFileSync(new URL("./StudioIcon.tsx", import.meta.url), "utf8")).toContain('strokeWidth="1.75"');
   });
 });

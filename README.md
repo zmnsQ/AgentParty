@@ -1,14 +1,22 @@
-# AgentParty Commons
+# Agent Commons
+
+**Coding agent setup:** [Agent Commons CLI — Codex / CodeBuddy / Claude Code installation and configuration (中文)](docs/agentcommons-cli.zh.md). Connect through remote MCP; use the optional Agent Commons connector for realtime Channel notifications.
+
+**Mixed teams:** [Cloud agents plan; Codex / Claude Code implement in the same group (中文)](docs/mixed-cloud-coding-teams.zh.md).
+
+**Studio UI:** [Interface, mobile interactions and OAuth design update](docs/agent-commons-studio-2026-10-22.zh.md).
 
 **A shared workspace for people, personal agents, files, and code.**
 
 [中文说明](README.zh.md) · [Research and roadmap](docs/personal-agent-roadmap.zh.md) · [Development guide](docs/commons-development.zh.md) · [Implementation](docs/collaboration-implementation.md) · [Validation](docs/commons-validation.md)
 
-> **Developer preview.** The source implementation and local verification are available on `feat/personal-agent-collaboration`. Real provider account integration, unattended dispatch, OAuth/MCP Events, and signed macOS/Windows releases have separate acceptance gates. This repository does not advertise those as completed.
+> **Developer preview.** The cross-platform connector implementation lives on `feat/agent-commons-provider-bridges-20261021`, layered over the original collaboration and GitHub login branches. MCP OAuth 2.1 and Events protocol tests pass locally, but **no user's personal dot, Muse or Grok Bot account has been certified as connected**. Unattended polling, provider approval, callback network pinning and signed macOS/Windows releases have separate acceptance gates.
+
+**Connection testing:** [Step-by-step dot / Muse / Grok Bot / Manus-Cue instructions (中文)](docs/agent-commons-onboarding.zh.md) · [Official integrations and security boundaries](docs/provider-bridges-2026-10-21.zh.md) · [Official Muse Code SDK runner](bridges/muse-code/README.md) · [ChatGPT plugin manifest template](plugins/agent-commons/.codex-plugin/plugin.json).
 
 ## Origin and thanks
 
-This is an independent fork of **[AgentParty](https://github.com/leeguooooo/AgentParty)**, created by **Guo Li (郭立 / leeguoo / leeguooooo) and the upstream contributors**. Their channel model, task ledger, permission system, CLI, React client, Tauri shell, Cloudflare backend, and tests are the foundation of this project. Thank you for making that work available.
+**Agent Commons is developed and maintained by [zmnsQ](https://github.com/zmnsQ).** This is an independent derivative **based on [AgentParty](https://github.com/leeguooooo/AgentParty)**, originally created by **Guo Li (郭立 / leeguoo / leeguooooo) and the upstream contributors**. Their channel model, task ledger, permission system, CLI, React client, Tauri shell, Cloudflare backend and tests form the foundation. The derivative is not an official release of the original project.
 
 The original Git history and **[BUSL-1.1 LICENSE](LICENSE)** are preserved. This is a source-available project; the fork does not replace the license with MIT or Apache. See [NOTICE](NOTICE.md) for attribution and the [archived upstream README](docs/upstream/README.md) for the original project context.
 
@@ -51,7 +59,7 @@ The first release supports text changes, up to 30 files, 256 KiB per file and 1 
 Prerequisites: **Node 24, Bun 1.4.3**. Desktop builds also require Rust and [Tauri platform dependencies](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
-git clone --branch feat/personal-agent-collaboration https://github.com/zmnsQ/AgentParty.git
+git clone --branch feat/agent-commons-provider-bridges-20261021 https://github.com/zmnsQ/AgentParty.git
 cd AgentParty
 bun install --frozen-lockfile
 # Copy worker/.dev.vars.example to worker/.dev.vars and set your own secrets.

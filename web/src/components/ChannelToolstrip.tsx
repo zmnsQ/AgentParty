@@ -1,3 +1,6 @@
+import {useCompactViewport} from "../lib/useCompactViewport";
+import {MobileChannelMenu} from "./MobileChannelMenu";
+import { StudioIcon } from "./StudioIcon";
 import { useState, type ReactNode } from "react";
 import { useT } from "../i18n/useT";
 import "../i18n/strings/Channel";
@@ -28,6 +31,7 @@ interface ChannelToolstripProps {
 
 export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
   const t = useT();
+  const compact = useCompactViewport();
   const [expanded, setExpanded] = useState(readExpandedPreference);
 
   const toggle = () => {
@@ -38,6 +42,7 @@ export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
     });
   };
 
+  if(compact)return <MobileChannelMenu buttons={buttons} actions={actions}/>;
   return (
     <div
       className={`chan-toolstrip chan-toolstrip--${expanded ? "expanded" : "collapsed"}`}
@@ -52,14 +57,14 @@ export function ChannelToolstrip({ buttons, actions }: ChannelToolstripProps) {
         title={t(expanded ? "Channel.tools.collapse" : "Channel.tools.expand")}
         onClick={toggle}
       >
-        <span className="ap-sprite ap-sprite--tools" aria-hidden="true" />
+        <StudioIcon name="tools" />
         <span className="chan-toolstrip-toggle-label">{t("Channel.tools.label")}</span>
-        <span className="chan-toolstrip-toggle-arrow" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
+        <span className="chan-toolstrip-toggle-arrow" aria-hidden="true"><StudioIcon name={expanded ? "chevron-down" : "chevron-right"} size={14} /></span>
       </button>
       <div id="channel-toolstrip-content" className="chan-toolstrip-content">
         <div className="chan-tool-buttons">{buttons}</div>
-        <div className="chan-tool-actions">{actions}</div>
       </div>
+      <div className="chan-tool-actions">{actions}</div>
     </div>
   );
 }

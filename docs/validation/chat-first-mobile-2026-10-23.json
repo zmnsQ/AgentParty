@@ -1,0 +1,288 @@
+{
+  "base_commit": "5cfb37a929dd02ebee5266100b684302cbf15047",
+  "scope": "frontend only; existing Worker, OAuth and persistent state unchanged",
+  "engine": "Chromium with mobile/touch emulation; synthetic data and real React components",
+  "real_iphone_verified": false,
+  "unit_tests": {
+    "passed": 218,
+    "failed": 0,
+    "files": 14,
+    "assertions": 709
+  },
+  "typecheck": "passed",
+  "vite_build": "passed",
+  "cases": [
+    {
+      "width": 320,
+      "height": 568,
+      "lang": "zh",
+      "theme": "doodle",
+      "messagePercent": 72.2,
+      "geometry": {
+        "viewport": {
+          "width": 320,
+          "height": 568
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 568,
+          "bottom": 568
+        },
+        "stream": {
+          "x": 0,
+          "y": 92,
+          "width": 320,
+          "height": 410,
+          "bottom": 502
+        },
+        "composer": {
+          "x": 10,
+          "y": 502,
+          "width": 300,
+          "height": 58,
+          "bottom": 560
+        },
+        "input": {
+          "x": 65,
+          "y": 509,
+          "width": 190,
+          "height": 44,
+          "bottom": 553
+        },
+        "overflow": false
+      },
+      "passed": true
+    },
+    {
+      "width": 390,
+      "height": 650,
+      "lang": "zh",
+      "theme": "doodle",
+      "messagePercent": 75.7,
+      "geometry": {
+        "viewport": {
+          "width": 390,
+          "height": 650
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 650,
+          "bottom": 650
+        },
+        "stream": {
+          "x": 0,
+          "y": 92,
+          "width": 390,
+          "height": 492,
+          "bottom": 584
+        },
+        "composer": {
+          "x": 10,
+          "y": 584,
+          "width": 370,
+          "height": 58,
+          "bottom": 642
+        },
+        "input": {
+          "x": 65,
+          "y": 591,
+          "width": 260,
+          "height": 44,
+          "bottom": 635
+        },
+        "overflow": false
+      },
+      "passed": true
+    },
+    {
+      "width": 430,
+      "height": 740,
+      "lang": "en",
+      "theme": "midnight",
+      "messagePercent": 78.6,
+      "geometry": {
+        "viewport": {
+          "width": 430,
+          "height": 740
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 430,
+          "height": 740,
+          "bottom": 740
+        },
+        "stream": {
+          "x": 0,
+          "y": 92,
+          "width": 430,
+          "height": 582,
+          "bottom": 674
+        },
+        "composer": {
+          "x": 10,
+          "y": 674,
+          "width": 410,
+          "height": 58,
+          "bottom": 732
+        },
+        "input": {
+          "x": 65,
+          "y": 681,
+          "width": 300,
+          "height": 44,
+          "bottom": 725
+        },
+        "overflow": false
+      },
+      "passed": true
+    },
+    {
+      "width": 390,
+      "height": 650,
+      "lang": "en",
+      "theme": "midnight",
+      "messagePercent": 75.7,
+      "geometry": {
+        "viewport": {
+          "width": 390,
+          "height": 650
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 650,
+          "bottom": 650
+        },
+        "stream": {
+          "x": 0,
+          "y": 92,
+          "width": 390,
+          "height": 492,
+          "bottom": 584
+        },
+        "composer": {
+          "x": 10,
+          "y": 584,
+          "width": 370,
+          "height": 58,
+          "bottom": 642
+        },
+        "input": {
+          "x": 65,
+          "y": 591,
+          "width": 260,
+          "height": 44,
+          "bottom": 635
+        },
+        "overflow": false
+      },
+      "passed": true
+    },
+    {
+      "width": 980,
+      "height": 1633,
+      "screen": 390,
+      "lang": "zh",
+      "theme": "doodle",
+      "messagePercent": 72,
+      "geometry": {
+        "viewport": {
+          "width": 980,
+          "height": 1633
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 980,
+          "height": 1633,
+          "bottom": 1633
+        },
+        "stream": {
+          "x": 50.25,
+          "y": 256.28125,
+          "width": 879.5,
+          "height": 1175.71875,
+          "bottom": 1432
+        },
+        "composer": {
+          "x": 75.375,
+          "y": 1432,
+          "width": 829.25,
+          "height": 145.734375,
+          "bottom": 1577.734375
+        },
+        "input": {
+          "x": 213.046875,
+          "y": 1449.578125,
+          "width": 553.90625,
+          "height": 110.5625,
+          "bottom": 1560.140625
+        },
+        "overflow": false
+      },
+      "passed": true
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "lang": "en",
+      "theme": "doodle",
+      "messagePercent": 46.8,
+      "geometry": {
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "bottom": 800
+        },
+        "stream": {
+          "x": 268,
+          "y": 218,
+          "width": 992,
+          "height": 374,
+          "bottom": 592
+        },
+        "composer": {
+          "x": 306,
+          "y": 604,
+          "width": 916,
+          "height": 162,
+          "bottom": 766
+        },
+        "input": {
+          "x": 323,
+          "y": 619,
+          "width": 882,
+          "height": 88,
+          "bottom": 707
+        },
+        "overflow": false
+      },
+      "passed": true
+    }
+  ],
+  "browser_checks": [
+    "mobile message area >= 68% of the usable application viewport",
+    "real one-row Composer <=72 logical CSS px while empty",
+    "no horizontal page overflow",
+    "group drawer and settings tab navigation",
+    "more sheet -> AgentJoin -> Codex input -> close -> reopen -> Muse endpoint",
+    "body-level modal portal remains clickable",
+    "status details and task navigation",
+    "real file chooser, clipboard handler, local send/clear and mention selection",
+    "long drafts and short viewports",
+    "opening menus/providers does not create tokens or authorization grants"
+  ]
+}

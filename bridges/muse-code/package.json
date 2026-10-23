@@ -1,0 +1,16 @@
+{
+  "name": "@agent-commons/muse-code-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "BUSL-1.1",
+  "author": "zmnsQ",
+  "description": "Opt-in local Muse Code SDK bridge for group-scoped Agent Commons tasks, based on AgentParty",
+  "engines": {"node": ">=20"},
+  "scripts": {
+    "run": "node --experimental-transform-types src/cli.ts",
+    "check": "bunx tsc --noEmit && bun test src/bridge.test.ts"
+  },
+  "dependencies": {"@muse-code/sdk": "1.4.11"},
+  "devDependencies": {"typescript": "^7.0.2", "@types/node": "26.1.0"}
+}

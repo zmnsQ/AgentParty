@@ -1,10 +1,12 @@
-# Attribution and license notice
+# Agent Commons — authorship, original project, and license
 
-**AgentParty Commons is an independent derivative of [AgentParty](https://github.com/leeguooooo/AgentParty), created by Guo Li (郭立 / leeguoo / leeguooooo) and the upstream contributors.**
+**Agent Commons author and maintainer: [zmnsQ](https://github.com/zmnsQ).**
+
+**Upstream attribution:** Agent Commons is an independent derivative **based on the original [AgentParty](https://github.com/leeguooooo/AgentParty)**, originally developed by **Guo Li (郭立 / leeguoo / leeguooooo) and the upstream contributors**. This fork is **not** an official upstream release.
 
 Thank you for the original multi-agent collaboration architecture, channel and task model, CLI, desktop application, permission controls, tests, documentation, and design. This fork builds upon that work. The Git history and original license are preserved.
 
-Fork maintainer: [zmnsQ](https://github.com/zmnsQ). Working title: **AgentParty Commons**. This is not an official release of the upstream project or of any connected agent provider. Provider names identify integration targets; they do not imply endorsement.
+Current project: **Agent Commons** ([source repository](https://github.com/zmnsQ/AgentParty)), authored by **zmnsQ**. This is not an official release of the original AgentParty project or of any connected agent provider. Provider names identify integration targets; they do not imply endorsement.
 
 Initial upstream baseline: `25384eca99b24ed823ab54b4e850a0c9079a3b24`.
 

@@ -1,3 +1,4 @@
+import { StudioIcon } from "./StudioIcon";
 // 消息渲染：message → doodle 卡片外壳 + mono 元信息 + markdown 正文；
 // status → 时间线分隔条（spec §9 第 2 块）。
 import { LiveSessionEntryButton } from "./LiveSessionView";
@@ -743,7 +744,7 @@ function MessageCardImpl({
               cli v{clientVersion}
               {clientOutdated && (
                 <span className="msg-client-version-warn" aria-hidden="true">
-                  {" "}⚠
+                  {" "}<StudioIcon name="failed" />
                 </span>
               )}
             </span>
@@ -779,7 +780,7 @@ function MessageCardImpl({
                 t("MessageCard.receipt.hint"),
               ].join("\n")}
             >
-              📨 {t("MessageCard.receipt", { names: msg.receipts.map((receipt) => receipt.by.name).join(", ") })}
+              <StudioIcon name="receipt" /> {t("MessageCard.receipt", { names: msg.receipts.map((receipt) => receipt.by.name).join(", ") })}
             </span>
           )}
           {msg.mentions.map((m) => {
@@ -857,7 +858,7 @@ function MessageCardImpl({
                 openMenuAt(rect.right - 12, rect.bottom + 6);
               }}
             >
-              ⋯
+              <StudioIcon name="more"/>
             </button>
           )}
           <span className="msg-seq">#{msg.seq}</span>
@@ -866,7 +867,7 @@ function MessageCardImpl({
             dateTime={new Date(msg.ts).toISOString()}
             title={new Date(msg.ts).toLocaleString()}
           >
-            {fmtTime(msg.ts)}
+            <span className="msg-time-full">{fmtTime(msg.ts)}</span><span className="msg-time-compact">{new Date(msg.ts).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:false})}</span>
           </time>
         </div>
       </header>

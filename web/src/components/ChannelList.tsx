@@ -165,9 +165,11 @@ function ScopedChannelList({ channels, active, error, onOpen, onRetry }: ScopedP
           ))}
         </div>
       )}
-      {filteredLive?.map((c) => (
-        <ChannelPill key={c.slug} c={c} active={active} onOpen={onOpen} />
-      ))}
+      <div className="studio-channel-items">
+        {filteredLive?.map((c) => (
+          <ChannelPill key={c.slug} c={c} active={active} onOpen={onOpen} />
+        ))}
+      </div>
       {live !== null && live.length === 0 && archived.length === 0 && (
         <p className="side-note t-mono">{t("Home.channelsEmpty")}</p>
       )}

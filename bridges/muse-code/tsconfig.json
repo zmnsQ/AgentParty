@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"], "types": ["node"], "noEmit": true,
+    "skipLibCheck": true, "strict": true, "verbatimModuleSyntax": true
+  },
+  "include": ["src/bridge.ts", "src/cli.ts"]
+}

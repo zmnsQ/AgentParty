@@ -1,3 +1,7 @@
+import { ModalPortal } from "../components/ModalPortal";
+import { StudioIcon } from "../components/StudioIcon";
+import {ChannelWelcome} from "../components/ChannelWelcome";
+import "../i18n/strings/Studio";
 // 频道页：presence 条 + 实时消息流 + 内联错误条幅 + 插话框。
 // App 用 key={slug} 挂载本组件，切频道即整体重建（socket/状态零残留）。
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -13,6 +17,7 @@ import { LiveSessionModal, hasLiveSession } from "../components/LiveSessionView"
 import { draftWithMention } from "../components/LocalOcsSessions";
 import { teamMemberOnlineNames } from "../lib/onlineNames";
 import { AgentJoin, type JoinGuideSession } from "../components/AgentJoin";
+import type {CloudAgentChoice} from "../components/AgentConnectionPicker";
 import { AgentTokens } from "../components/AgentTokens";
 import { VisibilityToggle } from "../components/VisibilityToggle";
 import { JoinLink } from "../components/JoinLink";
@@ -630,7 +635,7 @@ export function ChannelPanelModal({
   }, [focusableElements]);
 
   return (
-    <div className="channel-panel-overlay" role="dialog" aria-modal="true" aria-label={title}>
+    <ModalPortal><div className="channel-panel-overlay" role="dialog" aria-modal="true" aria-label={title}>
       <button
         className="channel-panel-scrim"
         type="button"
@@ -652,7 +657,7 @@ export function ChannelPanelModal({
         )}
         <div className="channel-panel-body">{children}</div>
       </section>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -1668,7 +1673,7 @@ export function TaskLedgerPanel({
                             aria-label={t("Channel.tasks.attachRemoveAria", { filename: att.filename })}
                             onClick={() => setNewAtts((cur) => cur.filter((a) => a.key !== att.key))}
                           >
-                            ×
+                            <StudioIcon name="close" />
                           </button>
                         </li>
                       ))}
@@ -2112,6 +2117,7 @@ export function ChannelPage({
   const [hostAssignError, setHostAssignError] = useState<string | null>(null);
   const [seenCharterRev, setSeenCharterRev] = useState(() => readSeenCharterRev(slug));
   const [activePanel, setActivePanel] = useState<ChannelPanel | null>(null);
+  const [cloudConnectTarget,setCloudConnectTarget]=useState<CloudAgentChoice|null>(null);
   const [activeAdminSurface, setActiveAdminSurface] = useState<AdminSurface | null>(null);
   // #1009：「接入凭证」面板点「接入引导 / 重新接上」交过来的一次引导会话——转给 AgentJoin 打开四步 stepper。
   const [joinGuideSession, setJoinGuideSession] = useState<JoinGuideSession | null>(null);
@@ -4546,6 +4552,7 @@ export function ChannelPage({
         />
       )}
       <PresenceBar
+        attentionCount={hostBoardAttentionCount}
         identities={identityDisplay}
         presence={state.presence}
         participants={state.participants}
@@ -4633,7 +4640,7 @@ export function ChannelPage({
             className={"d-btn chan-tool-btn" + (charterUpdated ? " chan-tool-btn--updated" : "")}
             onClick={() => openPanel("charter")}
           >
-            <span className="ap-sprite ap-sprite--announcement" aria-hidden="true" />
+            <StudioIcon name="announcement" />
             <span>{t("Channel.tools.charter")}</span>
             {/* #1044：「版本 0」没有信息量——只有改过（rev>0）才挂版本徽章 */}
             {charter !== null && charter.charter_rev > 0 && <span className="t-mono chan-tool-badge">{t("Channel.charter.rev", { rev: charter.charter_rev })}</span>}
@@ -4641,7 +4648,7 @@ export function ChannelPage({
           </button>
           {/* Team 只承接成员、正式分工与工作视图；消息筛选/完成记录/Host 告警各回到所属模块。 */}
           <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("team")}>
-            <span className="ap-sprite ap-sprite--division" aria-hidden="true" />
+            <StudioIcon name="division" />
             <span>{t("Channel.tools.team")}</span>
             {structuredRoleCount > 0 && (
               <span className="t-mono chan-tool-badge">{t("Channel.team.rolesBadge", { count: String(structuredRoleCount) })}</span>
@@ -4649,7 +4656,7 @@ export function ChannelPage({
             <span className="t-mono chan-tool-badge">{t("Channel.team.onlineBadge", { count: String(onlineMemberCount) })}</span>
           </button>
           <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("tasks")}>
-            <span className="ap-sprite ap-sprite--tasks" aria-hidden="true" />
+            <StudioIcon name="tasks" />
             <span>{t("Channel.tasks.title")}</span>
             <span className="t-mono chan-tool-badge">{taskOpenCount}</span>
             {taskReviewCount > 0 && <span className="t-mono chan-tool-badge chan-tool-badge--hot">{t("Channel.tasks.summary.review", { count: taskReviewCount })}</span>}
@@ -4661,7 +4668,7 @@ export function ChannelPage({
             className={"d-btn chan-tool-btn" + (q !== "" || agentFilterActive || completionOnly ? " is-active" : "")}
             onClick={() => openPanel("search")}
           >
-            <span className="ap-sprite ap-sprite--search" aria-hidden="true" />
+            <StudioIcon name="search" />
             <span>{t("Channel.tools.timeline")}</span>
             {q !== "" && seqFromQuery(q) === null && <span className="t-mono chan-tool-badge">{searchLoading ? "..." : searchHits.length}</span>}
             {(agentFilterActive || completionOnly) && (
@@ -4669,7 +4676,7 @@ export function ChannelPage({
             )}
           </button>
           <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("collaboration")}>
-            <span aria-hidden="true">↗</span><span>{t("Collab.title")}</span>
+            <StudioIcon name="coordination"/><span>{t("Collab.title")}</span>
           </button>
           {/* #700 的「本机 agent」独立入口已并入「我的 agent」(AgentTokens) 面板的本机运行段，此处不再单列。 */}
           </>
@@ -4697,6 +4704,7 @@ export function ChannelPage({
                     active={activeAdminSurface === "agentJoin"}
                     onActiveChange={(open) => setAdminSurface("agentJoin", open)}
                     guideSession={joinGuideSession}
+                    onCloudConnect={provider=>{setCloudConnectTarget(provider);openPanel("collaboration");}}
                   />
                   <AgentTokens
                     slug={slug}
@@ -4709,6 +4717,7 @@ export function ChannelPage({
                     onActiveChange={(open) => setAdminSurface("agentTokens", open)}
                     focusAgentName={agentManagerTarget}
                     onGuide={openJoinGuide}
+                    onOpenConnections={()=>{setCloudConnectTarget("dot");openPanel("collaboration");}}
                     onlineNames={memberOnlineNames}
                   />
                 </div>
@@ -4716,7 +4725,7 @@ export function ChannelPage({
               {canModerate && (
                 <div className="chan-admin-group chan-admin-group--channel">
                   <button type="button" className="d-btn chan-tool-btn" onClick={() => openPanel("admin")}>
-                    <span className="ap-sprite ap-sprite--settings" aria-hidden="true" />
+                    <StudioIcon name="settings" />
                     <span>{t("Channel.tools.manage")}</span>
                     <span className="t-mono chan-tool-badge">
                       {t(`Channel.visibility.${localVisibility}`)}
@@ -4778,7 +4787,9 @@ export function ChannelPage({
         >
           {activePanel === "collaboration" && (
             <Suspense fallback={<p role="status">{t("Collab.loading")}</p>}>
-              <CollaborationHub key={slug} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed} />
+              <CollaborationHub key={slug} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed}
+                initialTab={cloudConnectTarget==="hermes"?"agents":cloudConnectTarget?"bridges":undefined}
+                initialProvider={cloudConnectTarget??undefined} />
             </Suspense>
           )}
           {activePanel === "charter" && (
@@ -5075,16 +5086,7 @@ export function ChannelPage({
               ),
             )}
         {bootstrapped && state.messages.length === 0 && (
-          <div className="stream-empty" role="status" aria-live="polite">
-            <p className="stream-empty-lead">{t("Channel.empty.partyWatch", { slug })}</p>
-            <p className="stream-empty-lead">{t("Channel.empty.noMessagesHint")}</p>
-            <p className="d-empty">{t("Channel.empty.partyWatchCommand", { slug })}</p>
-            {canMintAgent && accountKey !== null && (
-              <button type="button" className="d-btn d-btn--primary" onClick={() => setAdminSurface("agentJoin", true)}>
-                {t("AgentJoin.open")}
-              </button>
-            )}
-          </div>
+          <ChannelWelcome onConnect={canMintAgent && accountKey !== null ? ()=>setAdminSurface("agentJoin", true) : undefined}/>
         )}
         {state.messages.length > 0 && visibleMessages.length === 0 && (
           <p className="d-empty" role="status" aria-live="polite">

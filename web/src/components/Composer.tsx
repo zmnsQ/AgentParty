@@ -1,3 +1,7 @@
+import {useCompactViewport} from "../lib/useCompactViewport";
+import {useLocale} from "../i18n/locale";
+import { StudioIcon } from "./StudioIcon";
+import {isCompositionKey} from "../lib/compositionGuard";
 // 底部插话框：Markdown、@name mention（动态在线列表补全，issue #39）、Cmd/Ctrl+Enter 发送（spec §9 第 4 块）。
 // readonly / archived 时由页面层直接不渲染本组件（错误内联为条幅）。
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -115,7 +119,7 @@ function PendingAttachment({
         aria-label={removeLabel}
         onClick={() => onRemove(att.key)}
       >
-        ×
+        <StudioIcon name="close" />
       </button>
     );
   if (isImage && !failed) {
@@ -190,7 +194,8 @@ export function Composer({
   secureContext = typeof window === "undefined" ? false : window.isSecureContext === true,
   nativeClipboard = desktopClipboardReader(),
 }: Props) {
-  const t = useT();
+  const t = useT(), compact = useCompactViewport(), {locale} = useLocale();
+  const [extrasOpen,setExtrasOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
   const canAttach = onPickFiles !== undefined;
@@ -209,6 +214,8 @@ export function Composer({
     return t("WakeReceipt.pre.offline");
   };
   const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(()=>()=>{if(blurTimerRef.current!==null)clearTimeout(blurTimerRef.current);},[]);
   // 输入法合成护栏（#729）：单靠 keydown 的 isComposing 不够——WebKit/WKWebView（桌面版）
   // 确认候选时 compositionend 先于确认键的 keydown 触发，那一刻 isComposing 已是 false，
   // 回车会把半成品误发出去。用一个 ref 顶住合成期，并延到下一帧才放开，盖住那次确认 keydown。
@@ -225,8 +232,9 @@ export function Composer({
     const ta = taRef.current;
     if (ta === null) return;
     ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px";
-  }, [draft]);
+    const limit = compact ? Math.min(120, Math.round(window.innerHeight * 0.25)) : Math.round(window.innerHeight * 0.4);
+    ta.style.height = Math.min(ta.scrollHeight, limit) + "px";
+  }, [draft, compact]);
 
   useLayoutEffect(() => {
     if (focusRequest === null) return;
@@ -305,7 +313,7 @@ export function Composer({
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // isComposing 或护栏 ref 任一为真都视为合成中：前者覆盖 Chrome（keydown 时仍 true），
     // 后者覆盖 WebKit（compositionend 先行、keydown 时已 false）。
-    if (e.nativeEvent.isComposing || composingRef.current) return;
+    if (isCompositionKey(e) || composingRef.current) return;
     if (menu !== null) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -501,11 +509,13 @@ export function Composer({
           ))}
         </ul>
       )}
+      {compact&&<button type="button" className="composer-more" aria-label={locale==="zh"?"附件与更多":"Attachments and more"} aria-expanded={extrasOpen} onClick={()=>setExtrasOpen(value=>!value)}><StudioIcon name={extrasOpen?"close":"plus"}/></button>}
       <textarea
         ref={taRef}
         className="composer-input t-mono"
-        rows={3}
-        placeholder={t("Composer.placeholder")}
+        rows={compact ? 1 : 3}
+        aria-label={t("Composer.placeholder")}
+        placeholder={compact ? (locale==="zh"?"发送消息…":"Message…") : t("Composer.placeholder")}
         value={draft}
         onChange={onChange}
         onKeyUp={onKeyUp}
@@ -514,7 +524,8 @@ export function Composer({
         onCompositionStart={onCompositionStart}
         onCompositionEnd={onCompositionEnd}
         onPaste={onPaste}
-        onBlur={() => setTimeout(() => setMenu(null), 120)}
+        onFocus={()=>{if(blurTimerRef.current!==null){clearTimeout(blurTimerRef.current);blurTimerRef.current=null;}}}
+        onBlur={()=>{if(blurTimerRef.current!==null)clearTimeout(blurTimerRef.current);blurTimerRef.current=setTimeout(()=>{setMenu(null);blurTimerRef.current=null;},120);}}
       />
       {attachments.length > 0 && (
         <ul className="composer-attachments" aria-label="pending attachments">
@@ -561,7 +572,7 @@ export function Composer({
                   aria-label={`dismiss ${u.filename}`}
                   onClick={() => onCancelUpload(u.id)}
                 >
-                  ×
+                  <StudioIcon name="close" />
                 </button>
               )}
             </li>
@@ -574,8 +585,8 @@ export function Composer({
           {pasteError}
         </p>
       )}
-      <FeatureTip tip="Tips.wake" className="composer-wake-tip" />
       <div className="composer-actions">
+        <div className="composer-secondary-actions" hidden={compact&&!extrasOpen}>
         {canAttach && (
           <>
             <input
@@ -592,11 +603,11 @@ export function Composer({
             <button
               type="button"
               className="d-btn composer-attach"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => {fileRef.current?.click();setExtrasOpen(false);}}
               disabled={uploading}
               title={t("Composer.attach.title")}
             >
-              {uploading ? t("Composer.attach.uploading") : t("Composer.attach.label")}
+              <StudioIcon name="attachment"/><span>{uploading ? t("Composer.attach.uploading") : t("Composer.attach.label")}</span>
             </button>
           </>
         )}
@@ -604,19 +615,23 @@ export function Composer({
           type="button"
           className={"d-btn composer-paste" + (canReadClipboard ? "" : " composer-paste--insecure")}
           aria-disabled={canReadClipboard ? undefined : true}
-          onClick={() => void onPasteClick()}
+          onClick={() => {void onPasteClick();setExtrasOpen(false);}}
           title={canReadClipboard ? t("Composer.paste.title") : t("Composer.paste.insecureTitle")}
         >
-          {t("Composer.paste.label")}
+          <StudioIcon name="copy"/><span>{t("Composer.paste.label")}</span>
         </button>
+        <FeatureTip tip="Tips.wake" className="composer-wake-tip"/>
+        </div>
+        <span className="composer-keyboard-hint">{t("Composer.keyboardHint")}</span>
         <button
           type="button"
           className="d-btn d-btn--primary composer-send"
+          aria-label={t("Composer.send.label")}
           onClick={onSend}
           disabled={sendDisabled}
           title={ready ? t("Composer.send.readyTitle") : t("Composer.send.connectingTitle")}
         >
-          {t("Composer.send.label")}
+          <StudioIcon name="send"/><span className="composer-send-label">{t("Composer.send.label")}</span>
         </button>
       </div>
     </div>
