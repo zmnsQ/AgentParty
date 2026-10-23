@@ -12,3 +12,9 @@
 .coding-step .coding-check{flex-direction:row;align-items:center}.coding-advanced summary{min-height:44px;cursor:pointer;font-size:13px;padding-block:10px}
 .coding-advanced{border:1px solid var(--t-faint);border-radius:10px;padding:10px 14px}
 @media(max-width:600px){.coding-setup h3{font-size:21px}.coding-os .d-btn{flex:1}.coding-command{padding:10px}.coding-setup .d-btn{max-width:100%}}
+
+/* Installer is an ordinary, expanded section before the connection steps. */
+.coding-install{min-width:0;display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--t-faint);border-radius:12px;background:var(--t-panel)}
+.coding-install h4,.coding-install p{margin:0}.coding-install a{font-size:13px;align-self:flex-start}
+.coding-install .coding-command{margin:0}.coding-install-notice{color:var(--t-text)}
+@media(max-width:600px){.coding-install{padding:12px}.coding-install .coding-install-copy{width:100%;justify-content:center;text-align:center}}
