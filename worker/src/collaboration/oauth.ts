@@ -7,6 +7,7 @@ import type { TokenIdentity } from "../auth";
 import { readBrowserSession } from "../browser-auth/session";
 import { sha256Hex } from "../auth";
 import { mcpPermission } from "./mcp-security";
+import {OAuthDiagnosticError,OAuthTokenDiagnostic,diagnoseRefreshFailure,type OAuthReason} from "./oauth-diagnostics";
 
 type Ctx=Context<AppContext>;
 const ACCESS_MS=10*60_000;
@@ -124,7 +125,7 @@ async function issueToken(db:D1Database,from:Code|Grant,clientId:string,
   isRefresh=false):Promise<Record<string,unknown>>{
   const now=Date.now();
   const scope=JSON.parse(from.scopes_json) as string[];
-  for(const requested of scope)if(!await mcpPermission(db,from.channel_slug,requested))throw new Error("invalid_grant");
+  for(const requested of scope)if(!await mcpPermission(db,from.channel_slug,requested))throw new OAuthDiagnosticError("policy_denied");
   const account=from.account,slug=from.channel_slug;
   const grantId=await sha256Hex(JSON.stringify([clientId,account,slug]));
   const agentName="ac-oauth-"+grantId.slice(0,25);
@@ -136,7 +137,7 @@ async function issueToken(db:D1Database,from:Code|Grant,clientId:string,
     const prior=from as Grant;
     // Revocation or loss of group ownership must stop refresh even when a token
     // has not yet expired. A public group is not a fallback capability.
-    if(!await groupOwned(db,slug,account))throw new Error("invalid_grant");
+    if(!await groupOwned(db,slug,account))throw new OAuthDiagnosticError("ownership_denied");
     // CAS the old refresh grant and agent credential within one D1 batch.
     const updated=await db.batch([
       db.prepare(`UPDATE connector_oauth_grants SET access_hash=?,access_expires_at=?,refresh_hash=?,refresh_expires_at=?,updated_at=?
@@ -146,9 +147,10 @@ async function issueToken(db:D1Database,from:Code|Grant,clientId:string,
         AND EXISTS(SELECT 1 FROM connector_oauth_grants WHERE id=? AND access_hash=?)`)
         .bind(tokenHash,now+ACCESS_MS,agentName,account,grantId,tokenHash),
     ]);
-    if(updated[0]!.meta.changes!==1||updated[1]!.meta.changes!==1)throw new Error("invalid_grant");
+    if(updated[0]!.meta.changes!==1)throw new OAuthDiagnosticError("refresh_cas_not_applied");
+    if(updated[1]!.meta.changes!==1)throw new OAuthDiagnosticError("identity_update_not_applied");
   }else{
-    if(!await groupOwned(db,slug,account))throw new Error("invalid_grant");
+    if(!await groupOwned(db,slug,account))throw new OAuthDiagnosticError("ownership_denied");
     const existing=await db.prepare("SELECT name FROM tokens WHERE name=? AND owner=? AND role='agent'")
       .bind(agentName,account).first();
     const batches=[
@@ -167,7 +169,7 @@ async function issueToken(db:D1Database,from:Code|Grant,clientId:string,
           .bind(tokenHash,agentName,account,slug,now,now+ACCESS_MS),
     ];
     const result=await db.batch(batches);
-    if(result.some(x=>x.meta.changes!==1))throw new Error("invalid_grant");
+    if(result.some(x=>x.meta.changes!==1))throw new OAuthDiagnosticError("grant_write_not_applied");
   }
   return {access_token:newToken,token_type:"Bearer",expires_in:ACCESS_MS/1000,
     refresh_token:refreshToken,scope:scope.join(" "),resource:from.resource};
@@ -382,29 +384,56 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
     return redirectResult(pending.redirect_uri,{code,state:pending.state,iss:issuer});
   });
   app.post("/oauth/token",async c=>{
-    let p:URLSearchParams;try{p=await parseBody(c.req.raw);}catch{return simple("invalid_request");}
-    if(["client_id","client_secret","code","code_verifier","resource","refresh_token","grant_type","redirect_uri"].some(k=>p.getAll(k).length>1))return simple("invalid_request");
+    const diagnostic=new OAuthTokenDiagnostic(c.req.raw.headers.has("authorization"));
+    const reject=(reason:OAuthReason,error:string,status=400)=>diagnostic.finish(simple(error,status),reason);
+    try {
+    let p:URLSearchParams;try{p=await parseBody(c.req.raw);}catch{return reject("request_rejected","invalid_request");}
+    diagnostic.form(p);
+    if(["client_id","client_secret","code","code_verifier","resource","refresh_token","grant_type","redirect_uri"].some(k=>p.getAll(k).length>1))return reject("duplicate_parameter","invalid_request");
     let clientId=p.get("client_id")??"",clientSecret=p.get("client_secret")??"";
     const authorization=c.req.header("authorization");
     if(authorization){
-      if(!authorization.startsWith("Basic ")||clientSecret)return simple("invalid_client",401);
+      if(!authorization.startsWith("Basic ")||clientSecret)return reject("client_auth_rejected","invalid_client",401);
       try {
         const text=atob(authorization.slice(6));const split=text.indexOf(":");
-        if(split<1)return simple("invalid_client",401);
+        if(split<1)return reject("client_auth_rejected","invalid_client",401);
         const basicId=decodeURIComponent(text.slice(0,split));
-        if(clientId&&clientId!==basicId)return simple("invalid_client",401);
+        if(clientId&&clientId!==basicId)return reject("client_auth_rejected","invalid_client",401);
         clientId=basicId;clientSecret=decodeURIComponent(text.slice(split+1));
-      }catch{return simple("invalid_client",401);}
+      }catch{return reject("client_auth_rejected","invalid_client",401);}
+    }
+    // Public refresh requests may omit client_id (OAuth 2.1 section 4.3.1).
+    // Recover it only from a live refresh grant, never from an access token,
+    // callback, channel, or caller-supplied name. Explicit IDs still must match.
+    // Confidential clients continue through the same secret check below.
+    if(!p.has("client_id")&&!authorization&&p.get("grant_type")==="refresh_token"){
+      const refresh=p.get("refresh_token")??"";
+      if(/^acr_[a-f0-9]{64}$/.test(refresh)){
+        const bound=await c.env.DB.prepare(`SELECT client_id FROM connector_oauth_grants
+          WHERE refresh_hash=? AND revoked_at IS NULL AND refresh_expires_at>?`)
+          .bind(await sha256Hex(refresh),Date.now()).first<{client_id:string}>();
+        clientId=bound?.client_id??"";
+      }
     }
     const registered=ID.test(clientId)?await client(c.env.DB,clientId):null;
-    if(!registered)return simple("invalid_client",401);
+    if(!registered){
+      const refresh=p.get("refresh_token")??"";
+      const reason=!p.has("client_id")&&!authorization&&!clientId&&p.get("grant_type")==="refresh_token"
+        ? /^acr_[a-f0-9]{64}$/.test(refresh)?await diagnoseRefreshFailure(c.env.DB,refresh,null):"refresh_format_rejected"
+        :"client_unknown_or_disabled";
+      return reject(reason,"invalid_client",401);
+    }
+    diagnostic.clientKind=nativeMuseRedirects(registered.redirects_json)?"muse_native":
+      nativeCliRedirects(registered.redirects_json)?"native_cli":registered.provider==="muse"?"muse_confidential":
+      registered.secret_hash?"confidential":"public";
     if(registered.secret_hash&&registered.secret_hash!==MUSE_PUBLIC_PKCE){
-      if(!/^acs_[a-f0-9]{64}$/.test(clientSecret))return simple("invalid_client",401);
+      if(!/^acs_[a-f0-9]{64}$/.test(clientSecret))return reject("client_secret_rejected","invalid_client",401);
       const actual=await sha256Hex(clientSecret);let delta=0;
       for(let i=0;i<actual.length;i++)delta|=actual.charCodeAt(i)^registered.secret_hash.charCodeAt(i);
-      if(delta!==0)return simple("invalid_client",401);
-    }else if(authorization||clientSecret)return simple("invalid_client",401);
+      if(delta!==0)return reject("client_secret_rejected","invalid_client",401);
+    }else if(authorization||clientSecret)return reject("public_client_auth_rejected","invalid_client",401);
     let resource=p.get("resource")??(registered.channel_slug?publicUrlForSlug(c.env,registered.channel_slug):"");
+    let resourceFailure:OAuthReason="resource_rejected";
     // Only the exact native callback may omit resource. Recover the audience
     // exclusively from a previously issued, client-bound code/refresh grant.
     if(!p.has("resource")&&!resource&&(nativeMuseRedirects(registered.redirects_json)||nativeCliRedirects(registered.redirects_json))){
@@ -417,33 +446,35 @@ export function registerConnectorOauth(app:Hono<AppContext>):void{
         const record=await c.env.DB.prepare("SELECT resource FROM connector_oauth_grants WHERE refresh_hash=? AND client_id=? AND revoked_at IS NULL AND refresh_expires_at>?")
           .bind(await sha256Hex(refresh),clientId,Date.now()).first<{resource:string}>();
         resource=record?.resource??"";
-      }
+        if(!record)resourceFailure=await diagnoseRefreshFailure(c.env.DB,refresh,clientId);
+      }else if(grant==="refresh_token")resourceFailure="refresh_format_rejected";
     }
     const slug=channelFromResource(resource,c.env);
-    if(registered.channel_slug&&slug!==registered.channel_slug)return simple("invalid_target_resource");
-    if(!slug)return simple("invalid_target_resource");
+    if(registered.channel_slug&&slug!==registered.channel_slug)return reject(resourceFailure,"invalid_target_resource");
+    if(!slug)return reject(resourceFailure,"invalid_target_resource");
     try{
       if(p.get("grant_type")==="authorization_code"){
         const code=p.get("code")??"",redirect=p.get("redirect_uri")??"";
         const verifier=p.get("code_verifier")??"";
-        if(!/^acco_[a-f0-9]{64}$/.test(code))return simple("invalid_grant");
+        if(!/^acco_[a-f0-9]{64}$/.test(code))return reject("code_rejected","invalid_grant");
         const row=await c.env.DB.prepare(`DELETE FROM connector_oauth_codes
           WHERE code_hash=? AND client_id=? AND resource=? AND redirect_uri=? AND expires_at>? RETURNING *`)
           .bind(await sha256Hex(code),clientId,resource,redirect,Date.now()).first<Code>();
-        if(!row||row.channel_slug!==slug||(registered.owner_account&&row.account!==registered.owner_account)||!await validCodeChallenge(verifier,row.code_challenge))return simple("invalid_grant");
-        return noCache(await issueToken(c.env.DB,row,clientId));
+        if(!row||row.channel_slug!==slug||(registered.owner_account&&row.account!==registered.owner_account)||!await validCodeChallenge(verifier,row.code_challenge))return reject("code_rejected","invalid_grant");
+        return diagnostic.finish(noCache(await issueToken(c.env.DB,row,clientId)),"issued");
       }
       if(p.get("grant_type")==="refresh_token"){
         const old=p.get("refresh_token")??"";
-        if(!/^acr_[a-f0-9]{64}$/.test(old))return simple("invalid_grant");
+        if(!/^acr_[a-f0-9]{64}$/.test(old))return reject("refresh_format_rejected","invalid_grant");
         const row=await c.env.DB.prepare(`SELECT * FROM connector_oauth_grants
           WHERE refresh_hash=? AND client_id=? AND resource=? AND channel_slug=? AND revoked_at IS NULL AND refresh_expires_at>?`)
           .bind(await sha256Hex(old),clientId,resource,slug,Date.now()).first<Grant>();
-        if(!row)return simple("invalid_grant");
-        return noCache(await issueToken(c.env.DB,row,clientId,true));
+        if(!row)return reject(await diagnoseRefreshFailure(c.env.DB,old,clientId,resource),"invalid_grant");
+        return diagnostic.finish(noCache(await issueToken(c.env.DB,row,clientId,true)),"refreshed");
       }
-      return simple("unsupported_grant_type");
-    }catch{return simple("invalid_grant");}
+      return reject("unsupported_grant_type","unsupported_grant_type");
+    }catch(error){return reject(error instanceof OAuthDiagnosticError?error.reason:"internal_error","invalid_grant");}
+    } finally { diagnostic.log(); }
   });
   app.get("/oauth/grants",async c=>{
     const current=await readBrowserSession(c.env.DB,c.req.raw);

@@ -35,6 +35,8 @@ async function approve(c:Awaited<ReturnType<typeof setup>>,client=c.client){
  return url.searchParams.get("code")!;
 }
 const exchange=(client:string,code:string,verifier:string,resource?:string)=>req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"authorization_code",client_id:client,code,redirect_uri:CALLBACK,code_verifier:verifier,...(resource===undefined?{}:{resource})}).toString()});
+const nativeRefresh=(fields:Record<string,string>)=>req("/oauth/token",{method:"POST",
+ headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",...fields}).toString()});
 describe("Muse native MCP compatibility retains scoped consent",()=>{
  it("accepts the exact native callback and reports unsupported authentication accurately",async()=>{
   expect((await register()).status).toBe(201);
@@ -56,6 +58,102 @@ describe("Muse native MCP compatibility retains scoped consent",()=>{
   expect(init.status).toBe(200);expect(await init.json()).toHaveProperty("result.protocolVersion");
   const refresh=await req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",client_id:c.client,refresh_token:grant.refresh_token}).toString()});expect(refresh.status).toBe(200);expect(await refresh.json()).toHaveProperty("resource",c.resource);
   const replay=await exchange(c.client,code,c.verifier);expect(replay.status).toBe(400);
+ });
+ it("refreshes expired native access without resource or any event subscription",async()=>{
+  const c=await setup();
+  c.params.set("scope","mcp:read");
+  await enableMcpFixture(c.slug,c.account,false,false);
+  const issued=await exchange(c.client,await approve(c),c.verifier);expect(issued.status).toBe(200);
+  type Credentials={access_token:string;refresh_token:string;expires_in:number;scope:string;resource:string};
+  const original=await issued.json() as Credentials;
+  expect(original).toMatchObject({expires_in:600,scope:"group.read",resource:c.resource});
+  const profile=(token:string)=>req(`/api/channels/${c.slug}/mcp`,{method:"POST",headers:{
+   authorization:`Bearer ${token}`,"content-type":"application/json","mcp-protocol-version":"2025-06-18",
+  },body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"party_profile",arguments:{}}})});
+  const subscriptionCount=()=>env.DB.prepare("SELECT COUNT(*) AS n FROM mcp_event_subscriptions WHERE channel_slug=?")
+   .bind(c.slug).first<{n:number}>();
+  const lifetime=()=>env.DB.prepare(`SELECT g.agent_name,g.access_expires_at,g.refresh_expires_at,t.child_expires_at
+   FROM connector_oauth_grants g JOIN tokens t ON t.name=g.agent_name AND t.owner=g.account
+   WHERE g.client_id=? AND g.channel_slug=?`)
+   .bind(c.client,c.slug).first<{agent_name:string;access_expires_at:number;refresh_expires_at:number;child_expires_at:number}>();
+  expect((await profile(original.access_token)).status).toBe(200);
+  expect(await subscriptionCount()).toEqual({n:0});
+  const before=await lifetime();expect(before).not.toBeNull();
+  expect(before!.child_expires_at).toBe(before!.access_expires_at);
+  expect(before!.access_expires_at).toBeGreaterThan(Date.now());
+  expect(before!.refresh_expires_at).toBeGreaterThan(before!.access_expires_at);
+  // Expire both credential records in the isolated test DB, without waiting ten
+  // minutes or changing the still-valid refresh grant or any channel policy.
+  const expiredAt=Date.now()-1_000;
+  const expired=await env.DB.batch([
+   env.DB.prepare("UPDATE connector_oauth_grants SET access_expires_at=? WHERE client_id=? AND channel_slug=?")
+    .bind(expiredAt,c.client,c.slug),
+   env.DB.prepare("UPDATE tokens SET child_expires_at=? WHERE name=? AND owner=?")
+    .bind(expiredAt,before!.agent_name,c.account),
+  ]);
+  expect(expired.map(result=>result.meta.changes)).toEqual([1,1]);
+  expect(await lifetime()).toMatchObject({access_expires_at:expiredAt,child_expires_at:expiredAt,
+   refresh_expires_at:before!.refresh_expires_at});
+  const rejected=await profile(original.access_token);expect(rejected.status).toBe(401);
+  expect(rejected.headers.get("www-authenticate")).toBe(
+   `Bearer resource_metadata="${SITE}/.well-known/oauth-protected-resource/api/channels/${c.slug}/mcp", error="invalid_token"`);
+  const refreshed=await req("/oauth/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},
+   body:new URLSearchParams({grant_type:"refresh_token",client_id:c.client,refresh_token:original.refresh_token}).toString()});
+  expect(refreshed.status).toBe(200);
+  const rotated=await refreshed.json() as Credentials;
+  expect(rotated).toMatchObject({expires_in:600,scope:"group.read",resource:c.resource});
+  expect(rotated.access_token).not.toBe(original.access_token);
+  expect(rotated.refresh_token).not.toBe(original.refresh_token);
+  const after=await lifetime();expect(after).not.toBeNull();
+  expect(after!.child_expires_at).toBe(after!.access_expires_at);
+  expect(after!.access_expires_at).toBeGreaterThan(Date.now());
+  expect(after!.refresh_expires_at).toBeGreaterThan(after!.access_expires_at);
+  expect((await profile(original.access_token)).status).toBe(401);
+  const recovered=await profile(rotated.access_token);expect(recovered.status).toBe(200);
+  expect(await recovered.json()).toMatchObject({result:{isError:false,structuredContent:{
+   name:before!.agent_name,channel:c.slug,event_delivery:{tool_connection_is_subscription:false},
+  }}});
+  expect(await subscriptionCount()).toEqual({n:0});
+ });
+ it("refreshes and rotates native credentials when both client_id and resource are omitted",async()=>{
+  const c=await setup();c.params.set("scope","mcp:read");
+  const issued=await exchange(c.client,await approve(c),c.verifier);expect(issued.status).toBe(200);
+  const original=await issued.json() as {access_token:string;refresh_token:string};
+  const refreshed=await nativeRefresh({refresh_token:original.refresh_token});expect(refreshed.status).toBe(200);
+  const rotated=await refreshed.json() as {access_token:string;refresh_token:string};
+  expect(rotated).toMatchObject({scope:"group.read",resource:c.resource,expires_in:600});
+  expect(rotated.access_token).not.toBe(original.access_token);
+  expect(rotated.refresh_token).not.toBe(original.refresh_token);
+  const profile=await req(`/api/channels/${c.slug}/mcp`,{method:"POST",headers:{
+   authorization:`Bearer ${rotated.access_token}`,"content-type":"application/json","mcp-protocol-version":"2025-06-18",
+  },body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"party_profile",arguments:{}}})});
+  expect(profile.status).toBe(200);
+  expect(await profile.json()).toMatchObject({result:{isError:false,structuredContent:{channel:c.slug}}});
+  const replay=await nativeRefresh({refresh_token:original.refresh_token});expect(replay.status).toBe(401);
+  expect(await replay.json()).toEqual({error:"invalid_client"});
+  expect((await nativeRefresh({refresh_token:rotated.refresh_token})).status).toBe(200);
+ });
+ it("never replaces an explicit wrong or empty client_id with the native refresh token's client",async()=>{
+  const c=await setup(),issued=await exchange(c.client,await approve(c),c.verifier);expect(issued.status).toBe(200);
+  const original=await issued.json() as {refresh_token:string};
+  const registered=await register();expect(registered.status).toBe(201);
+  const other=(await registered.json() as {client_id:string}).client_id;
+  const wrong=await nativeRefresh({refresh_token:original.refresh_token,client_id:other,resource:c.resource});
+  expect(wrong.status).toBe(400);expect(await wrong.json()).toEqual({error:"invalid_grant"});
+  const empty=await nativeRefresh({refresh_token:original.refresh_token,client_id:"",resource:c.resource});
+  expect(empty.status).toBe(401);expect(await empty.json()).toEqual({error:"invalid_client"});
+  // Failed identity checks must not consume the refresh grant.
+  expect((await nativeRefresh({refresh_token:original.refresh_token})).status).toBe(200);
+ });
+ it.each(["revoked","expired","disabled"] as const)("does not infer a native client from a %s refresh authorization",async state=>{
+  const c=await setup(),issued=await exchange(c.client,await approve(c),c.verifier);expect(issued.status).toBe(200);
+  const original=await issued.json() as {refresh_token:string};
+  const query=state==="revoked"?"UPDATE connector_oauth_grants SET revoked_at=? WHERE client_id=?":
+   state==="expired"?"UPDATE connector_oauth_grants SET refresh_expires_at=? WHERE client_id=?":
+   "UPDATE connector_oauth_clients SET disabled_at=? WHERE client_id=?";
+  expect((await env.DB.prepare(query).bind(Date.now()-1_000,c.client).run()).meta.changes).toBe(1);
+  const rejected=await nativeRefresh({refresh_token:original.refresh_token});
+  expect(rejected.status).toBe(401);expect(await rejected.json()).toEqual({error:"invalid_client"});
  });
  it("wrong PKCE and explicit different audiences remain rejected",async()=>{
   const c=await setup(),code=await approve(c);expect((await exchange(c.client,code,"x".repeat(48))).status).toBe(400);

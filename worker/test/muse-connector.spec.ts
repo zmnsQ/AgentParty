@@ -80,6 +80,24 @@ describe('Muse Cloud private connector setup and OAuth',()=>{
    code_challenge:'x'.repeat(43),code_challenge_method:'S256',state:'fixture',scope:'group.read',resource:ROOT+`/api/channels/${other.slug}/mcp`});
   const r=await SELF.fetch('http://commons.test/oauth/authorize?'+q,{headers:{cookie:c.cookie},redirect:'manual'});expect(r.status).toBe(400);
  });
+ it('a refresh token without client_id never replaces confidential client authentication',async()=>{
+  const c=await setup(),client=await register(c),approved=await consent(c,client.client_id);
+  const issued=await exchange(client,approved.code,approved.verifier);
+  expect(issued.status).toBe(200);
+  const tokens=await issued.json() as {refresh_token:string};
+  const refresh=(secret?:string,resource?:string)=>SELF.fetch('http://commons.test/oauth/token',{
+   method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({grant_type:'refresh_token',refresh_token:tokens.refresh_token,
+    ...(secret===undefined?{}:{client_secret:secret}),...(resource===undefined?{}:{resource})}).toString()});
+  for(const secret of [undefined,'acs_'+'0'.repeat(64)]){
+   const denied=await refresh(secret);expect(denied.status).toBe(401);
+   expect(await denied.json()).toEqual({error:'invalid_client'});
+  }
+  const wrongAudience=await refresh(client.client_secret,ROOT+'/api/channels/wrong/mcp');
+  expect(wrongAudience.status).toBe(400);
+  const accepted=await refresh(client.client_secret);expect(accepted.status).toBe(200);
+  expect(await accepted.json()).toHaveProperty('resource',ROOT+`/api/channels/${c.slug}/mcp`);
+ });
  it('exports honest review requirements with sensitive writes and no credentials',()=>{
   const data=museReviewManifest(ROOT,'demo');expect(data.review_status).toBe('not_submitted');
   expect(data.permissions.find(x=>x.name==='party_send_message')?.classification).toBe('sensitive_write');

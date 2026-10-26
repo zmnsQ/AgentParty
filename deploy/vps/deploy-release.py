@@ -28,9 +28,9 @@ import time
 
 BASE = Path("/opt/agentparty-commons")
 CURRENT = BASE / "current"
-OLD = BASE / "releases/progressive-blur-010d406"
-OLD_WORKER = "e885d57e07333cc577d850a69cd62e2d73ac50b9"
-OLD_UI = "010d406a64126a9702a5c43a5d1cad7777feaffd"
+OLD = BASE / "releases/agent-commons-web-bae4b5cf17e9"
+OLD_WORKER = "bae4b5cf17e99d35b5f60c9057aa9a2ab151b87b"
+OLD_UI = "bae4b5cf17e99d35b5f60c9057aa9a2ab151b87b"
 STATE = Path("/var/lib/agentparty-commons/state")
 BACKUPS = Path("/var/backups/agentparty-commons")
 HOST = "https://agentparty.402887.xyz"
