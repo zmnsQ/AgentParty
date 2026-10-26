@@ -29,4 +29,12 @@
 - 前端与 CLI 重新构建成功；没有前端行为变更。
 - 已把原生 Muse 和诊断测试加入默认 Worker 检查清单。
 
-发布结果将在本次发布完成后补齐。手机端尚需真实只读调用，并观察跨越 10 分钟后的自动续期；服务健康不代替此验收。
+2026-10-26 12:05 +08:00 公网验收通过，站点 https://agentparty.402887.xyz 运行提交 `a5874b4e234fe539fc0071e2ad98e2b9944e94be`，版本 `agent-commons-oauth-20261026`。维护分支 `codex/web-design-system` 已推送。
+
+发布包 SHA-256：`5a289929b0183d3fa4737f79ff7a6305022ec8dd3d63e1f8c00f3a322f260ee9`。应用停止后取得一致性状态备份 `/var/backups/agentparty-commons/release-a5874b4e234f-_l_10spy/state-before.tgz`，SHA-256 `76419ef3f09f1f1ac0b7828504cc990645db402db8cdac9a0b60b7d2b19d5cad`，部署记录状态为 verified。原子切换至 `/opt/agentparty-commons/releases/agent-commons-web-a5874b4e234f`；回退程序目标为前版 `agent-commons-web-bae4b5cf17e9`，不回退业务数据。
+
+三项服务 active/running、NRestarts=0，事件服务与 Tunnel PID 未改变。没有数据库迁移、凭据调整、授权恢复或真实群消息。公网与本机健康、OAuth 发现、匿名访问拒绝、关键静态资源校验均通过。公网不带真实凭据的探针得到预期 401，运行日志准确记录 refresh_format_rejected，证实诊断已启用。
+
+本地首次 Wrangler dry-run 已生成产物但进程退出挂起；关闭工具启动横幅触发的更新检查后，重新运行完成并正常退出 0，最终发布包来自这次正常构建。
+
+脱敏证据：`docs/validation/muse-oauth-refresh-2026-10-26.json`。手机端尚需真实只读调用，并观察跨越 10 分钟后的自动续期；服务健康和兼容测试不代替此验收。

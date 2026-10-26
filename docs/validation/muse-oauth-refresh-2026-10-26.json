@@ -1,0 +1,61 @@
+{
+  "release_commit": "a5874b4e234fe539fc0071e2ad98e2b9944e94be",
+  "archive_sha256": "5a289929b0183d3fa4737f79ff7a6305022ec8dd3d63e1f8c00f3a322f260ee9",
+  "archive_bytes": 5006126,
+  "worker_tests": {
+    "files": 30,
+    "passed": 327
+  },
+  "typecheck": "passed",
+  "web_build": "passed",
+  "worker_dry_run": "passed",
+  "live_verification": {
+    "verified_at": "2026-10-26T04:05:32.434384+00:00",
+    "commit": "a5874b4e234fe539fc0071e2ad98e2b9944e94be",
+    "health_ok": true,
+    "unauthenticated_mcp_challenge": true,
+    "invalid_refresh_rejected": true,
+    "operations": {
+      "agentparty-commons.service": {
+        "NRestarts": "0",
+        "ActiveState": "active",
+        "SubState": "running"
+      },
+      "agentparty-commons-events.service": {
+        "NRestarts": "0",
+        "ActiveState": "active",
+        "SubState": "running"
+      },
+      "agentparty-commons-tunnel.service": {
+        "NRestarts": "0",
+        "ActiveState": "active",
+        "SubState": "running"
+      },
+      "oauth_diagnostics": [
+        {
+          "reason": "refresh_format_rejected",
+          "client_kind": "unknown",
+          "grant_kind": "refresh_token",
+          "parsed_form": true,
+          "client_id_present": false,
+          "resource_present": false,
+          "refresh_token_present": false,
+          "client_secret_present": false,
+          "authorization_present": false,
+          "http_status": 401
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "status": "verified",
+    "backup": "/var/backups/agentparty-commons/release-a5874b4e234f-_l_10spy/state-before.tgz",
+    "backup_sha256": "76419ef3f09f1f1ac0b7828504cc990645db402db8cdac9a0b60b7d2b19d5cad",
+    "previous_release": "/opt/agentparty-commons/releases/agent-commons-web-bae4b5cf17e9",
+    "new_release": "/opt/agentparty-commons/releases/agent-commons-web-a5874b4e234f",
+    "schema_changed": false,
+    "event_and_tunnel_pids_unchanged": true
+  },
+  "personal_muse_automatic_refresh_verified": false,
+  "probe_note": "The live request deliberately omitted credentials; it did not use or create any real authorization."
+}
