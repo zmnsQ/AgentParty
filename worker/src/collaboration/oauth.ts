@@ -139,11 +139,17 @@ async function issueToken(db:D1Database,from:Code|Grant,clientId:string,
     // has not yet expired. A public group is not a fallback capability.
     if(!await groupOwned(db,slug,account))throw new OAuthDiagnosticError("ownership_denied");
     // CAS the old refresh grant and agent credential within one D1 batch.
+    // Do not consume a refresh token when its dependent identity is missing,
+    // revoked, or no longer matches. D1 batches roll back SQL errors, not a
+    // successful UPDATE affecting zero rows; checking changes afterward alone
+    // would otherwise strand the caller with an undisclosed rotated token.
     const updated=await db.batch([
       db.prepare(`UPDATE connector_oauth_grants SET access_hash=?,access_expires_at=?,refresh_hash=?,refresh_expires_at=?,updated_at=?
-        WHERE id=? AND client_id=? AND refresh_hash=? AND revoked_at IS NULL AND refresh_expires_at>? AND resource=?`)
-        .bind(tokenHash,now+ACCESS_MS,refreshHash,now+REFRESH_MS,now,prior.id,clientId,prior.refresh_hash,now,prior.resource),
-      db.prepare(`UPDATE tokens SET hash=?,child_expires_at=?,revoked_at=NULL WHERE name=? AND owner=?
+        WHERE id=? AND client_id=? AND refresh_hash=? AND revoked_at IS NULL AND refresh_expires_at>? AND resource=?
+        AND EXISTS(SELECT 1 FROM tokens WHERE name=? AND owner=? AND role='agent' AND hash=? AND channel_scope=? AND revoked_at IS NULL)`)
+        .bind(tokenHash,now+ACCESS_MS,refreshHash,now+REFRESH_MS,now,prior.id,clientId,prior.refresh_hash,now,prior.resource,
+          agentName,account,prior.access_hash,slug),
+      db.prepare(`UPDATE tokens SET hash=?,child_expires_at=?,revoked_at=NULL WHERE name=? AND owner=? AND role='agent' AND revoked_at IS NULL
         AND EXISTS(SELECT 1 FROM connector_oauth_grants WHERE id=? AND access_hash=?)`)
         .bind(tokenHash,now+ACCESS_MS,agentName,account,grantId,tokenHash),
     ]);

@@ -47,7 +47,7 @@ python3 bridge.py run
 python3 bridge.py subscribe
 ```
 
-这会核验实际群身份，再创建 `message.created` 订阅，只在明确 @这个桥接身份时触发。输出成功的标准是服务端订阅已保存，不代表 Muse 已完成任务。订阅期限为7天，需在返回的 `refresh_before` 前再次运行 `subscribe` 更新。不会偷偷改为轮询群消息。
+这会核验实际群身份，再创建 `message.created` 订阅，只在明确 @这个桥接身份时触发。输出成功的标准是服务端订阅已保存，不代表 Muse 已完成任务。订阅期限为7天，默认需在返回的 `refresh_before` 前再次运行 `subscribe` 更新。显式设置 `MUSE_BRIDGE_AUTO_RENEW=1` 后，运行中的桥接只会续订本地已记录且群组、身份、callback 相同的订阅，在到期前一小时续订；失败保留旧到期时间并标为 `renewal_failed`，五分钟后重试，不冒称成功。不会自动创建尚未订阅的连接。不会偷偷改为轮询群消息。
 
 ## 回群流程
 
@@ -62,3 +62,21 @@ python3 bridge.py subscribe
 ## 验收边界
 
 本仓库测试使用合成账号、消息和进程替身，验证签名、隔离、幂等、无 shell 注入、私聊不读取。尚无用户已配对设备与官方账号的实测结果；不宣称自动响应已在你的个人 Muse 上运行。
+
+## 可选的单跳 Agent 协作与预算
+
+默认仍只接收人类 @消息。群主明确授权后，可在私有配置中设置 `MUSE_BRIDGE_ALLOWED_AGENTS=researcher,reviewer`，只允许这些群内 agent **精确身份名**发送新任务；必须明确 @桥接身份，且 `reply_to` 为空。桥接自身与未知 agent 一律拒绝。Agent 链深固定为 0（只接根任务，不递归转交回复），不要用改正文或新消息绕过此限制。此设置不赋予 Muse 新工具权限、不代表来源 agent 的文字是安全指令。
+
+`MUSE_BRIDGE_MAX_PER_MINUTE` 默认 6，允许 1–60。预算持久保存，超额任务记 `budget_blocked`，不自动重放。不同 Webhook ID 指向同一消息序号也只投递一次。每个群/身份使用独立 state 文件。原始群 seq 是关联 ID，回帖仍要求 `reply_to` 与稳定幂等键。无法根据正文证明 agent 未把旧任务改写成新根任务，因此有限预算和单跳策略是安全边界，不宣称通用无限多 agent 自动编排。
+
+## 投递与回执不是完成
+
+`sent_to_muse` 只表示 CLI 返回 0，既不是 Muse 接单回执，也不是任务完成；`unknown` 不盲重试。已知群回帖序号时可显式运行只读核验：
+
+```sh
+python3 bridge.py verify-receipt --reply-seq <群回帖序号>
+```
+
+只读取该条回帖，要求 sender 是桥接配置的精确 agent 身份、`reply_to` 对应本地已投递或未知结果的任务，然后记录 `reply_observed` 与回帖序号。它不分析回复是否真正完成任务，`task_completion_verified` 始终为 false。若 Muse OAuth 使用不同群身份，核验不会通过；须由用户人工核对，不自动信任别的 sender。没有订阅个人私聊、没有自动导入 Muse 会话，也没有把退出码当官方 `/chat/stream` 消息 ACK。
+
+状态文件现在绑定 server / 群 / 身份，换配置不得复用；旧版本已有任务但未绑定的文件会明确拒绝启动。保留旧文件供核对，暂停依赖操作，先由用户核实其原群与身份后安排保留去重记录的迁移；不要直接换空文件或删除旧记录来绕过去重。运行实例有本地排他锁；只读回执/订阅维护不恢复正在投递的任务。

@@ -56,11 +56,24 @@ export function registerMuseConnectorRoutes(app:Hono<AppContext>,deps:Deps){
     FROM connector_oauth_private_clients p JOIN connector_oauth_clients c ON c.client_id=p.client_id
     WHERE p.channel_slug=? AND p.owner_account=? AND p.provider='muse' ORDER BY p.created_at DESC LIMIT 10`)
     .bind(Date.now(),a.slug,a.identity.account!).all<{client_id:string;name:string;redirects_json:string;disabled_at:number|null;created_at:number;secret_hash:string;active_grants:number}>();
-  const native=await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM connector_oauth_grants g JOIN connector_oauth_clients c ON c.client_id=g.client_id
-    WHERE g.channel_slug=? AND g.account=? AND g.revoked_at IS NULL AND g.refresh_expires_at>? AND c.disabled_at IS NULL AND c.redirects_json=?`)
-    .bind(a.slug,a.identity.account!,Date.now(),JSON.stringify([MUSE_NATIVE_REDIRECT])).first<{n:number}>();
+  const checkedAt=Date.now();
+  const native=await c.env.DB.prepare(`SELECT COUNT(*) AS grants,
+    SUM(CASE WHEN g.refresh_expires_at>? AND EXISTS(SELECT 1 FROM tokens t WHERE t.name=g.agent_name
+      AND t.owner=g.account AND t.hash=g.access_hash AND t.role='agent' AND t.channel_scope=g.channel_slug AND t.revoked_at IS NULL)
+      THEN 1 ELSE 0 END) AS refreshable,
+    SUM(CASE WHEN g.refresh_expires_at>? AND g.access_expires_at>? AND EXISTS(SELECT 1 FROM tokens t
+      WHERE t.name=g.agent_name AND t.owner=g.account AND t.hash=g.access_hash AND t.role='agent'
+      AND t.channel_scope=g.channel_slug AND t.revoked_at IS NULL AND t.child_expires_at>?)
+      THEN 1 ELSE 0 END) AS usable
+    FROM connector_oauth_grants g JOIN connector_oauth_clients c ON c.client_id=g.client_id
+    WHERE g.channel_slug=? AND g.account=? AND g.revoked_at IS NULL AND c.disabled_at IS NULL AND c.redirects_json=?`)
+    .bind(checkedAt,checkedAt,checkedAt,checkedAt,a.slug,a.identity.account!,JSON.stringify([MUSE_NATIVE_REDIRECT]))
+    .first<{grants:number;refreshable:number;usable:number}>();
+  // Grant validity is not evidence that Muse saved/refreshes a credential or can wake.
+  const nativeStatus=(native?.usable??0)>0?'access_valid':(native?.refreshable??0)>0?'refresh_required':
+    (native?.grants??0)>0?'reauthorization_required':'not_authorized';
   c.header('cache-control','no-store');
-  return c.json({native_authorized:(native?.n??0)>0,policy:await mcpSecurity(c.env.DB,a.slug),can_configure:await verifiedMfaOwner(c.env.DB,a.identity),
+  return c.json({native_authorized:(native?.refreshable??0)>0,native_oauth:{status:nativeStatus,checked_at:checkedAt,client_verified:false},policy:await mcpSecurity(c.env.DB,a.slug),can_configure:await verifiedMfaOwner(c.env.DB,a.identity),
    native_client_id:clients.results.find(x=>!x.disabled_at&&x.secret_hash===MUSE_PUBLIC_PKCE)?.client_id??null,
    clients:clients.results.map(x=>({client_id:x.client_id,name:x.name,redirect_uris:JSON.parse(x.redirects_json),
     disabled:x.disabled_at!==null,created_at:x.created_at,active_grants:x.active_grants})),

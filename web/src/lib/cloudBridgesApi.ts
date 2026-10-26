@@ -15,7 +15,7 @@ export interface EventBridgeState {active_subscriptions:number;pending_deliverie
 export interface McpPolicy {enabled:boolean;allow_write:boolean;allow_events:boolean;owner_mfa_enabled:boolean;require_mfa:true;updated_at:number|null;}
 export interface McpPolicyResponse {policy:McpPolicy;can_manage:boolean;}
 
-export interface MuseConnectorState {native_client_id?:string|null;native_authorized?:boolean;can_configure:boolean;mcp_endpoint:string;configuration:Record<string,unknown>;
+export interface MuseConnectorState {native_oauth?:{status:"access_valid"|"refresh_required"|"reauthorization_required"|"not_authorized";checked_at:number;client_verified:false};native_client_id?:string|null;native_authorized?:boolean;can_configure:boolean;mcp_endpoint:string;configuration:Record<string,unknown>;
  clients:Array<{client_id:string;name:string;redirect_uris:string[];disabled:boolean;created_at:number;active_grants:number}>;
  policy:McpPolicy;platform_review:{status:string;verified:false};personal_wake:{status:string;verified:false};}
 async function request<T>(token:string,path:string,method="GET",body?:unknown,signal?:AbortSignal):Promise<T>{

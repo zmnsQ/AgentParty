@@ -133,6 +133,53 @@ describe("Muse native MCP compatibility retains scoped consent",()=>{
   expect(await replay.json()).toEqual({error:"invalid_client"});
   expect((await nativeRefresh({refresh_token:rotated.refresh_token})).status).toBe(200);
  });
+ it("parallel refresh has exactly one winner, invalidates old access, and leaves the winner usable",async()=>{
+  const c=await setup();c.params.set("scope","mcp:read");
+  const original=await(await exchange(c.client,await approve(c),c.verifier)).json() as {access_token:string;refresh_token:string};
+  const results=await Promise.all(Array.from({length:3},()=>nativeRefresh({
+   client_id:c.client,resource:c.resource,refresh_token:original.refresh_token,
+  })));
+  expect(results.filter(r=>r.status===200)).toHaveLength(1);
+  expect(results.filter(r=>r.status!==200).every(r=>r.status===400)).toBe(true);
+  const winner=await results.find(r=>r.status===200)!.json() as {access_token:string;refresh_token:string;scope:string};
+  expect(winner.scope).toBe("group.read");
+  const saved=await env.DB.prepare("SELECT access_hash,refresh_hash FROM connector_oauth_grants WHERE client_id=?")
+   .bind(c.client).first<{access_hash:string;refresh_hash:string}>();
+  expect(saved).toEqual({access_hash:await sha256Hex(winner.access_token),refresh_hash:await sha256Hex(winner.refresh_token)});
+  const profile=(token:string)=>req(`/api/channels/${c.slug}/mcp`,{method:"POST",headers:{
+   authorization:`Bearer ${token}`,"content-type":"application/json","mcp-protocol-version":"2025-06-18",
+  },body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"party_profile",arguments:{}}})});
+  expect((await profile(original.access_token)).status).toBe(401);
+  expect((await profile(winner.access_token)).status).toBe(200);
+  expect((await nativeRefresh({refresh_token:winner.refresh_token})).status).toBe(200);
+ });
+ it.each(["missing","revoked","changed","wrong_channel"] as const)("does not consume refresh when its agent identity is %s",async state=>{
+  const c=await setup(),original=await(await exchange(c.client,await approve(c),c.verifier)).json() as {refresh_token:string};
+  const before=await env.DB.prepare("SELECT agent_name,access_hash,refresh_hash,updated_at FROM connector_oauth_grants WHERE client_id=?")
+   .bind(c.client).first<{agent_name:string;access_hash:string;refresh_hash:string;updated_at:number}>();
+  const query=state==="missing"?"DELETE FROM tokens WHERE name=? AND owner=?":
+   state==="revoked"?"UPDATE tokens SET revoked_at=1 WHERE name=? AND owner=?":
+   state==="changed"?"UPDATE tokens SET hash='changed-test-identity' WHERE name=? AND owner=?":
+   "UPDATE tokens SET channel_scope='wrong-channel' WHERE name=? AND owner=?";
+  expect((await env.DB.prepare(query).bind(before!.agent_name,c.account).run()).meta.changes).toBe(1);
+  const response=await nativeRefresh({client_id:c.client,resource:c.resource,refresh_token:original.refresh_token});
+  expect(response.status).toBe(400);expect(await response.json()).toEqual({error:"invalid_grant"});
+  expect(await env.DB.prepare("SELECT agent_name,access_hash,refresh_hash,updated_at FROM connector_oauth_grants WHERE client_id=?")
+   .bind(c.client).first()).toEqual(before);
+  const status=await req(`/api/channels/${c.slug}/bridges/muse`,{headers:{authorization:`Bearer ${c.browserAccess}`}});
+  expect(await status.json()).toMatchObject({native_authorized:false,native_oauth:{status:"reauthorization_required",client_verified:false}});
+ });
+ it("refresh never grants requested scopes outside the original consent",async()=>{
+  const c=await setup();c.params.set("scope","mcp:read");
+  const original=await(await exchange(c.client,await approve(c),c.verifier)).json() as {refresh_token:string};
+  const response=await nativeRefresh({refresh_token:original.refresh_token,scope:"group.read group.write group.events"});
+  expect(response.status).toBe(200);
+  const rotated=await response.json() as {scope:string;access_token:string};expect(rotated.scope).toBe("group.read");
+  const write=await req(`/api/channels/${c.slug}/messages`,{method:"POST",headers:{
+   authorization:`Bearer ${rotated.access_token}`,"content-type":"application/json",
+  },body:JSON.stringify({content:"must not be written"})});
+  expect(write.status).toBe(403);
+ });
  it("never replaces an explicit wrong or empty client_id with the native refresh token's client",async()=>{
   const c=await setup(),issued=await exchange(c.client,await approve(c),c.verifier);expect(issued.status).toBe(200);
   const original=await issued.json() as {refresh_token:string};
@@ -159,6 +206,28 @@ describe("Muse native MCP compatibility retains scoped consent",()=>{
   const c=await setup(),code=await approve(c);expect((await exchange(c.client,code,"x".repeat(48))).status).toBe(400);
   const second=await approve(c);expect((await exchange(c.client,second,c.verifier,SITE+"/api/channels/wrong/mcp")).status).toBe(400);
   expect((await exchange(c.client,second,c.verifier)).status).toBe(200);
+ });
+ it("reports server credential lifetime separately from unverified Muse client readiness",async()=>{
+  const c=await setup();
+  const state=async()=>{
+   const response=await req(`/api/channels/${c.slug}/bridges/muse`,{headers:{authorization:`Bearer ${c.browserAccess}`}});
+   expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
+   return await response.json();
+  };
+  expect(await state()).toMatchObject({native_authorized:false,native_oauth:{status:"not_authorized",client_verified:false}});
+  const original=await(await exchange(c.client,await approve(c),c.verifier)).json() as {refresh_token:string};
+  expect(await state()).toMatchObject({native_authorized:true,native_oauth:{status:"access_valid",client_verified:false}});
+  await env.DB.prepare("UPDATE connector_oauth_grants SET access_expires_at=? WHERE client_id=?")
+   .bind(Date.now()-1000,c.client).run();
+  expect(await state()).toMatchObject({native_authorized:true,native_oauth:{status:"refresh_required",client_verified:false}});
+  expect((await nativeRefresh({refresh_token:original.refresh_token})).status).toBe(200);
+  expect(await state()).toMatchObject({native_authorized:true,native_oauth:{status:"access_valid",client_verified:false}});
+  await env.DB.prepare("UPDATE connector_oauth_grants SET refresh_expires_at=? WHERE client_id=?")
+   .bind(Date.now()-1000,c.client).run();
+  expect(await state()).toMatchObject({native_authorized:false,native_oauth:{status:"reauthorization_required",client_verified:false}});
+  await env.DB.prepare("UPDATE connector_oauth_grants SET revoked_at=? WHERE client_id=?")
+   .bind(Date.now(),c.client).run();
+  expect(await state()).toMatchObject({native_authorized:false,native_oauth:{status:"not_authorized",client_verified:false}});
  });
  it("owner-prepared Client ID is public, group-bound, idempotent, and not an authorization",async()=>{
   const c=await setup(),path=`/api/channels/${c.slug}/bridges/muse/native-client`;

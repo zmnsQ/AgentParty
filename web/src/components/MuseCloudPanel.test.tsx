@@ -6,16 +6,16 @@ import {MuseCloudPanel} from './MuseCloudPanel';
 import {MuseCloudStrings} from '../i18n/strings/MuseCloud';
 let renderer:ReactTestRenderer|null=null;
 const originalFetch=globalThis.fetch,storage=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
-const calls:Array<{url:string;method:string}>=[];let canConfigure=true,authorized=false;
+const calls:Array<{url:string;method:string}>=[];let canConfigure=true,authorized=false;let oauthStatus:string|undefined;
 const text=(n:ReactTestInstance):string=>n.children.map(c=>typeof c==='string'?c:text(c)).join(' ');
 beforeEach(()=>{
- canConfigure=true;authorized=false;calls.length=0;
+ canConfigure=true;authorized=false;oauthStatus=undefined;calls.length=0;
  Object.defineProperty(globalThis,'IS_REACT_ACT_ENVIRONMENT',{configurable:true,value:true});
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>k==='ap_locale'?'en':null,setItem:()=>{throw Error('must_not_store_credentials')}}});
  globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=String(input),method=init?.method??'GET';calls.push({url,method});
   if(url.endsWith('/oauth-client'))return Response.json({client_id:'accli_fixture',client_secret:'synthetic-only-not-a-credential'},{status:201});
-  return Response.json({can_configure:canConfigure,mcp_endpoint:'https://commons.test/api/channels/group/mcp',configuration:{authorization_endpoint:'https://commons.test/oauth/authorize',token_endpoint:'https://commons.test/oauth/token'},
+  return Response.json({native_oauth:oauthStatus?{status:oauthStatus,checked_at:1,client_verified:false}:undefined,can_configure:canConfigure,mcp_endpoint:'https://commons.test/api/channels/group/mcp',configuration:{authorization_endpoint:'https://commons.test/oauth/authorize',token_endpoint:'https://commons.test/oauth/token'},
    clients:authorized?[{client_id:'accli_existing',name:'Muse Cloud',active_grants:1,disabled:false,redirect_uris:[],created_at:1}]:[],
    platform_review:{status:'not_submitted',verified:false},personal_wake:{status:'requires_device_pairing',verified:false}});
  }) as typeof fetch;
@@ -32,7 +32,17 @@ describe('Muse Cloud staged connection UI',()=>{
   canConfigure=false;const root=await render();expect(text(root)).toContain('two-step verification');expect(root.findAllByType('form')).toHaveLength(0);expect(calls.every(x=>x.method==='GET')).toBe(true);
  });
  test('authorized account does not imply session wake or platform approval',async()=>{
-  authorized=true;const root=await render();expect(text(root)).toContain('OAuth authorized');expect(text(root)).toContain('A paired device is required');expect(text(root)).toContain('No verified review decision');
+  authorized=true;const root=await render();expect(text(root)).toContain('Authorization saved · current usability unverified');expect(text(root)).toContain('A paired device is required');expect(text(root)).toContain('No verified review decision');
+ });
+ test('expired access is not presented as working and recovery does not mutate credentials',async()=>{
+  authorized=true;oauthStatus='refresh_required';const root=await render();
+  expect(text(root)).toContain('Access expired · client refresh required');
+  expect(text(root)).toContain('cannot repair the Muse app');
+  expect(text(root)).toContain('Do not bypass it');
+  expect(calls.every(x=>x.method==='GET')).toBe(true);
+ });
+ test('server-valid access explicitly leaves the Muse client unverified',async()=>{
+  authorized=true;oauthStatus='access_valid';expect(text(await render())).toContain('Server credential valid · client unverified');
  });
  test('only explicit submission creates a client and one-time value can be dismissed',async()=>{
   const root=await render();await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://platform.muse.ai/callback/fixture'}}));
