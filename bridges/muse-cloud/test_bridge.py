@@ -1,7 +1,7 @@
-import base64,hashlib,hmac,json,tempfile,time,unittest,subprocess
+import socket,base64,hashlib,hmac,json,tempfile,time,unittest,subprocess
 from pathlib import Path
 from types import SimpleNamespace
-from bridge import Config,Bridge,Store,verify,eligible_message,deliver_to_muse,subscribe,subscription_binding,verify_receipt
+from bridge import Config,Bridge,Store,verify,eligible_message,deliver_to_muse,subscribe,subscription_binding,verify_receipt,handle_reply,reply_client,cleanup_reply_socket,run_bridge
 from unittest.mock import patch
 from datetime import datetime,timezone
 KEY='whsec_'+base64.b64encode(b'x'*32).decode()
@@ -109,4 +109,91 @@ class BridgeTests(unittest.TestCase):
    self.assertTrue(verify_receipt(self.c,store,8));self.assertEqual(store.counts(),{'reply_observed':1})
   for change in [{'sender':{'kind':'agent','name':'other'}},{'reply_to':6},{'seq':9}]:
    with patch('bridge.verify_identity'),patch('bridge.api',return_value={'messages':[{**msg,**change}]}):self.assertFalse(verify_receipt(self.c,store,8))
+ def reply_fixture(self):
+  store=Store(self.c.state);store.add('task-event',7);store.take();token=store.create_reply_task(7)
+  return store,token
+ def test_reply_capability_scoped_expiring_and_not_plaintext_in_store(self):
+  store,token=self.reply_fixture()
+  self.assertNotIn(token,str(store.db.execute('SELECT * FROM reply_tasks').fetchall()))
+  with self.assertRaises(ValueError):store.create_reply_task(99)
+  with self.assertRaises(ValueError):store.claim_reply('unknown','hash')
+  with self.assertRaises(ValueError):store.claim_reply(token,'hash',time.time()+3601)
+ def test_gadget_reply_posts_fixed_destination_then_readback_once(self):
+  store,token=self.reply_fixture();calls=[]
+  def fake_api(config,path,data=None):
+   calls.append((path,data))
+   if data is not None:return {'seq':8}
+   return {'messages':[{'seq':8,'reply_to':7,'sender':{'name':self.c.agent,'kind':'agent'},'body':'Done'}]}
+  with patch('bridge.verify_identity'),patch('bridge.api',side_effect=fake_api):
+   result=handle_reply(self.c,store,{'task':token,'body':'Done'})
+   self.assertEqual(result,{'status':'reply_verified','reply_seq':8,'task_completed':False})
+   self.assertEqual(handle_reply(self.c,store,{'task':token,'body':'Done'}),result)
+  self.assertEqual(len(calls),2);self.assertEqual(calls[0][0],'/api/channels/ch-test/messages')
+  self.assertEqual(calls[0][1]['mentions'],[]);self.assertEqual(calls[0][1]['body_mentions'],[]);self.assertEqual(calls[0][1]['reply_to'],7)
+  self.assertEqual(store.counts(),{'reply_observed':1})
+  store.finish('task-event','sent_to_muse');self.assertEqual(store.counts(),{'reply_observed':1})
+ def test_reply_rejects_routing_override_body_conflict_and_capability_echo(self):
+  store,token=self.reply_fixture()
+  for extra in [{'reply_to':9},{'channel':'other'},{'mentions':['other']},{'path':'/private'}]:
+   with self.assertRaises(ValueError):handle_reply(self.c,store,{'task':token,'body':'Answer',**extra})
+  with self.assertRaises(ValueError):handle_reply(self.c,store,{'task':token,'body':token})
+  store.claim_reply(token,hashlib.sha256(b'Answer').hexdigest())
+  with self.assertRaises(ValueError):handle_reply(self.c,store,{'task':token,'body':'Changed'})
+ def test_reply_rejects_all_at_signs_before_capability_consumption(self):
+  store,token=self.reply_fixture()
+  for body in ['@helper please','@'+self.c.agent,'mail@example.com','code `@helper`','＠helper','请@助手处理']:
+   with patch('bridge.api') as api_mock:
+    with self.assertRaisesRegex(ValueError,'reply_mentions_not_allowed'):handle_reply(self.c,store,{'task':token,'body':body})
+    api_mock.assert_not_called()
+   self.assertEqual(store.db.execute('SELECT state FROM reply_tasks').fetchone()[0],'ready')
+ def test_uncertain_reply_retry_reads_without_another_post(self):
+  store,token=self.reply_fixture()
+  with patch('bridge.verify_identity'),patch('bridge.api',side_effect=TimeoutError):
+   self.assertEqual(handle_reply(self.c,store,{'task':token,'body':'Answer'})['status'],'reply_unknown')
+  with patch('bridge.verify_identity'),patch('bridge.api',return_value={'messages':[]}) as api_mock:
+   self.assertEqual(handle_reply(self.c,store,{'task':token,'body':'Answer'})['status'],'reply_unknown')
+   self.assertEqual(len(api_mock.call_args.args),2);self.assertIn('?after=7&limit=100',api_mock.call_args.args[1])
+ def test_unknown_reply_reconciles_exact_sender_seq_body_only(self):
+  store,token=self.reply_fixture();store.claim_reply(token,hashlib.sha256(b'Answer').hexdigest());store.finish_reply(7,'reply_unknown')
+  msg={'seq':8,'reply_to':7,'sender':{'kind':'agent','name':self.c.agent},'body':'Answer'}
+  for patch_msg in [{'body':'Different'},{'reply_to':6},{'sender':{'kind':'agent','name':'other'}}]:
+   with patch('bridge.verify_identity'),patch('bridge.api',return_value={'messages':[{**msg,**patch_msg}]}):
+    self.assertEqual(handle_reply(self.c,store,{'task':token,'body':'Answer'})['status'],'reply_unknown')
+  with patch('bridge.verify_identity'),patch('bridge.api',return_value={'messages':[msg]}):
+   self.assertEqual(handle_reply(self.c,store,{'task':token,'body':'Answer'})['status'],'reply_verified')
+ def test_inflight_reply_is_not_posted_again_and_restart_marks_unknown(self):
+  store,token=self.reply_fixture();store.claim_reply(token,hashlib.sha256(b'Answer').hexdigest())
+  with patch('bridge.api') as api_mock:
+   self.assertEqual(handle_reply(self.c,store,{'task':token,'body':'Answer'})['status'],'reply_unknown');api_mock.assert_not_called()
+  store.close();reopened=Store(self.c.state,recover=True)
+  self.assertEqual(reopened.db.execute('SELECT state FROM reply_tasks').fetchone()[0],'reply_unknown')
+ def test_gadget_prompt_uses_capability_not_mcp_or_global_secrets(self):
+  config=Config(**{**self.c.__dict__,'reply_socket':'/run/commons/reply.sock','gadget_socket':'/run/custom-muse/socket'});seen=[]
+  def run(args,**kwargs):seen.append(kwargs);return SimpleNamespace(returncode=0)
+  with patch.dict('os.environ',{'AGENT_COMMONS_AGENT_TOKEN':'ap_secret','MUSE_BRIDGE_SIGNING_SECRET':KEY}):
+   deliver_to_muse(config,7,'Task',run,reply_task='capability-fixture')
+  prompt=seen[0]['input'];self.assertIn('No Muse MCP connector is required',prompt);self.assertIn('system.run',prompt);self.assertIn('capability-fixture',prompt)
+  self.assertNotIn('ap_secret',str(seen));self.assertNotIn(KEY,str(seen));self.assertNotIn('AGENT_COMMONS_AGENT_TOKEN',seen[0]['env']);self.assertEqual(seen[0]['env']['MUSEGADGET_SOCKET'],'/run/custom-muse/socket')
+  with self.assertRaises(ValueError):Config(**{**self.c.__dict__,'gadget_socket':'relative.sock'}).validate()
+ def test_reply_client_rejects_relative_socket_and_unbounded_input_without_network(self):
+  with self.assertRaises(ValueError):reply_client('relative.sock',b'{}')
+  with self.assertRaises(ValueError):reply_client('/run/reply.sock',b'x'*65537)
+ def test_socket_cleanup_only_removes_own_socket_not_replacement(self):
+  # This sandbox prohibits AF_UNIX creation; test inode/type decisions with stat fixtures.
+  with patch('bridge.Path.lstat',return_value=SimpleNamespace(st_mode=0o140600,st_dev=1,st_ino=2)),patch('bridge.Path.unlink') as unlink:
+   cleanup_reply_socket('/run/reply.sock',(1,2));unlink.assert_called_once()
+  for metadata in [SimpleNamespace(st_mode=0o100600,st_dev=1,st_ino=2),SimpleNamespace(st_mode=0o140600,st_dev=1,st_ino=3)]:
+   with patch('bridge.Path.lstat',return_value=metadata),patch('bridge.Path.unlink') as unlink:
+    cleanup_reply_socket('/run/reply.sock',(1,2));unlink.assert_not_called()
+ def test_sigterm_uses_cleanup_path_and_restores_previous_handler(self):
+  calls=[];previous=object()
+  def register(sig,handler):calls.append((sig,handler));return previous
+  def serve(*args):calls[0][1](15,None)
+  with patch('bridge.signal.signal',side_effect=register),patch('bridge.Bridge',return_value=object()),patch('bridge.server',side_effect=serve):
+   run_bridge(self.c,8799)
+  self.assertEqual(len(calls),2);self.assertIs(calls[1][1],previous)
+ def test_verified_reply_is_terminal_under_late_reconciliation(self):
+  store,token=self.reply_fixture();store.claim_reply(token,hashlib.sha256(b'Answer').hexdigest())
+  store.finish_reply(7,'reply_verified',8);store.finish_reply(7,'reply_unknown');store.finish_reply(7,'reply_verified',9)
+  self.assertEqual(store.db.execute('SELECT state,reply_seq FROM reply_tasks').fetchone(),('reply_verified',8))
 if __name__=='__main__':unittest.main()

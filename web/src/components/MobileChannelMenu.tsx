@@ -14,7 +14,7 @@ export function MobileChannelMenu({buttons,actions}:{buttons:ReactNode;actions:R
  useEffect(()=>{setSlot(document.getElementById("mobile-channel-menu-slot"));},[]);
  useModalFocusTrap({active:open,containerRef:panel,returnFocusRef:trigger,
   onEscape:()=>setOpen(false),shouldRestoreFocus:()=>!handoff.current});
- const label=zh?"群组功能":"Group actions";
+ const label=zh?"频道详情":"Channel details";
  const button=<button ref={trigger} type="button" className="mobile-channel-more" aria-label={label} title={label}
   aria-haspopup="dialog" aria-expanded={open} onClick={()=>{handoff.current=false;setOpen(true);}}><StudioIcon name="more"/></button>;
  return <>{slot?createPortal(button,slot):button}<ModalPortal>
@@ -28,8 +28,8 @@ export function MobileChannelMenu({buttons,actions}:{buttons:ReactNode;actions:R
      const action=(event.target as Element).closest("button:not([disabled])");
      if(action){handoff.current=true;setOpen(false);}
     }}>
-     <section className="mobile-menu-navigation"><h3>{zh?"查看群组":"Explore group"}</h3><div className="chan-tool-buttons">{buttons}</div></section>
-     <section className="mobile-menu-management"><h3>{zh?"Agent 与管理":"Agents & management"}</h3><div className="chan-tool-actions">{actions}</div></section>
+     <section className="mobile-menu-navigation"><h3>{zh?"消息与协作":"Messages & collaboration"}</h3><div className="chan-tool-buttons">{buttons}</div></section>
+     <details className="mobile-menu-management"><summary>{zh?"连接 Agent 与频道管理":"Agent connections & channel settings"}<StudioIcon name="chevron-down"/></summary><div className="chan-tool-actions">{actions}</div></details>
     </div>
    </div>
   </div>

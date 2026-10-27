@@ -1406,7 +1406,7 @@ export function App() {
         </p>
       )}
       <WorkspaceShell route={slug} navigationError={listError} requestOpen={createGroupRequest} title={currentChannel?.title}
-        mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><Brand/></a><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}
+        mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><Brand/></a><button className="d-btn mobile-account-entry" type="button" onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/><span><strong>{me?.display_name??me?.handle??me?.name??t("App.settings.section.account")}</strong><small>{t("App.settings.section.account")}</small></span></button><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}
         navigation={<>
           {canCreate && token !== null && (
             <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />

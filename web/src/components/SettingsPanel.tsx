@@ -1,3 +1,4 @@
+import { HomeScreenGuide } from "./HomeScreenGuide";
 import { StudioIcon } from "./StudioIcon";
 import { isTauriEnvironment } from "../lib/desktopUpdater";
 // 全局设置只承载个人与设备设置。跨频道的本机 Agent 监控、启停、常驻和日志
@@ -117,6 +118,7 @@ export function SettingsPanel({
               <p className="settings-hint" role="status">{notifyHint}</p>
             )}
           </section>
+          {!isTauriEnvironment() && <HomeScreenGuide />}
         </>
       ),
     },

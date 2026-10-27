@@ -1,3 +1,4 @@
+import {useCompactViewport} from "../lib/useCompactViewport";
 import { ModalPortal } from "../components/ModalPortal";
 import { StudioIcon } from "../components/StudioIcon";
 import {ChannelWelcome} from "../components/ChannelWelcome";
@@ -1092,7 +1093,7 @@ export function TaskLedgerPanel({
   // 从 Focus 等外部入口精确跳转任务。仅临时穿透筛选，不重置面板内搜索、筛选或草稿。
   selectedTaskId?: number | null;
 }) {
-  const t = useT();
+  const t = useT(), compact = useCompactViewport();
   const [assignDrafts, setAssignDrafts] = useState<Record<number, string>>({});
   const [assignKinds, setAssignKinds] = useState<Record<number, TaskAssigneeKind>>({});
   const [dragTaskId, setDragTaskId] = useState<number | null>(null);
@@ -1532,6 +1533,7 @@ export function TaskLedgerPanel({
                 </button>
               ))}
             </div>
+            <details className="task-filter-details" open={!compact || undefined}><summary>{t("Channel.tasks.searchAndFilter")}{taskFiltered && <span className="task-filter-active"> · {t("Channel.tools.active")}</span>}</summary>
             <div className="task-blog-filter-row">
               <input
                 className="task-blog-search"
@@ -1577,6 +1579,7 @@ export function TaskLedgerPanel({
                 </button>
               )}
             </div>
+            </details>
           </div>
           {composerOpen && canWrite && (
             <form className="task-new-form" onSubmit={submitNewTask}>
@@ -4554,6 +4557,8 @@ export function ChannelPage({
       <PresenceBar
         attentionCount={hostBoardAttentionCount}
         identities={identityDisplay}
+        rosterIdentities={channelIdentities}
+        authoritativeNames={authoritativeMemberNames}
         presence={state.presence}
         participants={state.participants}
         status={state.status}

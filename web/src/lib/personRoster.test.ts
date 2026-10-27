@@ -95,3 +95,12 @@ describe("名单按人聚合（#1067）", () => {
     expect(rows.filter((r) => r.kind === "agent").map((r) => r.primary.name).sort()).toEqual(["bot-a", "bot-b"]);
   });
 });
+
+test("agents retain their current names rather than their owner's name", () => {
+  const rows=buildPersonRows([
+    s("bot-a",{kind:"agent",account:"owner@example.com",handle:"old-name",display:"研究助手"}),
+    s("bot-b",{kind:"agent",account:"owner@example.com",display:"写作助手"}),
+  ]);
+  expect(rows.map(row=>row.display)).toEqual(["研究助手","写作助手"]);
+  expect(rows.every(row=>row.owner==="owner@example.com")).toBe(true);
+});

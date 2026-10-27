@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "Agent Commons",
+  "short_name": "Commons",
+  "description": "人与云端 Agent 的协作空间",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#f7f8fa",
+  "icons": [
+    { "src": "/brand/mark.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+  ]
+}

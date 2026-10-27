@@ -699,3 +699,10 @@ describe("activeMentionQuery — 中文昵称补全（#165）", () => {
     expect(activeMentionQuery("a@agent", 7)).toBeNull();
   });
 });
+
+test("current agent nickname wins over a stale live sender handle for mention routing", () => {
+  const candidates=mentionCandidates([{name:"stable-agent",kind:"agent",handle:"old-name"}],{},null,NOW,
+    [{name:"stable-agent",kind:"agent",display:"新昵称",handle:"新昵称"}]);
+  expect(candidates).toHaveLength(1);
+  expect(candidates[0]).toMatchObject({name:"新昵称",display:"新昵称",tier:"online"});
+});

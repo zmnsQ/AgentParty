@@ -1110,3 +1110,29 @@ describe("presence git context chip (#853)", () => {
     expect(nodesWithClass(r, "presence-git-context")).toHaveLength(0);
   });
 });
+
+
+describe("current identity roster without synthetic connectivity", () => {
+  test("includes identity-only agents, excludes removed/history-only identities, preserves offline state", () => {
+    let next!: ReactTestRenderer;
+    void act(() => {
+      next = create(createElement(LocaleProvider, null, createElement(PresenceBar, {
+        participants: [], presence: {}, status: "open",
+        rosterIdentities: [
+          {name:"muse-bot",kind:"agent",display:"Muse 助手",account:"owner"},
+          {name:"removed-bot",kind:"agent",display:"Removed"},
+        ],
+        authoritativeNames: new Set(["muse-bot"]),
+        identities: {"historical-bot":{display:"History only",kind:"agent"}},
+        initialRosterOpen: true,
+      })));
+    });
+    renderer=next;
+    const rows=next.root.findAll(n=>n.type==="li" && typeof n.props["data-name"]==="string");
+    expect(rows.map(n=>n.props["data-name"])).toEqual(["muse-bot"]);
+    expect(nodesWithClass(next,"roster-name").map(n=>n.children.join(""))).toContain("Muse 助手");
+    expect(nodesWithClass(next,"presence-unreachable").length).toBeGreaterThan(0);
+    expect(JSON.stringify(next.toJSON())).not.toContain("History only");
+    expect(JSON.stringify(next.toJSON())).not.toContain("Removed");
+  });
+});

@@ -42,13 +42,26 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
    <button type="button" className="d-btn d-btn--ghost" onClick={()=>update(x=>x+1)} aria-label={t('Muse.refresh')} disabled={busy}><StudioIcon name="refresh"/></button></header>
   {!state&&!error&&<p role="status">{t('Muse.loading')}</p>}{error&&<p role="alert" className="commons-error">{error}</p>}
   {notice&&<p role="status" className="muse-notice">{notice}</p>}
-  {state&&<>
+  <section className="muse-gadget-primary" aria-label={t('Muse.gadgetTitle')}>
+   <h4>{t('Muse.gadgetTitle')}</h4><p>{t('Muse.gadgetIntro')}</p>
+   <p className="commons-note" role="status">{t('Muse.gadgetUnverified')}</p>
+   <ol className="muse-steps muse-gadget-steps">
+    <li><span className="muse-step-index">1</span><div><h4>{t('Muse.gadgetPair')}</h4><p>{t('Muse.gadgetPairHelp')}</p>
+     <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/facebookincubator/muse-gadget-sdk"><StudioIcon name="external"/>{t('Muse.gadgetOfficial')}</a></div></li>
+    <li><span className="muse-step-index">2</span><div><h4>{t('Muse.gadgetBridge')}</h4><p>{t('Muse.gadgetBridgeHelp')}</p></div></li>
+    <li><span className="muse-step-index">3</span><div><h4>{t('Muse.gadgetSubscribe')}</h4><p>{t('Muse.gadgetSubscribeHelp')}</p></div></li>
+    <li><span className="muse-step-index">4</span><div><h4>{t('Muse.gadgetVerify')}</h4><p>{t('Muse.gadgetVerifyHelp')}</p></div></li>
+   </ol>
+   <p className="muse-safety"><StudioIcon name="shield"/>{t('Muse.gadgetWarning')}</p>
+   <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/zmnsQ/AgentParty/blob/feat/muse-gadget-20261026/bridges/muse-cloud/README.md"><StudioIcon name="external"/>{t('Muse.bridgeDocs')}</a>
+  </section>
+  {state&&<details className="muse-legacy"><summary>{t('Muse.legacy')}</summary><p>{t('Muse.legacyHelp')}</p>
    <dl className="muse-state-grid">
     {status(authorized?'check':'link',t('Muse.oauth'),oauthText)}
     {status('bell-on',t('Muse.wake'),t('Muse.pairRequired'))}{status('shield',t('Muse.review'),t('Muse.reviewUnknown'))}
    </dl>
    {state.native_oauth&&<small>{locale==='zh'?'服务端状态快照，请刷新复查：':'Server status snapshot; refresh to recheck: '}{new Date(state.native_oauth.checked_at).toLocaleString()}</small>}
-   <p className="commons-note">{locale==="zh"?"推荐：在 Muse 中直接添加下方 MCP 服务地址，并在 Muse 内完成连接授权。独立 OAuth 客户端注册属于高级选项。":"Recommended: add the MCP endpoint below directly in Muse and authorize there. OAuth client registration is optional."}</p><div className="muse-endpoint"><label>{t('Muse.endpoint')}<input readOnly value={state.mcp_endpoint} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.mcp_endpoint)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div>
+   <p className="commons-note">{locale==="zh"?"可选：仅在需要原生 MCP 工具连接时，在 Muse 中添加下方地址并完成授权。Gadget 桥接不依赖此路径。":"Optional: add this endpoint in Muse only if you need its native MCP tool connection. The Gadget bridge does not depend on this path."}</p><div className="muse-endpoint"><label>{t('Muse.endpoint')}<input readOnly value={state.mcp_endpoint} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.mcp_endpoint)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div>
    <ol className="muse-native-steps"><li>{locale==="zh"?"在 Muse 的自定义连接器中添加上方 MCP 地址。":"Add the MCP endpoint above in Muse’s custom connector settings."}</li><li>{locale==="zh"?"从 Muse 打开登录授权页，核对群组与权限后点击允许，再返回 Muse。无需手工复制授权网址。":"Open sign-in and consent from Muse, review the group and permissions, approve, then return to Muse. No hand-copied authorization link is needed."}</li></ol>
    <details className="muse-native-client"><summary>{locale==="zh"?"Muse 要求填写 Client ID？":"Does Muse ask for a Client ID?"}</summary><p>{locale==="zh"?"为这个群组准备原生公共客户端。Client ID 不是访问密钥；创建后仍须在 Muse 中完成登录、二步验证和授权。":"Prepare a native public client for this group. A Client ID is not an access key; sign-in, MFA and consent are still required in Muse."}</p>
    {!state.can_configure?<p>{t('Muse.mfa')} <a href="/auth/security">{t('Muse.security')}</a></p>:state.native_client_id?<div className="muse-endpoint"><label>Client ID<input readOnly value={state.native_client_id} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.native_client_id!)}>{t('Muse.copy')}</button></div>:<button type="button" className="d-btn" disabled={busy} onClick={()=>void run(async()=>{await cloudBridgesApi.createMuseNativeClient(token,slug);update(x=>x+1);})}>{locale==="zh"?"准备 Muse Client ID":"Prepare Muse Client ID"}</button>}
@@ -72,7 +85,7 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
     </div></li>
     <li><span className="muse-step-index">2</span><div><h4>{t('Muse.step2')}</h4><p>{t('Muse.step2Help')}</p><textarea readOnly value={prompt} rows={3} aria-label={t('Muse.testPrompt')}/><button className="d-btn" onClick={()=>void copy(prompt)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div></li>
     <li><span className="muse-step-index">3</span><div><h4>{t('Muse.step3')}</h4><p>{t('Muse.step3Help')}</p><p className="muse-safety"><StudioIcon name="shield"/>{t('Muse.gadgetWarning')}</p>
-      <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/zmnsQ/AgentParty/blob/feat/agent-commons-provider-bridges-20261021/bridges/muse-cloud/README.md"><StudioIcon name="external"/>{t('Muse.bridgeDocs')}</a>
+      <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/zmnsQ/AgentParty/blob/feat/muse-gadget-20261026/bridges/muse-cloud/README.md"><StudioIcon name="external"/>{t('Muse.bridgeDocs')}</a>
     </div></li>
     <li><span className="muse-step-index">4</span><div><h4>{t('Muse.step4')}</h4><p>{t('Muse.step4Help')}</p><div className="muse-inline-actions"><button className="d-btn" disabled={busy} onClick={()=>void run(async()=>{
       const data=await cloudBridgesApi.museReview(token,slug);const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
@@ -80,6 +93,6 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
     })}><StudioIcon name="download"/>{t('Muse.download')}</button><a className="d-btn" href="https://platform.muse.ai/login?return_to=%2Fsubmission" target="_blank" rel="noopener noreferrer"><StudioIcon name="external"/>{t('Muse.portal')}</a></div><small>{t('Muse.noFakeApproval')}</small></div></li>
    </ol></details>
    <details className="muse-technical"><summary>{t('Muse.codeSeparate')}</summary><p>{t('Muse.codeHint')}</p><a href="https://github.com/meta-models/muse-code-sdk" target="_blank" rel="noopener noreferrer">Muse Code SDK <StudioIcon name="external" size={14}/></a></details>
-  </>}
+  </details>}
  </section>;
 }

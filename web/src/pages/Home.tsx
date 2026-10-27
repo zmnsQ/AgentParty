@@ -19,7 +19,7 @@ export function Home({channels,onOpen,onCreate}:Props){
  const t=useT(),[showArchived,setShowArchived]=useState(false),[query,setQuery]=useState("");
  const live=channels?.filter(c=>c.archived_at===null)??null,archived=channels?.filter(c=>c.archived_at!==null)??[];
  const matches=live?.filter(c=>(c.title??c.slug).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))??[];
- return <div className="home studio-home">
+ return <div className={"home studio-home"+((live?.length??0)>0?" home--has-channels":"")}>
   <section className="home-hero"><img className="workspace-hero-art" src="/brand/workspace.png" alt="" width="1448" height="1086"/><p className="studio-eyebrow">{t("Studio.kicker")}</p><h2 className="home-title">{t("Studio.welcome")}</h2><p className="home-sub">{t("Studio.intro")}</p>
     {onCreate&&<button type="button" className="d-btn d-btn--primary studio-create-cta" onClick={onCreate}><StudioIcon name="plus"/>{t("Studio.create")}</button>}
   </section>

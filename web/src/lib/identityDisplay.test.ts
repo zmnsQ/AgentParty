@@ -5,6 +5,7 @@ import {
   formatIdentityPresentation,
   resolveAgentOwnerLabel,
   resolveIdentityPresentation,
+  resolveSenderLabel,
 } from "./identityDisplay";
 
 describe("buildIdentityDisplay", () => {
@@ -273,4 +274,13 @@ describe("identity disambiguation (#858)", () => {
     expect(map["worker-one"]?.disambiguator).toBe("r-one");
     expect(map["worker-two"]?.disambiguator).toBe("r-two");
   });
+});
+
+it("current nickname wins over old sender snapshots without changing identity routing", () => {
+  const sender={name:"agent-stable-id",kind:"agent" as const,handle:"OldNickname"};
+  const map=buildIdentityDisplay({channelIdentities:[{name:sender.name,kind:"agent",display:"新昵称",handle:"新昵称"}],
+    mentionOptions:[],messages:[],participants:[sender],presence:{}});
+  expect(resolveSenderLabel(sender,map)).toBe("新昵称");
+  expect(resolveSenderLabel(sender,undefined)).toBe("OldNickname");
+  expect(sender.name).toBe("agent-stable-id");
 });

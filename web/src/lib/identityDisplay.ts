@@ -126,7 +126,10 @@ export function resolveSenderLabel(sender: Sender, identities: IdentityDisplayMa
   return resolveIdentityPresentation(sender.name, identities, {
     kind: sender.kind,
     owner: sender.owner,
-    display,
+    // The map merges history first and current identity metadata last. A
+    // historical sender.handle must not override the user's current nickname.
+    display: identities?.[sender.name]?.display !== sender.name
+      ? identities?.[sender.name]?.display || display : display,
   }).label;
 }
 

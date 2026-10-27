@@ -227,13 +227,26 @@ export function Composer({
   const [menu, setMenu] = useState<MentionMenuState | null>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
 
-  // 自动增高（#340）：桌面封顶 40vh；手机保留聊天空间，清空后缩回初始 1 行。
+  // Reflow the draft on rotation/keyboard resize too; drafts must not retain a
+  // portrait-sized textarea inside a short landscape viewport.
   useLayoutEffect(() => {
-    const ta = taRef.current;
-    if (ta === null) return;
-    ta.style.height = "auto";
-    const limit = compact ? Math.min(120, Math.round(window.innerHeight * 0.25)) : Math.round(window.innerHeight * 0.4);
-    ta.style.height = Math.min(ta.scrollHeight, limit) + "px";
+    if (typeof window === "undefined") return;
+    const resize = () => {
+      const ta = taRef.current;
+      if (ta === null) return;
+      const viewport = window.visualViewport;
+      const usableHeight = viewport && Math.abs(viewport.scale - 1) < 0.05 ? viewport.height : window.innerHeight;
+      const limit = compact ? Math.max(44, Math.min(96, Math.round(usableHeight * 0.25))) : Math.round(usableHeight * 0.4);
+      ta.style.height = "auto";
+      ta.style.height = Math.min(ta.scrollHeight, limit) + "px";
+    };
+    resize();
+    window.addEventListener?.("resize", resize);
+    window.visualViewport?.addEventListener("resize", resize);
+    return () => {
+      window.removeEventListener?.("resize", resize);
+      window.visualViewport?.removeEventListener("resize", resize);
+    };
   }, [draft, compact]);
 
   useLayoutEffect(() => {
@@ -498,17 +511,6 @@ export function Composer({
           })}
         </ul>
       )}
-      {mentionStatuses.length > 0 && (
-        <ul className="composer-reach" aria-label="mention reachability">
-          {mentionStatuses.map((s) => (
-            <li key={s.name} className={`composer-reach-item composer-reach-item--${REACH_TIER[s.tier]}`}>
-              <span className="composer-reach-dot" aria-hidden="true" />
-              <span className="composer-reach-name t-mono">@{s.display}</span>
-              <span className="composer-reach-label">{reachLabel(s)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
       {compact&&<button type="button" className="composer-more" aria-label={locale==="zh"?"附件与更多":"Attachments and more"} aria-expanded={extrasOpen} onClick={()=>setExtrasOpen(value=>!value)}><StudioIcon name={extrasOpen?"close":"plus"}/></button>}
       <textarea
         ref={taRef}
@@ -527,6 +529,18 @@ export function Composer({
         onFocus={()=>{if(blurTimerRef.current!==null){clearTimeout(blurTimerRef.current);blurTimerRef.current=null;}}}
         onBlur={()=>{if(blurTimerRef.current!==null)clearTimeout(blurTimerRef.current);blurTimerRef.current=setTimeout(()=>{setMenu(null);blurTimerRef.current=null;},120);}}
       />
+      {(mentionStatuses.length>0 || attachments.length>0 || uploads.length>0 || uploadError!==null || pasteError!==null) && <div className="composer-context" role="region" aria-label={locale==='zh'?'待发送内容与提示':'Pending content and notices'} tabIndex={0}>
+      {mentionStatuses.length > 0 && (
+        <ul className="composer-reach" aria-label="mention reachability">
+          {mentionStatuses.map((s) => (
+            <li key={s.name} className={`composer-reach-item composer-reach-item--${REACH_TIER[s.tier]}`}>
+              <span className="composer-reach-dot" aria-hidden="true" />
+              <span className="composer-reach-name t-mono">@{s.display}</span>
+              <span className="composer-reach-label">{reachLabel(s)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {attachments.length > 0 && (
         <ul className="composer-attachments" aria-label="pending attachments">
           {attachments.map((att) => (
@@ -585,6 +599,7 @@ export function Composer({
           {pasteError}
         </p>
       )}
+      </div>}
       <div className="composer-actions">
         <div className="composer-secondary-actions" hidden={compact&&!extrasOpen}>
         {canAttach && (

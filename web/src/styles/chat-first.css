@@ -21,26 +21,26 @@
 :root .mobile-channel-menu-sheet .studio-icon {--icon-size:20px;}
 .mobile-drawer-actions {display:grid;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--t-faint);}
 .mobile-drawer-notify {padding:4px 8px;}
-@media (max-width:760px), (max-device-width:760px) and (pointer:coarse) {
+@media (max-width:760px), (max-height:760px) and (pointer:coarse), (max-device-width:760px) and (pointer:coarse), (max-device-height:760px) and (pointer:coarse) {
  :root.ac-mobile .app--channel>.app-head {display:none;}
  :root.ac-mobile .app--channel .chan {gap:0;}
- :root.ac-mobile .mobile-groupbar {display:flex;align-items:center;gap:4px;padding:4px 8px;min-height:56px;background:var(--t-panel);}
+ :root.ac-mobile .mobile-groupbar {display:flex;align-items:center;gap:4px;padding:4px 8px;min-height:48px;background:var(--t-panel);}
  :root.ac-mobile .mobile-group-toggle {flex:1;min-width:0;min-height:44px;padding:6px 8px;gap:10px;}
  :root.ac-mobile .mobile-group-toggle>span {font-size:16px;font-weight:600;}
  :root.ac-mobile #mobile-channel-menu-slot {flex:none;}
  :root.ac-mobile .mobile-group-toggle .studio-icon {--icon-size:20px;}
  :root.ac-mobile .presence-bar {flex:none;padding:0 12px;border:0;background:var(--t-bg);}
- :root.ac-mobile .presence-mobile-summary {width:100%;min-height:36px;display:flex;align-items:center;gap:7px;padding:4px 4px;border:0;background:transparent;color:var(--t-muted);font:12px/1.4 var(--t-sans);text-align:left;}
+ :root.ac-mobile .presence-mobile-summary {width:100%;min-height:28px;display:flex;align-items:center;gap:7px;padding:4px 4px;border:0;background:transparent;color:var(--t-muted);font:12px/1.4 var(--t-sans);text-align:left;}
  :root.ac-mobile .presence-mobile-summary>.studio-icon {margin-left:auto;}
  .presence-mobile-dot {width:6px;height:6px;border-radius:50%;background:var(--d-amber);flex:none;}
  .presence-mobile-dot[data-status=open] {background:var(--t-green);}
  .presence-mobile-attention {font-size:11px;color:var(--t-muted);margin-left:4px;}
  :root.ac-mobile .mobile-roster-overview {display:grid;gap:8px;margin-bottom:16px;}
  :root.ac-mobile .mobile-roster-overview .focus-inline {max-width:100%;flex-wrap:wrap;}
- :root.ac-mobile .stream {padding:8px 12px 14px;gap:10px;scrollbar-gutter:auto;}
- :root.ac-mobile .stream .msg-card {flex:0 0 auto;padding:12px;min-width:0;width:100%;border-radius:12px;animation:none;}
- :root.ac-mobile .stream .msg-card--own {margin-block:4px;background:color-mix(in srgb,var(--t-accent) 6%,var(--t-panel));}
- :root.ac-mobile .msg-head {display:flex;align-items:center;flex-wrap:nowrap;gap:6px;margin-bottom:6px;font-size:11px;}
+ :root.ac-mobile .stream {padding:8px 12px 12px;gap:4px;background:var(--t-bg);scrollbar-gutter:auto;}
+ :root.ac-mobile .stream .msg-card {flex:0 0 auto;padding:9px 10px;min-width:0;width:100%;margin-block:2px;border:0;border-radius:10px;box-shadow:none;background:var(--t-panel);animation:none;}
+ :root.ac-mobile .stream .msg-card--own {margin-block:2px;background:color-mix(in srgb,var(--t-accent) 6%,var(--t-panel));}
+ :root.ac-mobile .msg-head {display:flex;align-items:center;flex-wrap:nowrap;gap:6px;margin-bottom:4px;font-size:11px;}
  :root.ac-mobile .msg-head-main {width:auto;flex:1 1 0;min-width:0;gap:6px;flex-wrap:nowrap;overflow:hidden;}
  :root.ac-mobile .msg-head-main>.msg-agent-popover {flex:0 1 auto;min-width:0;}
  :root.ac-mobile .msg-head-main>.msg-agent-popover:has(.msg-mention) {display:none;}
@@ -48,19 +48,86 @@
  :root.ac-mobile .msg-head-meta {width:auto;flex:none;gap:4px;margin-left:auto;white-space:nowrap;}
  :root.ac-mobile .msg-time-full,:root.ac-mobile .msg-head-meta .msg-seq {display:none;}
  :root.ac-mobile .msg-time-compact {display:inline;color:var(--t-muted);font:11px/1.4 var(--t-sans);}
- :root.ac-mobile .msg-body {font:15px/1.7 var(--t-sans);}
- :root.ac-mobile .composer {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:end;gap:4px;flex:none;min-height:58px;max-height:45%;margin:0 10px max(8px,env(safe-area-inset-bottom));padding:6px;border:1px solid var(--t-faint);border-radius:16px;box-shadow:none;background:var(--t-panel);}
+ :root.ac-mobile .msg-body {font:15px/1.55 var(--t-sans);overflow-wrap:anywhere;}
+ :root.ac-mobile .composer {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:end;gap:4px;flex:none;min-height:54px;max-height:none;margin:0;padding:5px 8px max(5px,env(safe-area-inset-bottom));border:0;border-top:1px solid var(--t-faint);border-radius:0;box-shadow:none;background:var(--t-panel);}
  :root.ac-mobile .composer-more {grid-column:1;grid-row:1;align-self:end;}
- :root.ac-mobile .composer-input {grid-column:2;grid-row:1;align-self:center;width:100%;min-width:0;min-height:44px;max-height:120px;flex:none;margin:0;padding:10px 4px;border:0;box-shadow:none;border-radius:0;font:16px/24px var(--t-sans);}
+ :root.ac-mobile .composer-input {grid-column:2;grid-row:1;align-self:center;width:100%;min-width:0;min-height:44px;max-height:96px;flex:none;margin:0;padding:10px 9px;border:0;box-shadow:none;border-radius:10px;background:var(--t-panel2);font:16px/24px var(--t-sans);}
  :root.ac-mobile .composer-actions {display:contents;}
  :root.ac-mobile .composer-actions .composer-send {grid-column:3;grid-row:1;width:44px;height:44px;min-height:44px;margin:0;padding:0;border:0;border-radius:12px;box-shadow:none;align-self:end;background:var(--t-accent);color:var(--t-accent-ink);}
  :root.ac-mobile .composer-send-label,:root.ac-mobile .composer-keyboard-hint {display:none;}
  :root.ac-mobile .composer .studio-icon {--icon-size:20px;}
- :root.ac-mobile .composer-secondary-actions:not([hidden]) {grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 2px 2px;border-top:1px solid var(--t-faint);}
+ :root.ac-mobile .composer-secondary-actions:not([hidden]) {position:absolute;bottom:calc(100% + 6px);left:8px;right:8px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:6px;max-height:min(160px,40dvh);overflow:auto;padding:8px;border:1px solid var(--t-faint);border-radius:12px;background:var(--t-panel);box-shadow:var(--ac-shadow-modal);}
  :root.ac-mobile .composer-secondary-actions .d-btn {min-height:44px;padding:8px 12px;border:0;border-radius:10px;background:var(--t-panel2);font:500 13px/1.4 var(--t-sans);}
  :root.ac-mobile .composer>:is(.composer-reach,.composer-attachments,.composer-uploads,.composer-upload-error,.composer-paste-error) {grid-column:1/-1;max-height:100px;overflow:auto;margin:0;font-size:12px;}
  :root.ac-mobile .composer .mention-menu {max-height:min(240px,45dvh);max-width:100%;left:0;right:0;}
- :root.ac-mobile .mobile-channel-menu-overlay {inset:calc(var(--ac-viewport-top,0px)/var(--ac-layout-scale,1)) 0 auto;height:calc(var(--ac-viewport-height,100dvh)/var(--ac-layout-scale,1));}
+ :root.ac-mobile .mobile-channel-menu-overlay {inset:var(--ac-viewport-top,0px) 0 auto;height:var(--ac-viewport-height,100dvh);}
  :root.ac-mobile .mobile-channel-menu-sheet {max-height:90%;}
  :root.ac-mobile .msg-menu-trigger {width:32px;height:32px;min-height:32px;padding:0;border:0;box-shadow:none;background:transparent;border-radius:8px;}
 }
+
+/* Communication first: secondary controls never become permanent chat chrome. */
+.mobile-menu-management {margin-top:16px;border-top:1px solid var(--t-faint);padding-top:8px;}
+.mobile-menu-management>summary {display:flex;align-items:center;justify-content:space-between;min-height:44px;cursor:pointer;font:500 13px/1.4 var(--t-sans);color:var(--t-muted);list-style:none;}
+.mobile-menu-management>summary::-webkit-details-marker {display:none;}
+.mobile-menu-management[open]>summary .studio-icon {transform:rotate(180deg);}
+:root.ac-mobile .composer::before,:root.ac-mobile .presence-bar::after {display:none;}
+:root.ac-mobile .composer-reach {flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;max-height:28px;}
+:root.ac-mobile .composer-reach-item {flex:none;font-size:11px;padding:2px 5px;}
+:root.ac-mobile .reply-banner {flex:none;margin:0;padding:4px 12px;min-height:32px;border:0;border-top:1px solid var(--t-faint);background:var(--t-panel);font-size:12px;}
+:root.ac-mobile .reply-banner-dismiss {min-height:32px;}
+:root.ac-mobile .task-blog-head {gap:8px;margin-bottom:10px;padding-bottom:10px;}
+:root.ac-mobile .task-blog-name {font-size:18px;}
+:root.ac-mobile .task-blog-prompt {font-size:12px;line-height:1.5;}
+:root.ac-mobile .task-blog-filter {gap:8px;margin-bottom:10px;}
+:root.ac-mobile .task-blog-filter-row {flex-wrap:nowrap;overflow-x:auto;padding-bottom:3px;}
+:root.ac-mobile .task-blog-filter-row>* {flex-shrink:0;}
+:root.ac-mobile .task-card {border-radius:10px;}
+:root.ac-mobile .task-card-open {padding:10px 12px;gap:6px;}
+:root.ac-mobile .task-card-copy strong {font-size:14px;}
+:root.ac-mobile .msg-body :is(pre,table) {max-width:100%;overflow:auto;}
+@media (max-height:500px) {
+ :root.ac-mobile .mobile-groupbar {padding-block:0;min-height:44px;}
+ :root.ac-mobile .presence-bar {display:none;}
+ :root.ac-mobile .stream {padding-block:4px;}
+ :root.ac-mobile .composer {padding-block:3px;min-height:50px;}
+ :root.ac-mobile .composer-input {max-height:72px;}
+ :root.ac-mobile .mobile-channel-menu-sheet {max-height:100%;border-radius:0;padding-top:4px;}
+ :root.ac-mobile .mobile-channel-menu-sheet h3 {margin-top:8px;}
+ :root.ac-mobile .mobile-channel-menu-sheet .d-btn {min-height:44px;padding:8px 10px;}
+}
+
+:root.ac-mobile .mobile-groups-content {padding:8px 10px 16px;}
+:root.ac-mobile .mobile-groups-content .chan-pill {border:0;border-radius:10px;box-shadow:none;min-height:56px;padding:10px 12px;}
+:root.ac-mobile .mobile-groups-content .chan-pill.is-active {background:var(--ac-accent-soft);}
+:root.ac-mobile .mobile-drawer-actions {gap:6px;margin-top:16px;}
+:root.ac-mobile .mobile-account-entry {display:flex;align-items:center;gap:10px;min-height:56px;width:100%;text-align:left;}
+:root.ac-mobile .mobile-account-entry>span {display:grid;gap:2px;min-width:0;}
+:root.ac-mobile .mobile-account-entry strong {font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:root.ac-mobile .mobile-account-entry small {font-size:11px;color:var(--t-muted);}
+
+.task-filter-details>summary {cursor:pointer;font:500 12px/1.5 var(--t-sans);color:var(--t-muted);padding:8px 0;min-height:36px;}
+:root.ac-mobile .task-filter-details>summary {min-height:44px;display:flex;align-items:center;}
+:root.ac-mobile .task-filter-details .task-blog-filter-row {flex-wrap:wrap;overflow:visible;gap:6px;}
+:root.ac-mobile .task-blog-search {flex:1 1 100%;min-width:0;width:100%;}
+
+/* Conversation list, rather than a card dashboard, on handheld screens. */
+:root.ac-mobile .home {padding:12px;}
+:root.ac-mobile .home--has-channels .home-hero {display:none;}
+:root.ac-mobile .studio-section-heading {gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+:root.ac-mobile .studio-section-heading>h3 {font-size:17px;margin:0;}
+:root.ac-mobile .studio-search {width:100%;flex:1 1 100%;}
+:root.ac-mobile .studio-search input {font-size:16px;min-height:40px;}
+:root.ac-mobile .home-grid {display:flex;flex-direction:column;gap:0;}
+:root.ac-mobile .home-card {display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:3px 10px;min-height:76px;padding:12px 4px;border:0;border-bottom:1px solid var(--t-faint);border-radius:0;background:transparent;box-shadow:none;align-content:center;text-align:left;}
+:root.ac-mobile .studio-group-card-head {grid-column:1;grid-row:1/4;display:block;align-self:center;margin:0;}
+:root.ac-mobile .studio-group-card-head .studio-group-symbol {width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--ac-accent-soft);}
+:root.ac-mobile .studio-group-card-head :is(.studio-privacy,.chan-dots) {display:none;}
+:root.ac-mobile .home-card-title {grid-column:2;grid-row:1;font-size:15px;line-height:1.4;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:root.ac-mobile .home-card-topic {display:none;}
+:root.ac-mobile .home-card-last {grid-column:2;grid-row:2;font-size:12px;line-height:1.5;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t-muted);}
+:root.ac-mobile .studio-group-open {grid-column:3;grid-row:1/3;align-self:center;position:static;}
+
+.composer-context {display:contents;}
+:root.ac-mobile .composer-context {grid-column:1/-1;display:block;min-height:0;max-height:min(96px,calc(var(--ac-viewport-height,100dvh) * .2));overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+:root.ac-mobile .composer-context :is(.composer-reach,.composer-attachments,.composer-uploads,.composer-upload-error,.composer-paste-error) {max-height:none;margin:3px 0;font-size:12px;}
+:root.ac-mobile .composer-context .composer-reach {overflow:visible;}

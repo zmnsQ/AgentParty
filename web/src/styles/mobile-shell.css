@@ -18,9 +18,9 @@
 :root .mobile-groups-content .chan-pill { width: 100%; max-width: none; min-height: 48px; }
 :root .mobile-groups-content .chan-name { max-width: none; font-size: 14px; }
 :root .mobile-groups-content .side { display: flex; flex-direction: column; }
-@media (max-width: 760px), (max-device-width: 760px) and (pointer: coarse) {
- :root #root { height: calc(var(--ac-viewport-height,100dvh) / var(--ac-layout-scale,1)); min-width: 0; }
- :root .app { min-height: 0; height: auto; max-height: 100%; }
+@media (max-width: 760px), (max-height: 760px) and (pointer: coarse), (max-device-width: 760px) and (pointer: coarse), (max-device-height: 760px) and (pointer: coarse) {
+ :root #root { height: var(--ac-viewport-height,100dvh); min-width: 0; }
+ :root .app { min-height: 0; height: 100%; max-height: 100%; }
  :root .app-shell { display: flex; flex-direction: column; width: 100%; min-width: 0; min-height: 0; gap: 0; padding: 0; }
  :root .app-main { flex: 1 1 0; min-width: 0; min-height: 0; width: 100%; overflow: hidden; }
  :root .chan { min-width: 0; min-height: 0; width: 100%; }
@@ -30,10 +30,11 @@
  :root :is(.app-settings-btn,.app-agent-center-btn,.notify-toggle-btn) { width: 44px; height: 44px; flex: none; }
  :root .stream { min-width: 0; min-height: 0; padding: 12px; scrollbar-gutter: auto; }
  :root .msg-body { font-size: 15px; }
+ :root :is(.app-head,.mobile-group-toggle,.stream,.channel-panel-head,.channel-panel-body,.settings-head,.settings-content) { padding-left: max(12px,env(safe-area-inset-left)); padding-right: max(12px,env(safe-area-inset-right)); }
  :root .msg-head { flex-wrap: wrap; }
  :root .home { padding: 22px 16px; }
  :root :is(.home-grid,.team-lane-cards) { grid-template-columns: minmax(0,1fr); }
- :root.ac-mobile :is(.agent-join-overlay,.channel-panel-overlay,.settings-overlay,.mobile-groups-overlay) { position: fixed; inset: calc(var(--ac-viewport-top,0px) / var(--ac-layout-scale,1)) 0 auto; width: 100%; height: calc(var(--ac-viewport-height,100dvh) / var(--ac-layout-scale,1)); max-height: none; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; align-items: stretch; }
+ :root.ac-mobile :is(.agent-join-overlay,.channel-panel-overlay,.settings-overlay,.mobile-groups-overlay) { position: fixed; inset: var(--ac-viewport-top,0px) 0 auto; width: 100%; height: var(--ac-viewport-height,100dvh); max-height: none; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; align-items: stretch; }
  :root.ac-mobile .agent-join-overlay .agent-join-card,
  :root.ac-mobile .channel-panel-overlay .channel-panel-card,
  :root.ac-mobile .settings-overlay .settings-panel { width: 100%; max-width: 100%; height: 100%; max-height: 100%; min-width: 0; min-height: 0; margin: 0; border: 0; border-radius: 0; box-sizing: border-box; transform: none; }
@@ -62,4 +63,13 @@
  :root .commons-nav [role=tablist] { flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
  :root .commons-tab { flex: none; min-height: 44px; }
  :root.ac-keyboard-open .presence-bar { display: none; }
+}
+
+/* On short touch viewports the scrollable body, not its header, owns space. */
+@media (max-height: 500px) and (pointer: coarse) {
+ :root.ac-mobile .app-head { min-height: 44px; padding-block: 0; }
+ :root.ac-mobile .mobile-group-toggle { min-height: 44px; padding-block: 4px; }
+ :root.ac-mobile :is(.agent-join-card-head,.channel-panel-head,.settings-head) { padding-block: 4px; }
+ :root.ac-mobile .agent-join-card { padding-block: 8px; }
+ :root.ac-mobile .settings-content { flex: 1 1 0; }
 }

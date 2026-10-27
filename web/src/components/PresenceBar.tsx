@@ -7,6 +7,7 @@ import {StudioIcon} from "./StudioIcon";
 import { LiveSessionEntryButton, hasLiveSession } from "./LiveSessionView";
 import { LocalOcsSessions } from "./LocalOcsSessions";
 import type { OcsRosterFrame } from "@agentparty/shared";
+import type { ChannelIdentity } from "../lib/api";
 import type { LiveSession } from "../state";
 import { autoWakeReachable, evaluateHostLease, PRESENCE_TIMEOUT_MS, wakeableState, type ChannelRoleAssignment, type PresenceEntry, type PresenceState, type Sender } from "@agentparty/shared";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from "react";
@@ -53,6 +54,9 @@ interface Props {
   onMentionAgent?: (name: string) => void;
   // #858：撞名身份的技术区分码来源；缺省即不显示区分码（老调用方行为不变）。
   identities?: IdentityDisplayMap;
+  /** Current identity API roster only; the display map may contain removed historical senders. */
+  rosterIdentities?: ChannelIdentity[];
+  authoritativeNames?: ReadonlySet<string>;
   // 模块②（#1047）：名单里叫不到的 agent 旁边直接给「接回」——打开一条命令的重连引导。
   onReconnect?: (name: string) => void;
   /** 初始就展开名单（静态预览 / 测试用；生产不传）。 */
@@ -442,6 +446,8 @@ export function PresenceBar({
   ocsRosters,
   onMentionAgent,
   identities,
+  rosterIdentities = [],
+  authoritativeNames,
   onReconnect,
   initialRosterOpen = false,
 }: Props) {
@@ -463,17 +469,21 @@ export function PresenceBar({
   // 在线 sender 带 owner；离线/最近 presence 带 account。两者都归到同一账号块。
   const byName = new Map(participants.map((p) => [p.name, p]));
   const roleByName = new Map(roles.map((role) => [role.name, role]));
-  const names = [...new Set([...participants.map((p) => p.name), ...Object.keys(presence), ...roles.map((role) => role.name)])].sort();
+  const rosterByName = new Map(rosterIdentities.map(identity => [identity.name, identity]));
+  const names = [...new Set([...participants.map((p) => p.name), ...Object.keys(presence),
+    ...roles.map((role) => role.name), ...rosterByName.keys()])]
+    .filter(name => name !== "system" && (authoritativeNames === undefined || authoritativeNames.has(name))).sort();
   const items: Item[] = names.map((name) => {
     const entry = presence[name];
     const clientVersion = entry?.client_version ?? null;
     const sender = byName.get(name);
     const assigned = roleByName.get(name);
-    const owner = sender?.owner ?? entry?.account ?? assigned?.account ?? null;
+    const identity = rosterByName.get(name);
+    const owner = identity?.account ?? sender?.owner ?? entry?.account ?? assigned?.account ?? null;
     // 人类全局昵称：仅人类且已设置时有值，agent 恒为 null（协议层保证）。
     const handle = sender?.handle ?? entry?.handle ?? null;
     const displayName = sender?.display_name ?? entry?.display_name ?? null;
-    const kind = sender?.kind ?? entry?.kind ?? assigned?.kind ?? "agent";
+    const kind = identity?.kind ?? sender?.kind ?? entry?.kind ?? assigned?.kind ?? "agent";
     const connected = byName.has(name);
     const meta = {
       lastSeen: entry?.last_seen ?? null,
@@ -486,7 +496,7 @@ export function PresenceBar({
       lineage: entry?.lineage ?? sender?.lineage ?? null,
       workflow: entry?.status?.workflow ?? null,
       display:
-        assigned?.display ??
+        identity?.display ?? assigned?.display ??
         (kind === "human" ? displayName ?? handle ?? owner ?? name : handle ?? displayName ?? name),
       displayName,
       disambiguator: disambiguatorForIdentity(name, identities),
@@ -537,7 +547,7 @@ export function PresenceBar({
         handle: null,
         ...meta,
         displayName: null,
-        display: assigned?.display ?? identities?.[name]?.display ?? name,
+        display: identity?.display ?? assigned?.display ?? identities?.[name]?.display ?? name,
       };
     }
     if (entry && entry.state !== "offline") {

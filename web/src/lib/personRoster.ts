@@ -80,6 +80,10 @@ export function isStaleSession(item: PersonLike): boolean {
 }
 
 function personDisplay<T extends PersonLike>(sessions: T[]): string {
+  // Agents are independent identities, not another session of their owner.
+  // Their current display comes from the identity roster and may be newer than
+  // a live connection's handle snapshot. Never replace it with an owner label.
+  if (sessions[0]?.kind === "agent") return norm(sessions[0].display) ?? norm(sessions[0].handle) ?? sessions[0].name;
   // 人类：SSO 展示名 > handle > 可读的归属账号 > 现有 display；不可读的账号串永远不当名字。
   for (const pick of [
     (s: T) => (s.kind === "human" ? norm(s.displayName) : null),

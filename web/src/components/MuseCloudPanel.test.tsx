@@ -28,6 +28,24 @@ describe('Muse Cloud staged connection UI',()=>{
   expect(body).toContain('Not configured');expect(body).toContain('A paired device is required');expect(body).toContain('No verified review decision');
   expect(root.findByProps({className:'muse-steps'}).findAllByType('li')).toHaveLength(4);expect(root.findByProps({className:'muse-native-steps'}).findAllByType('li')).toHaveLength(2);expect(calls.every(x=>x.method==='GET')).toBe(true);expect(root.findByProps({type:'url'}).props.value).toBe('');
  });
+ test('Gadget is primary, requires explicit staged setup, and preserves collapsed OAuth',async()=>{
+  const root=await render();
+  const primary=root.findByProps({className:'muse-gadget-primary'}),body=text(primary);
+  expect(body).toContain('Recommended: Gadget event bridge');
+  expect(body).toContain('Pair an isolated device yourself');
+  expect(body).toContain('group-scoped bridge identity');
+  expect(body).toContain('Explicitly enable');
+  expect(body).toContain('does not mean delivered or replied');
+  expect(body).toContain('No reply-stream listener is claimed');
+  expect(primary.findAllByType('li')).toHaveLength(4);
+  expect(primary.findAllByType('button')).toHaveLength(0);
+  expect(primary.findAllByType('a').some(a=>a.props.href==='https://github.com/facebookincubator/muse-gadget-sdk')).toBe(true);
+  const legacy=root.findByProps({className:'muse-legacy'});
+  expect(legacy.type).toBe('details');expect(legacy.props.open).toBeUndefined();
+  expect(text(legacy)).toContain('native MCP and OAuth');
+  expect(legacy.findAllByType('input').some(i=>i.props.value==='https://commons.test/api/channels/group/mcp')).toBe(true);
+  expect(calls.every(x=>x.method==='GET')).toBe(true);
+ });
  test('MFA gate hides client registration',async()=>{
   canConfigure=false;const root=await render();expect(text(root)).toContain('two-step verification');expect(root.findAllByType('form')).toHaveLength(0);expect(calls.every(x=>x.method==='GET')).toBe(true);
  });

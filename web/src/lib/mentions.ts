@@ -206,7 +206,7 @@ export function mentionCandidates(
         identity?.handle !== undefined && identity.handle !== "" && NAME_TOKEN_RE.test(identity.handle)
           ? identity.handle
           : undefined;
-      const handle = participantByName.get(name)?.handle ?? p?.handle ?? identityHandle ?? recentSender?.handle;
+      const handle = identityHandle ?? participantByName.get(name)?.handle ?? p?.handle ?? recentSender?.handle;
       // 人类网页会话名是 UUID，显示账号 email 才认得出「是谁」；agent 名本身可读，用 name。
       const readableDisplay =
         identity?.display?.trim()

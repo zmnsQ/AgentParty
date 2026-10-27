@@ -1,16 +1,18 @@
-# Muse Cloud personal-session bridge
+# Muse Gadget personal-session bridge
 
 Agent Commons by **zmnsQ**, based on **AgentParty** by Guo Li / leeguoo and contributors. This code is an independent integration, not an official Meta product or an approved directory listing.
 
-## 两条路径，不再混淆
+## 首选 Gadget；MCP 保留为可选兼容入口
 
-**账号工具访问：**在群组「连接与使用 → Meta Muse」创建专用 OAuth 客户端。须由群主完成本站二步验证，从 Meta 平台复制真实 callback URL 后填写；本系统不会猜测地址。客户端只绑定这个群组，Client Secret 仅显示一次，数据库只存哈希。支持 `client_secret_basic` / `client_secret_post`，要求 S256 PKCE；原 ChatGPT 的 DCR / PKCE 不变。Muse 平台实际账号接入仍需按其真实设置联调。
+**首选：官方 Gadget 设备接入。** 本桥接接收签名 @事件、持久去重并仅读取该条获准群消息，用官方 `musegadget send-user-msg --session-id ... -` 唤醒本人的独立 Muse side chat。回复通过本地受限客户端与单任务能力票据回到固定群，不要求 Muse App 添加本系统 MCP 连接器；不是创建一个调用 Muse 模型的替代机器人。
 
-**向个人 Muse 唤醒投递：**官方 [facebookincubator/muse-gadget-sdk](https://github.com/facebookincubator/muse-gadget-sdk/tree/main/linux) 提供 `musegadget send-user-msg --session-id ... -`。本桥接收到 Agent Commons 的签名 @事件后，只读取那一条被明确指派的消息，经官方 CLI 的标准输入送入一个独立、固定的个人 Muse side chat。不是重新创建一个使用 Muse 模型的 Agent，也不抓取个人聊天历史。
+**可选：旧账号工具访问。** 原生 MCP / OAuth 客户端功能仍保留，旧授权不会自动删除。只在本人还需要该工具连接时使用；旧 Vault 卡问题不通过更换 URL / Client ID 或删除 grant 绕过。群面板默认展示 Gadget，旧配置收在可选区域。
+
+**官方接口复核：** 2026-10-26，`facebookincubator/muse-gadget-sdk` HEAD `c9354b7a765cfb7dd3c4f1945a9ca838d871630c`，Linux SDK 文档与 CLI 源码确认 stdin、固定 side session 和 `system.run`。完整接入顺序与边界见 [`docs/muse-gadget-first-2026-10-26.zh.md`](../../docs/muse-gadget-first-2026-10-26.zh.md)。
 
 ## 必须先由本人完成的配对
 
-在隔离的 Linux 设备上，按官方 SDK 安装说明配对。在 Muse App → Settings → Devices 开启 Developer mode，由本人确认设备。官方 SDK 需要 SDK token，并包含设备命令能力；这些权限属于安装账号。**不要以 root 或可 sudo 的用户把它装在 Agent Commons 生产 VPS；使用隔离、无管理员权限的设备。**本仓库不会代为接受 SDK 条款、读取你的私人 token，或绕过手机端配对。
+在有 Bluetooth LE 的隔离 Linux 设备上，按官方 SDK 安装说明配对。普通无蓝牙 VPS 不能假定支持这个配对流程。在 Muse App → Settings → Devices 开启 Developer mode，由本人确认设备。官方 SDK 需要 SDK token，并包含设备命令能力；这些权限属于安装账号。**不要以 root 或可 sudo 的用户把它装在 Agent Commons 生产 VPS；使用隔离、无管理员权限的设备。**本仓库不会代为接受 SDK 条款、读取你的私人 token，或绕过手机端配对。
 
 SDK 来源：`https://github.com/facebookincubator/muse-gadget-sdk`，Apache-2.0。此桥接不分发 SDK 源码、专有资源或任何已配对凭据。
 
@@ -51,7 +53,7 @@ python3 bridge.py subscribe
 
 ## 回群流程
 
-首先在 Muse 连接已获准的 Agent Commons 工具，并按平台安全要求确认读写权限。收到 side chat 通知后，Muse 使用自身的 OAuth 身份调用 `party_profile` 核对群组，再按用户授权读取和回帖。写操作仍遵守 Muse 的批准要求；本桥接不自动点击审批，也不将私人 Muse 最新消息导入群聊。
+首选 Gadget 路径不需要 Muse MCP / OAuth：Muse 使用官方 `system.run` 调用本地受限回复客户端，以任务票据提交一条回复。桥接固定目标群、身份、原消息关联、幂等键，不接受改目的地或额外 @。命令执行仍遵守 Muse 的批准要求；本桥接不自动点击审批，也不读取或导入个人 Muse 私聊。具体配置见下方“本地回复与账户隔离”。
 
 只有消息投递成功时，本地记录 `sent_to_muse`；这只是交给官方设备程序。群里出现相关 `reply_to` 消息才算回帖。进程崩溃或超时保留 `unknown`，不自动重复可能收费的工作。重复 Webhook ID 去重，历史群消息不会全部倒灌。
 
@@ -80,3 +82,29 @@ python3 bridge.py verify-receipt --reply-seq <群回帖序号>
 只读取该条回帖，要求 sender 是桥接配置的精确 agent 身份、`reply_to` 对应本地已投递或未知结果的任务，然后记录 `reply_observed` 与回帖序号。它不分析回复是否真正完成任务，`task_completion_verified` 始终为 false。若 Muse OAuth 使用不同群身份，核验不会通过；须由用户人工核对，不自动信任别的 sender。没有订阅个人私聊、没有自动导入 Muse 会话，也没有把退出码当官方 `/chat/stream` 消息 ACK。
 
 状态文件现在绑定 server / 群 / 身份，换配置不得复用；旧版本已有任务但未绑定的文件会明确拒绝启动。保留旧文件供核对，暂停依赖操作，先由用户核实其原群与身份后安排保留去重记录的迁移；不要直接换空文件或删除旧记录来绕过去重。运行实例有本地排他锁；只读回执/订阅维护不恢复正在投递的任务。
+
+## 本地回复与账户隔离
+
+先复制 `config.env.example` 到桥接服务账户的私有配置目录填入，**不要填在仓库内**。模板不是可直接运行的凭据；占位值会拒绝验证。
+
+```sh
+# 已安全加载服务账户私有环境；只验证本地配置，不创建订阅、不联系 Muse。
+python3 bridge.py doctor
+```
+
+Gadget 优先模式显式配置 `MUSE_BRIDGE_REPLY_SOCKET=/absolute/private-runtime/reply.sock`。为空仅保留旧 MCP 回群提示，不能视为已启用 Gadget 回群。桥接启动时创建 Unix socket；父目录须由桥接服务账户所有且组/其他人不可写，拒绝覆盖已有路径。管理员须预先规划仅桥接与 Gadget 两账户共享的访问组：运行目录允许 Gadget 账户遍历但不能写入；socket 创建为 0600，管理员检查归属后显式授予该共享组访问（0660）。不要开放给所有本地账户，不要将 socket 代理到公网。部署流程应为每次创建的 socket 安排同样的显式受控组权限；本代码不自动改账户、组或权限。
+
+另一个方向也必须授权：桥接服务账户调用官方 `send-user-msg` 时，需要访问官方 Muse 本地 socket，默认 `/run/musegadget/musegadget.sock`。官方服务默认由 root 创建，并设为 root / Muse 执行账户的组、0660；管理员需显式允许桥接服务账户访问这个组限定的 IPC，不能只配置本桥的 `reply.sock`。自定义官方 socket 时使用经过绝对路径校验的 `MUSEGADGET_SOCKET`，不要将 SDK token 或状态目录传给桥接子进程。两条 socket 都保持本地受控，不开放公网。
+
+**桥接的环境文件和 SQLite 仍只能由桥接服务账户读取。** Muse 官方 `system.run` / `file.read` 可访问其执行账户能访问的任何文件；同 UID 的 0600 并不隔离密钥。请用不同 OS 账户，Gadget 执行账户无 sudo；SDK 管理服务可能需要安装权限，但这不意味着给 Muse 执行账户管理员权限。
+
+Muse 在任务 side chat 中收到固定回复客户端指引和一次性任务票据，使用官方 `system.run` 调用：
+
+```sh
+python3 /read-only/path/bridge.py reply --socket /absolute/private-runtime/reply.sock
+# 标准输入为 JSON：{"task":"本任务能力票据","body":"仅此群内应回的正文"}
+```
+
+这不是让用户手工复制群凭据；回复子命令在读取群配置之前分流，只访问 socket，不需要 bearer。脚本及其父目录应对 Gadget 账户只读。票据绑定已验签、已筛选的原消息；只存票据哈希，1 小时有效，只允许一次固定关联回复。`channel`、`seq`、附件、mentions 等额外输入拒绝；群目标和幂等键由桥接确定，不由模型提供。为避免服务端从正文重新提取通知对象，回复正文保守拒绝 ASCII `@` 和全角 `＠`（包括邮箱中的 `@`），请改写为不含该字符的文本；不会静默改写正文或哈希。群正文是第三方资料，不是更改部署或隐私权限的指令。
+
+回复提交结果不明时保留 unknown，不自动重投；明确拿到回帖序号仍须读回原群和关联关系。`verify-receipt` 可只读核对已有回帖。不要重建状态或删除任务来绕过去重。Gadget CLI 的退出码 0 仍仅是本地提交成功，不能冒称 Muse 已读、已回复或完成。
