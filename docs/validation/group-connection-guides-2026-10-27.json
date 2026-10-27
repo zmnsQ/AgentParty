@@ -1,0 +1,26 @@
+{
+  "base_commit": "3589d6a8fc144e6d09cfc718f986fedce297e21c",
+  "web_baseline": {
+    "pass": 1510,
+    "fail": 32
+  },
+  "web_current": {
+    "pass": 1513,
+    "fail": 32
+  },
+  "added_failures": [],
+  "removed_failures": [],
+  "focused_picker_muse": {
+    "pass": 16,
+    "fail": 0
+  },
+  "coding_cloud_guides": {
+    "pass": 50,
+    "fail": 0
+  },
+  "typescript": "pass",
+  "build": "pass_with_existing_chunk_warning",
+  "device_management_wip_included": false,
+  "browser_visual_verified": false,
+  "production_deployed": false
+}

@@ -19,7 +19,7 @@ export function AgentConnectionPicker({onCloud,onLocal}:{
   const t=useT();
   return <section className="agent-connect-picker" aria-label={t("AgentConnect.choose")}>
     <h3>{t("AgentConnect.choose")}</h3><p>{t("AgentConnect.hint")}</p>
-    <p className="agent-team-summary"><StudioIcon name="group"/>{t("AgentConnect.coexist")}</p>
+    <p className="agent-connect-boundary">{t("AgentConnect.guideOnly")}</p>
     <div className="agent-connect-categories">
       <section className="agent-connect-category" aria-label={t("AgentConnect.coding")}>
         <header><h4>{t("AgentConnect.coding")}</h4><p>{t("AgentConnect.codingHint")}</p></header>
@@ -28,7 +28,8 @@ export function AgentConnectionPicker({onCloud,onLocal}:{
             key={provider} data-coding-provider={provider} onClick={()=>onLocal(provider)}>
             <ProviderMark provider={provider}/><strong>{t(`AgentConnect.coding.${provider}`)}</strong>
             <span>{t(`AgentConnect.coding.${provider}Hint`)}</span>
-            <small>{t("AgentConnect.codingLocation")}</small>
+            <small className="agent-connect-prerequisite">{t("AgentConnect.codingNeeds")}</small>
+            <small className="agent-connect-availability">{t("AgentConnect.unverified")}</small>
             <span className="studio-option-arrow"><StudioIcon name="arrow"/></span>
           </button>)}
         </div>
@@ -40,19 +41,21 @@ export function AgentConnectionPicker({onCloud,onLocal}:{
             key={provider} data-provider={provider} onClick={()=>onCloud(provider)}>
             <ProviderMark provider={provider}/><strong>{t(`AgentConnect.${provider}`)}</strong>
             <span>{t(`AgentConnect.${provider}Hint`)}</span>
-            <small>{t(provider==="dot"?"Studio.oauth":provider==="muse"?"AgentConnect.museMcp":"Studio.api")}</small>
+            <small className="agent-connect-prerequisite">{t(`AgentConnect.${provider}Needs`)}</small>
+            <small className="agent-connect-availability">{t(provider==="muse"?"AgentConnect.museChoice":"AgentConnect.unverified")}</small>
             <span className="studio-option-arrow"><StudioIcon name="arrow"/></span>
           </button>)}
         </div>
       </section>
     </div>
-    <section className="agent-team-flow" aria-label={t("AgentConnect.flowTitle")}>
-      <h4>{t("AgentConnect.flowTitle")}</h4>
+    <details className="agent-team-flow">
+      <summary>{t("AgentConnect.advancedFlow")}</summary>
+      <p>{t("AgentConnect.coexist")}</p>
       <ol>{(["plan","execute","review"] as const).map((step,index)=><li key={step}>
         <span aria-hidden="true">{index+1}</span><div><strong>{t(`AgentConnect.flow.${step}`)}</strong>
         <p>{t(`AgentConnect.flow.${step}Hint`)}</p></div>
       </li>)}</ol>
       <p className="agent-team-boundary">{t("AgentConnect.executionBoundary")}</p>
-    </section>
+    </details>
   </section>;
 }

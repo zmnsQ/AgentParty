@@ -1,0 +1,40 @@
+/* Prototype conversation sidebar. Scoped so other lists and permission UI stay unchanged. */
+.side.prototype-sidebar {
+  box-sizing: border-box; width: 225px; min-width: 0; flex: 0 0 225px;
+  display: flex; flex-direction: column; gap: 0; padding: 18px 12px 12px;
+  min-height: 0; height: 100%; overflow: hidden; background: #2c2f30;
+  color: #e2e4df; border: 0; border-right: 1px solid #404243; border-radius: 0;
+}
+.prototype-sidebar .side-label { display: block; color: #daddd6; margin: 0 4px 16px; font: 600 13px/1.5 var(--t-sans, sans-serif); }
+.prototype-sidebar-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; min-height: 40px; flex-shrink: 0; border: 1px solid #55595a; border-radius: 8px; color: #b3b9b5; }
+.prototype-sidebar-search input { min-width: 0; width: 100%; padding: 9px 0; border: 0; background: transparent; color: #efefea; font: 12px/1.5 var(--t-sans, sans-serif); outline: none; box-shadow: none; }
+.prototype-sidebar-search input::placeholder { color: #afb5b1; }
+.prototype-sidebar-search:focus-within { outline: 2px solid #ceb79e; outline-offset: 2px; }
+.prototype-sidebar-scroll { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #626862 transparent; flex: 1; padding-top: 14px; }
+.prototype-sidebar .chan-cat-switch { display: flex; gap: 3px; flex-wrap: wrap; margin: 0 0 10px; padding: 0; border: 0; background: transparent; }
+.prototype-sidebar .chan-cat-btn { flex: 1 1 auto; min-height: 36px; padding: 5px; font-size: 11px; color: #b8bfba; border: 0; border-radius: 6px; background: transparent; }
+.prototype-sidebar .chan-cat-btn.is-active { color: #f0eee8; background: #ffffff10; box-shadow: none; }
+.prototype-sidebar .studio-channel-items { display: flex; flex-direction: column; gap: 4px; }
+.prototype-sidebar .chan-pill { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 9px; width: 100%; min-width: 0; min-height: 48px; margin: 0; padding: 11px 8px; border: 0; border-radius: 8px; background: transparent; color: #c9cec8; text-align: left; box-shadow: none; transform: none; }
+.prototype-sidebar .chan-pill:hover { background: #ffffff08; }
+.prototype-sidebar .chan-pill.is-active { background: #ffffff10; color: #f4f1eb; box-shadow: inset 2px 0 #c2aa95; }
+.prototype-sidebar .prototype-channel-symbol { color: #c4b19f; flex: 0 0 18px; padding-top: 1px; }
+.prototype-channel-copy { display: block; flex: 1; min-width: 0; }
+.prototype-sidebar .chan-head { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; align-items: center; }
+.prototype-sidebar .chan-name { min-width: 0; flex: 1 1 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 12px/1.5 var(--t-sans, sans-serif); }
+.prototype-sidebar .chan-dots { order: 2; flex-shrink: 0; }
+.prototype-sidebar .chan-last { display: block; width: 100%; margin-top: 5px; color: #afb6af; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 11px/1.5 var(--t-sans, sans-serif); }
+.prototype-sidebar .public-badge,.prototype-sidebar .party-badge,.prototype-sidebar .chan-tag { font-size: 9px; background: #ffffff0a; color: #c5cfc1; }
+.prototype-sidebar .side-note { margin: 8px 4px; color: #bac2b9; white-space: normal; overflow-wrap: anywhere; }
+.prototype-sidebar .side-note--err { color: #ffc4b8; }
+.prototype-sidebar .side-archived-toggle { display: block; width: 100%; min-height: 40px; margin-top: 10px; color: #bdc5bb; text-align: left; border: 0; background: transparent; }
+.prototype-sidebar-agents { margin: 22px 0 4px; }
+.prototype-sidebar-agents h3 { display: flex; justify-content: space-between; margin: 0 8px 8px; font: 500 11px/1.6 var(--t-sans, sans-serif); color: #b9c1b7; }
+.prototype-sidebar-agents ul { list-style: none; padding: 0; margin: 0; }
+.prototype-sidebar-agents li { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 5px 8px; font-size: 12px; }
+.prototype-sidebar-agents li>span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prototype-agent-avatar { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: #807c70; color: #f5eee3; font: 600 13px/1 var(--t-sans, sans-serif); }
+.prototype-sidebar button:focus-visible { outline: 2px solid #ceb79e; outline-offset: -2px; }
+@media (pointer: coarse) { .prototype-sidebar .chan-cat-btn,.prototype-sidebar .side-archived-toggle { min-height: 44px; } }
+@media (max-width: 700px) { .side.prototype-sidebar { width: 100%; flex-basis: auto; max-height: 40dvh; } }
+@media (prefers-reduced-motion: no-preference) { .prototype-sidebar .chan-pill { transition: background-color 140ms ease; } }

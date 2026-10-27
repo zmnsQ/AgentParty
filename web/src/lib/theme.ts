@@ -9,13 +9,14 @@ export const SUPPORTED_THEMES: { code: Theme; labelKey: string }[] = [
   { code: "midnight", labelKey: "App.settings.theme.midnight" },
 ];
 
-export const DEFAULT_THEME: Theme = "doodle";
+export const DEFAULT_THEME: Theme = "midnight";
 
 const STORAGE_KEY = "ap_theme";
 
 export function readStoredTheme(): Theme {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "midnight" ? "midnight" : DEFAULT_THEME;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === "midnight" || stored === "doodle" ? stored : DEFAULT_THEME;
   } catch {
     return DEFAULT_THEME;
   }
@@ -26,6 +27,7 @@ export function applyTheme(theme: Theme): void {
   try {
     // guard：测试/SSR 里 document 可能是精简替身；缺 documentElement 时静默跳过。
     document?.documentElement?.setAttribute?.("data-theme", theme);
+    document?.querySelector?.('meta[name="theme-color"]')?.setAttribute("content", theme === "midnight" ? "#191a1b" : "#f5f4ef");
   } catch {
     // 无 document 时不炸——本次仅持久化，下次带 document 的环境再落地。
   }

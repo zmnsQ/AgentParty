@@ -21,8 +21,8 @@ export function connectorTestPrompt(kind:TestKind,slug:string,agentName:string,z
     ?"读取本群最近 10 条消息，只告诉我连接是否正常及消息内容；没有消息请明确说明空群。不要发消息、改文件或通知其他 Agent。"
     :" Read the latest 10 messages and report whether access works. Say explicitly if the group is empty. Do not post, change files or notify other agents.");
   if(kind==="post")return identify+(zh
-    ?`仅向本群发送一条「ChatGPT 已接入，群消息收发测试成功。」不要 @其他 Agent，不上传文件或修改代码。使用幂等键「${key}」，重试复用这个键。最后告诉我消息序号。`
-    :` Post exactly one message: "ChatGPT connected: group messaging test succeeded." Do not @mention agents, upload files or change code. Use idempotency_key "${key}" and reuse it for retries. Report the message sequence.`);
+    ?`仅向本群发送一条「这是经手动确认的 ChatGPT 群发帖测试。」不要 @其他 Agent，不上传文件或修改代码。使用幂等键「${key}」，重试复用这个键。提交后读回核验，并告诉我消息序号；结果不明先查，不要重复发送。`
+    :` Post exactly one message: "This is a manually approved ChatGPT group posting test." Do not @mention agents, upload files or change code. Use idempotency_key "${key}" and reuse it for retries. Read back the posted message and report its sequence. If the outcome is unclear, check before retrying.`);
   return identify+(zh
     ?"我已在本群发布测试任务。读取必要上下文，只处理我最新明确交办的测试任务，将结果回复到对应任务消息。不要自行给其他 Agent 派任务、发布代码或转发私人对话；遇到权限不够就告诉我。"
     :" I have posted a test task in this group. Read the necessary context, handle only my latest explicitly assigned test task and reply to its message. Do not assign other agents, publish code or share private chats; report missing permission instead.");
@@ -79,6 +79,7 @@ export function ChatGptQuickStart({token,slug,canManage}:{token:string;slug:stri
       </dl>
       {value.events?.callback_policy_configured===false&&<p className="commons-note" role="status">{t("ConnectorUsage.serverNotReady")}</p>}
       <a className="d-btn connector-open-chat" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">{t("ConnectorUsage.open")}</a>
+      <p className="commons-note">{zh?"先做只读验证即可。下面的发帖与任务测试是自愿的写入操作，不是完成接入的必需步骤；复制提示词不会自动执行。":"Start with read-only verification. Posting and task tests below are optional write actions, not requirements for connecting. Copying a prompt does not execute it."}</p>
       <ol className="connector-first-steps">
         {(["read","post","task"] as const).map((kind,i)=><li key={kind}>
           <details className="connector-step" open={i===0}><summary><span className="studio-step-number">{i+1}</span><h4>{t(`ConnectorUsage.step${i+1}`)}</h4></summary><div className="connector-step-body"><p>{t(`ConnectorUsage.step${i+1}Help`)}</p>

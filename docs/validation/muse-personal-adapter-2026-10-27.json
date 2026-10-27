@@ -1,0 +1,31 @@
+{
+  "scope": "real Noise/WSS/protobuf wire implementation with mock protocol tests; live identity and ACK schema still unverified",
+  "base": "75ba8fc106001814062874278e86475a3c67b18b",
+  "python_tests_pass": 79,
+  "worker_contract_tests_pass": 6,
+  "worker_assertions": 41,
+  "web_tests": {
+    "pass": 1547,
+    "fail": 32,
+    "method": "one process per test file",
+    "baseline_pass": 1528,
+    "baseline_fail": 32,
+    "same_failure_names": true
+  },
+  "web_typecheck": 0,
+  "web_build": 0,
+  "worker_bundle": 0,
+  "worker_typecheck": "process Killed with no diagnostics; not passed",
+  "migration_applied": false,
+  "real_account_calls": 0,
+  "credentials_read": false,
+  "third_party_repository_executed": false,
+  "review": "independent review: no blocking issue for local experimental commit; descriptor fields and TLS connection reviewed; real identity/ACK/account unverified",
+  "push": false,
+  "deploy": false,
+  "wire_mock_tests_pass": 15,
+  "codec_tests_pass": 7,
+  "identity_resolver_tests_pass": 8,
+  "real_noise_handshake_tested": false,
+  "noise_dependency_installed": false
+}

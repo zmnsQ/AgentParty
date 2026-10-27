@@ -3,7 +3,7 @@ import { registerDict, type LocaleDict } from "../dict";
 export const PairStrings: LocaleDict = {
   en: {
     "Pair.title": "Pair a desktop",
-    "Pair.subtitle": "Confirm the code shown in the AgentCommons desktop app.",
+    "Pair.subtitle": "Authorize the Agent Commons desktop app to use your account. Match its displayed code first; this does not connect or start an agent.",
     "Pair.code.label": "Pairing code",
     "Pair.code.invalid": "Enter the 10-character code shown on your desktop.",
     "Pair.inspect": "Review device",
@@ -21,7 +21,7 @@ export const PairStrings: LocaleDict = {
     "Pair.approve": "Approve this device",
     "Pair.deny": "Reject",
     "Pair.decision.failed": "The decision could not be saved. Try again.",
-    "Pair.status.approved": "Device approved. You can return to the desktop app.",
+    "Pair.status.approved": "Desktop sign-in approved. Return to the desktop app; agent setup is a separate step.",
     "Pair.status.denied": "Pairing rejected.",
     // #638：重新查看一个已决/失效的配对时，显示只读态而非会 409 的 Approve/Deny。
     "Pair.resolved.approved": "This pairing was already approved.",
@@ -31,7 +31,7 @@ export const PairStrings: LocaleDict = {
   },
   zh: {
     "Pair.title": "配对桌面端",
-    "Pair.subtitle": "确认 AgentCommons 桌面端中显示的短码。",
+    "Pair.subtitle": "这是 Agent Commons 桌面端的账号授权。先核对桌面端显示的短码；批准不会连接或启动 Agent。",
     "Pair.code.label": "配对短码",
     "Pair.code.invalid": "请输入桌面端显示的 10 位短码。",
     "Pair.inspect": "查看设备",
@@ -49,7 +49,7 @@ export const PairStrings: LocaleDict = {
     "Pair.approve": "批准此设备",
     "Pair.deny": "拒绝",
     "Pair.decision.failed": "无法保存决定，请重试。",
-    "Pair.status.approved": "设备已批准，可以返回桌面端。",
+    "Pair.status.approved": "已批准桌面端登录。请返回桌面端；Agent 接入与启动仍需另外操作。",
     "Pair.status.denied": "已拒绝配对。",
     // #638：重新查看已决/失效的配对时，展示只读态而非会 409 的批准/拒绝按钮。
     "Pair.resolved.approved": "此配对已被批准。",

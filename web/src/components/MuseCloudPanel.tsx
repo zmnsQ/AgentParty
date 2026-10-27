@@ -5,11 +5,13 @@ import {apiBase} from '../lib/base';
 import {copyText} from '../lib/agentTokenVault';
 import {cloudBridgesApi,type MuseConnectorState} from '../lib/cloudBridgesApi';
 import {StudioIcon,type StudioIconName} from './StudioIcon';
+import {PersonalMusePanel} from './PersonalMusePanel';
 import {ProviderMark} from './ProviderMark';
 import '../i18n/strings/MuseCloud';
 import '../styles/muse-cloud.css';
 export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;canManage:boolean}){
  const t=useT(),{locale}=useLocale();const [state,setState]=useState<MuseConnectorState|null>(null);
+ const [method,setMethod]=useState<'mcp'|'gadget'|'personal'|null>(null);
  const [revision,update]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [callback,setCallback]=useState(''),[created,setCreated]=useState<{client_id:string;client_secret:string}|null>(null);
  const epoch=useRef(0),base=apiBase();
@@ -18,6 +20,7 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
    .catch(()=>{if(!abort.signal.aborted&&epoch.current===n)setError(t('Muse.error'));});
   return()=>{abort.abort();++epoch.current;};
  },[token,slug,canManage,revision,base,locale]);
+ useEffect(()=>{setMethod(null);},[token,slug,base]);
  const copy=async(value:string)=>{if(await copyText(value))setNotice(t('Muse.copied'));};
  const run=async(action:()=>Promise<void>)=>{if(busy)return;const n=epoch.current;setBusy(true);setError('');
   try{await action();}catch{if(epoch.current===n)setError(t('Muse.error'));}finally{if(epoch.current===n)setBusy(false);}};
@@ -38,31 +41,32 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
  const status=(icon:StudioIconName,label:string,text:string)=><div><StudioIcon name={icon}/><div><dt>{label}</dt><dd>{text}</dd></div></div>;
  if(!canManage)return <p className="commons-note">{t('Muse.noManage')}</p>;
  return <section className="muse-connect" aria-label={t('Muse.title')}>
-  <header className="muse-connect-heading"><ProviderMark provider="muse"/><div><h3>{t('Muse.title')}</h3><p>{t('Muse.intro')}</p></div>
+  <header className="muse-connect-heading"><ProviderMark provider="muse"/><div><h3>{t('Muse.title')}</h3><p>{locale==='zh'?'先选一种接入方式。工具访问、设备唤醒和实际在线是不同状态。':'Choose one connection method. Tool access, device wake-ups and being online are different states.'}</p></div>
    <button type="button" className="d-btn d-btn--ghost" onClick={()=>update(x=>x+1)} aria-label={t('Muse.refresh')} disabled={busy}><StudioIcon name="refresh"/></button></header>
   {!state&&!error&&<p role="status">{t('Muse.loading')}</p>}{error&&<p role="alert" className="commons-error">{error}</p>}
   {notice&&<p role="status" className="muse-notice">{notice}</p>}
-  <section className="muse-gadget-primary" aria-label={t('Muse.gadgetTitle')}>
-   <h4>{t('Muse.gadgetTitle')}</h4><p>{t('Muse.gadgetIntro')}</p>
-   <p className="commons-note" role="status">{t('Muse.gadgetUnverified')}</p>
-   <ol className="muse-steps muse-gadget-steps">
-    <li><span className="muse-step-index">1</span><div><h4>{t('Muse.gadgetPair')}</h4><p>{t('Muse.gadgetPairHelp')}</p>
-     <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/facebookincubator/muse-gadget-sdk"><StudioIcon name="external"/>{t('Muse.gadgetOfficial')}</a></div></li>
-    <li><span className="muse-step-index">2</span><div><h4>{t('Muse.gadgetBridge')}</h4><p>{t('Muse.gadgetBridgeHelp')}</p></div></li>
-    <li><span className="muse-step-index">3</span><div><h4>{t('Muse.gadgetSubscribe')}</h4><p>{t('Muse.gadgetSubscribeHelp')}</p></div></li>
-    <li><span className="muse-step-index">4</span><div><h4>{t('Muse.gadgetVerify')}</h4><p>{t('Muse.gadgetVerifyHelp')}</p></div></li>
-   </ol>
-   <p className="muse-safety"><StudioIcon name="shield"/>{t('Muse.gadgetWarning')}</p>
-   <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/zmnsQ/AgentParty/blob/feat/muse-gadget-20261026/bridges/muse-cloud/README.md"><StudioIcon name="external"/>{t('Muse.bridgeDocs')}</a>
-  </section>
-  {state&&<details className="muse-legacy"><summary>{t('Muse.legacy')}</summary><p>{t('Muse.legacyHelp')}</p>
+  {!method&&<div className="muse-methods" aria-label={locale==='zh'?'选择 Muse 接入方式':'Choose a Muse connection method'}>
+   <button type="button" className="muse-method" onClick={()=>setMethod('mcp')}><strong>{locale==='zh'?'MCP · 让 Muse 访问本群工具':'MCP · Let Muse use group tools'}</strong><span>{locale==='zh'?'用途：在 Muse 中读取本群，按授权回帖。':'Use: read this group from Muse and reply when authorized.'}</span><span>{locale==='zh'?'前提：Muse 支持自定义 MCP；你在 Muse 中添加连接器，并授权本群。':'Requires: custom MCP support in Muse; add its connector there and authorize this group.'}</span><small>{locale==='zh'?'状态：可查看接入步骤；个人 Muse 是否可用尚未核验。授权不等于实时唤醒。':'Status: setup instructions available; personal Muse connectivity unverified. Authorization does not imply real-time wake-ups.'}</small></button>
+   <button type="button" className="muse-method" onClick={()=>setMethod('gadget')}><strong>{locale==='zh'?'Gadget · 经已配对设备转发群任务':'Gadget · Relay tasks through a paired device'}</strong><span>{locale==='zh'?'用途：通过设备桥接把明确 @任务送到个人 Muse。':'Use: relay explicitly mentioned tasks to your personal Muse through a device bridge.'}</span><span>{locale==='zh'?'前提：隔离 Linux / BLE 设备、运行中的桥接服务，以及 Muse App 本人配对。':'Requires: an isolated Linux / BLE device, a running bridge service and your pairing confirmation in Muse App.'}</span><small>{locale==='zh'?'状态：本群设备条件未核验；不能在此网页登录 Muse 后直接连接。没有设备时请勿选这条路。':'Status: device prerequisites unverified. This is not web sign-in to Muse. Do not choose this route without a device.'}</small></button>
+   <button type="button" className="muse-method" onClick={()=>setMethod('personal')}><strong>{t('Muse.personalTitle')}</strong><span>{t('Muse.personalCard')}</span></button>
+  </div>}
+  {method==='personal'&&<PersonalMusePanel token={token} slug={slug} canManage={canManage}/>}
+  {method&&<button className="d-btn muse-method-back" type="button" onClick={()=>setMethod(null)}>{locale==='zh'?'← 返回选择接入方式':'← Choose a different method'}</button>}
+  {method==='gadget'&&<section className="muse-gadget-primary" aria-label={locale==='zh'?'Gadget 设备桥接指南':'Gadget device bridge guide'}>
+   <h4>{locale==='zh'?'这不是网页授权登录':'This is not web authorization'}</h4>
+   <p className="muse-safety">{locale==='zh'?'Gadget 需要真实设备和 Muse App 配对。本页不能代替设备配对，也没有“点击即连接”的网页登录入口。':'Gadget requires a real device and pairing in Muse App. This page cannot replace pairing and has no one-click web sign-in connection.'}</p>
+   <dl className="muse-guide-evidence"><div><dt>{locale==='zh'?'当前可用性':'Current availability'}</dt><dd>{locale==='zh'?'设备、桥接、订阅均未在本页核验':'Device, bridge and subscription are unverified here'}</dd></div><div><dt>{locale==='zh'?'实际连接':'Actual connection'}</dt><dd>{locale==='zh'?'未验证真实投递与回帖，不显示在线':'Delivery and replies unverified; not marked online'}</dd></div></dl>
+   <ol className="muse-simple-steps"><li><strong>{locale==='zh'?'先确认有桥接设备':'First confirm a bridge device exists'}</strong><p>{locale==='zh'?'让管理员提供隔离宿主和本群桥接服务。仅部署这个网站不等于准备好了设备。没有设备，先停在这里。':'An administrator must provide an isolated host and this group’s bridge service. Deploying this website alone does not provide a device. Stop here if none is available.'}</p></li><li><strong>{locale==='zh'?'在 Muse App 完成本人配对':'Pair it yourself in Muse App'}</strong><p>{locale==='zh'?'设备准备好后，在 Muse App 的“设置 → 设备 → Developer mode / 添加设备”确认它。凭据留在设备，不粘贴到群聊。':'Once the device is ready, confirm it in Muse App: Settings → Devices → Developer mode / Add Device. Keep credentials on the device, not in group chat.'}</p></li><li><strong>{locale==='zh'?'由管理员绑定当前群和事件订阅':'Have the administrator bind this group and its subscription'}</strong><p>{locale==='zh'?'只授权当前群的专用 Agent，明确允许哪些消息触发。配置保存不是 Muse 已连接，也不会自动替你配对。':'Authorize only the dedicated agent for this group and explicitly select eligible messages. Saved configuration is not proof of a Muse connection and does not pair for you.'}</p></li><li><strong>{locale==='zh'?'最后核验真实投递和回帖':'Finally verify actual delivery and replies'}</strong><p>{locale==='zh'?'由你发起获准的实际任务，核对 Muse 收到、回复回到同群且没有重复。只看到进程运行或投递退出码不能算接通。':'Initiate an authorized real task yourself and verify Muse receives it and replies once in the same group. A running process or a delivery exit code is not enough.'}</p></li></ol>
+   <details className="muse-technical"><summary>{locale==='zh'?'管理员 / 开发者资料（不是连接按钮）':'Administrator / developer references (not a connect button)'}</summary><p>{t('Muse.gadgetWarning')}</p><a target="_blank" rel="noopener noreferrer" href="https://github.com/facebookincubator/muse-gadget-sdk/tree/main/linux">{locale==='zh'?'官方设备安装与配对说明':'Official device setup and pairing documentation'}</a><br/><a target="_blank" rel="noopener noreferrer" href="https://github.com/zmnsQ/AgentParty/blob/codex/web-design-system/bridges/muse-cloud/README.md">{t('Muse.bridgeDocs')}</a></details>
+  </section>}
+  {method==='mcp'&&state&&<section className="muse-legacy" aria-label={locale==='zh'?'MCP 工具访问指南':'MCP tool access guide'}><h4>{locale==='zh'?'在 Muse 中添加本群工具':'Add this group’s tools inside Muse'}</h4><p>{locale==='zh'?'方向是 Muse 访问 Agent Commons，不是本网站登录并控制你的个人 Muse。实时消息订阅取决于 Muse 客户端实际支持，不能据此保证即时唤醒。':'The direction is Muse accessing Agent Commons, not this website signing in to control your personal Muse. Real-time subscriptions depend on the Muse client’s actual support; immediate wake-ups are not guaranteed.'}</p>
    <dl className="muse-state-grid">
     {status(authorized?'check':'link',t('Muse.oauth'),oauthText)}
-    {status('bell-on',t('Muse.wake'),t('Muse.pairRequired'))}{status('shield',t('Muse.review'),t('Muse.reviewUnknown'))}
+
    </dl>
    {state.native_oauth&&<small>{locale==='zh'?'服务端状态快照，请刷新复查：':'Server status snapshot; refresh to recheck: '}{new Date(state.native_oauth.checked_at).toLocaleString()}</small>}
-   <p className="commons-note">{locale==="zh"?"可选：仅在需要原生 MCP 工具连接时，在 Muse 中添加下方地址并完成授权。Gadget 桥接不依赖此路径。":"Optional: add this endpoint in Muse only if you need its native MCP tool connection. The Gadget bridge does not depend on this path."}</p><div className="muse-endpoint"><label>{t('Muse.endpoint')}<input readOnly value={state.mcp_endpoint} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.mcp_endpoint)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div>
-   <ol className="muse-native-steps"><li>{locale==="zh"?"在 Muse 的自定义连接器中添加上方 MCP 地址。":"Add the MCP endpoint above in Muse’s custom connector settings."}</li><li>{locale==="zh"?"从 Muse 打开登录授权页，核对群组与权限后点击允许，再返回 Muse。无需手工复制授权网址。":"Open sign-in and consent from Muse, review the group and permissions, approve, then return to Muse. No hand-copied authorization link is needed."}</li></ol>
+   <p className="commons-note">{locale==="zh"?"从 Muse 发起自定义连接器授权，核对当前群组和权限；下方地址只定位本群，不是访问凭据。":"Start custom-connector authorization from Muse and review this group and its permissions. This endpoint identifies the group; it is not an access credential."}</p><div className="muse-endpoint"><label>{t('Muse.endpoint')}<input readOnly value={state.mcp_endpoint} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.mcp_endpoint)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div>
+   <ol className="muse-native-steps"><li>{locale==="zh"?"让 Muse 创建或配置自定义连接器，并提供上方本群 MCP 地址；以你的客户端实际支持为准。":"Ask Muse to create or configure a custom connector with this group MCP endpoint; follow what your client actually supports."}</li><li>{locale==="zh"?"从 Muse 打开登录授权页，核对群组与权限后点击允许，再返回 Muse。无需手工复制授权网址。":"Open sign-in and consent from Muse, review the group and permissions, approve, then return to Muse. No hand-copied authorization link is needed."}</li></ol>
    <details className="muse-native-client"><summary>{locale==="zh"?"Muse 要求填写 Client ID？":"Does Muse ask for a Client ID?"}</summary><p>{locale==="zh"?"为这个群组准备原生公共客户端。Client ID 不是访问密钥；创建后仍须在 Muse 中完成登录、二步验证和授权。":"Prepare a native public client for this group. A Client ID is not an access key; sign-in, MFA and consent are still required in Muse."}</p>
    {!state.can_configure?<p>{t('Muse.mfa')} <a href="/auth/security">{t('Muse.security')}</a></p>:state.native_client_id?<div className="muse-endpoint"><label>Client ID<input readOnly value={state.native_client_id} onFocus={e=>e.currentTarget.select()}/></label><button className="d-btn" onClick={()=>void copy(state.native_client_id!)}>{t('Muse.copy')}</button></div>:<button type="button" className="d-btn" disabled={busy} onClick={()=>void run(async()=>{await cloudBridgesApi.createMuseNativeClient(token,slug);update(x=>x+1);})}>{locale==="zh"?"准备 Muse Client ID":"Prepare Muse Client ID"}</button>}
    </details>
@@ -84,15 +88,12 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
      }}><StudioIcon name="unlink"/>{t('Muse.revoke')}</button></div>)}
     </div></li>
     <li><span className="muse-step-index">2</span><div><h4>{t('Muse.step2')}</h4><p>{t('Muse.step2Help')}</p><textarea readOnly value={prompt} rows={3} aria-label={t('Muse.testPrompt')}/><button className="d-btn" onClick={()=>void copy(prompt)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div></li>
-    <li><span className="muse-step-index">3</span><div><h4>{t('Muse.step3')}</h4><p>{t('Muse.step3Help')}</p><p className="muse-safety"><StudioIcon name="shield"/>{t('Muse.gadgetWarning')}</p>
-      <a className="d-btn" target="_blank" rel="noopener noreferrer" href="https://github.com/zmnsQ/AgentParty/blob/feat/muse-gadget-20261026/bridges/muse-cloud/README.md"><StudioIcon name="external"/>{t('Muse.bridgeDocs')}</a>
-    </div></li>
-    <li><span className="muse-step-index">4</span><div><h4>{t('Muse.step4')}</h4><p>{t('Muse.step4Help')}</p><div className="muse-inline-actions"><button className="d-btn" disabled={busy} onClick={()=>void run(async()=>{
+    <li><span className="muse-step-index">3</span><div><h4>{t('Muse.step4')}</h4><p>{t('Muse.step4Help')}</p><div className="muse-inline-actions"><button className="d-btn" disabled={busy} onClick={()=>void run(async()=>{
       const data=await cloudBridgesApi.museReview(token,slug);const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='agent-commons-muse-review.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     })}><StudioIcon name="download"/>{t('Muse.download')}</button><a className="d-btn" href="https://platform.muse.ai/login?return_to=%2Fsubmission" target="_blank" rel="noopener noreferrer"><StudioIcon name="external"/>{t('Muse.portal')}</a></div><small>{t('Muse.noFakeApproval')}</small></div></li>
    </ol></details>
    <details className="muse-technical"><summary>{t('Muse.codeSeparate')}</summary><p>{t('Muse.codeHint')}</p><a href="https://github.com/meta-models/muse-code-sdk" target="_blank" rel="noopener noreferrer">Muse Code SDK <StudioIcon name="external" size={14}/></a></details>
-  </details>}
+  </section>}
  </section>;
 }

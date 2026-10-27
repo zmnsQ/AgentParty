@@ -17,14 +17,17 @@ interface AgentProps {
   summary: CollaborationSummary;
   client: CollaborationClient;
   onChanged(): Promise<void>;
+  initialProvider?: DirectAgentProvider;
 }
 
-function ConnectionForm({ token, slug, connection, client, onSaved, onClose }: {
+function ConnectionForm({ token, slug, connection, client, onSaved, onClose, initialProvider }: {
   token: string; slug: string; connection: CloudAgentConnection | null; client: CollaborationClient;
+  initialProvider?: DirectAgentProvider;
   onSaved(id: string): Promise<void>; onClose(): void;
 }) {
   const t = useT();
-  const [provider, setProvider] = useState<DirectAgentProvider>(connection?.provider ?? "hermes");
+  const {locale}=useLocale(),zh=locale==="zh";
+  const [provider, setProvider] = useState<DirectAgentProvider>(connection?.provider ?? initialProvider ?? "hermes");
   const [name, setName] = useState(connection?.name ?? "");
   const [endpoint, setEndpoint] = useState(connection?.endpoint ?? "");
   const [remoteId, setRemoteId] = useState(connection?.remote_agent_id ?? "");
@@ -61,6 +64,10 @@ function ConnectionForm({ token, slug, connection, client, onSaved, onClose }: {
   };
   return (
     <form className="commons-form" onSubmit={(event) => void save(event)} aria-label={t("Collab.addAgent")}>
+      <p className="commons-note" data-connection-guide={provider}>{provider === "hermes"
+        ? (zh ? "填写已运行的 Hermes API Server 地址；API 凭证从该服务的管理员或部署配置获得。使用你已有的 profile，不要填写普通网页地址。" : "Use your running Hermes API Server address. Obtain its API credential from your server administrator or deployment configuration. Use your existing profile, not a regular website URL.")
+        : (zh ? "填写已有 Cue agent 的 ID，可从该 agent 的官方 API 信息中获取；API 凭证从你自己的 Manus / Cue 官方账号管理界面获得。不要填写聊天标题或分享链接。" : "Use the ID of your existing Cue agent from its official API information, and API credentials from your own Manus / Cue account settings. Do not enter a chat title or sharing URL.")}</p>
+      <p className="commons-muted">{zh ? "显示名称仅用于本群。保存会校验并保存连接配置，不会发送任务或开始付费运行；任务需之后另行明确提交。" : "The display name is only a label in this group. Save validates and stores the connection configuration; it does not send a task or start a paid run. Tasks require a separate explicit submission."}</p>
       <div className="commons-form-grid">
         <label>{t("Collab.provider")}<select value={provider} disabled={connection !== null || saving} onChange={(event) => setProvider(event.target.value as DirectAgentProvider)}>
           <option value="hermes">Hermes Agent</option><option value="manus">Manus / Cue</option>
@@ -178,11 +185,11 @@ export function CloudAgentRuns({ token, slug, connection, canRun, client }: {
   );
 }
 
-export function CloudAgentConnections({ token, slug, summary, client, onChanged }: AgentProps) {
+export function CloudAgentConnections({ token, slug, summary, client, onChanged, initialProvider }: AgentProps) {
   const t = useT();
   const { locale } = useLocale();
   const [selectedId, setSelectedId] = useState<string | null>(summary.connections[0]?.id ?? null);
-  const [form, setForm] = useState<CloudAgentConnection | "new" | null>(null);
+  const [form, setForm] = useState<CloudAgentConnection | "new" | null>(initialProvider && summary.permissions.manage ? "new" : null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -210,7 +217,7 @@ export function CloudAgentConnections({ token, slug, summary, client, onChanged 
       <div className="commons-section-head"><h2>{t("Collab.agents")}</h2>{summary.permissions.manage && <button className="d-btn commons-primary" type="button" onClick={() => { setForm("new"); setNotice(null); }}>{t("Collab.addAgent")}</button>}</div>
       {notice && <p className="commons-success" role="status">{notice}</p>}
       {error && <p className="commons-error" role="alert">{error}</p>}
-      {form !== null && <ConnectionForm key={form === "new" ? "new" : form.id} token={token} slug={slug} connection={form === "new" ? null : form} client={client} onClose={() => setForm(null)} onSaved={async (id) => { setForm(null); setSelectedId(id); setNotice(t("Collab.saved")); await onChanged(); }} />}
+      {form !== null && <ConnectionForm initialProvider={initialProvider} key={form === "new" ? "new" : form.id} token={token} slug={slug} connection={form === "new" ? null : form} client={client} onClose={() => setForm(null)} onSaved={async (id) => { setForm(null); setSelectedId(id); setNotice(t("Collab.saved")); await onChanged(); }} />}
       {summary.connections.length === 0 ? <div className="commons-empty"><span className="commons-empty-symbol" aria-hidden="true">↗</span><h3>{t("Collab.noAgents")}</h3><p>{t("Collab.noAgentsHint")}</p></div> : <div className="commons-agent-layout">
         <div className="commons-agent-list" role="group" aria-label={t("Collab.agents")}>
           {summary.connections.map((connection) => <button className={`commons-agent-card ${selected?.id === connection.id ? "is-selected" : ""}`} type="button" key={connection.id} aria-pressed={selected?.id === connection.id} onClick={() => { setSelectedId(connection.id); setConfirmId(null); }}>
@@ -224,13 +231,13 @@ export function CloudAgentConnections({ token, slug, summary, client, onChanged 
           <CloudAgentRuns key={selected.id} token={token} slug={slug} connection={selected} client={client} canRun={summary.permissions.run} />
         </div>}
       </div>}
-      <section className="commons-mcp">
-        <h3>{t("Collab.mcpTitle")}</h3><p>{t("Collab.mcpHint")}</p>
+      <details className="commons-mcp"><summary>{t("Collab.mcpTitle")}</summary>
+        <p>{t("Collab.mcpHint")}</p>
         <div className="commons-provider-grid">{summary.providers.filter((provider) => provider.integration === "mcp-tools").map((provider) => <article key={provider.id} className="commons-provider"><strong>{provider.name}</strong><span>{t("Collab.toolsBridge")}</span><a href={provider.docs_url} target="_blank" rel="noreferrer">{t("Collab.docs")} ↗</a></article>)}</div>
         <label className="commons-endpoint">{t("Collab.mcpEndpoint")}<input value={mcpUrl} readOnly onFocus={(event) => event.currentTarget.select()} /></label>
         <button className="d-btn" type="button" onClick={() => void copyMcpUrl()}>{t(copied ? "Collab.copied" : "Collab.copy")}</button>
         <p className="commons-muted">{t("Collab.mcpSetup")}</p><p className="commons-note">{t("Collab.mcpDot")}</p><p className="commons-muted">{t("Collab.mcpOther")}</p>
-      </section>
+      </details>
     </div>
   );
 }

@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "group": "replace-with-one-group",
+  "account": "replace-with-verified-account-id",
+  "sidechat": "replace-with-existing-dedicated-sidechat-id",
+  "poll_seconds": 10,
+  "max_pending_seconds": 900
+}

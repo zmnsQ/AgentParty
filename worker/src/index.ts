@@ -147,6 +147,8 @@ const DEPLOYMENT_METADATA = Object.freeze({
 // OIDC_ISSUER + OIDC_CLIENT_ID 为可选 vars/secrets：都配齐才启用人类网页 OIDC 登录（spec §10）。
 // AUTH_PROVIDERS 是新版可扩展 OAuth 配置，Lark/Feishu 走 worker 服务端换码，secret 不下发给浏览器。
 export type AppEnv = Env & {
+  MUSE_PERSONAL_BRIDGE_ENABLED?: string;
+  MUSE_PERSONAL_BRIDGE_KEYS?: string;
   ASSETS: Fetcher;
   ADMIN_SECRET?: string;
   OIDC_ISSUER?: string;

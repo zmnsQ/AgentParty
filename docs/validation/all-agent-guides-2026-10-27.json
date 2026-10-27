@@ -1,0 +1,154 @@
+{
+  "base_commit": "8acf01c74c1f1b91d3cf06fb63947c863071e189",
+  "method": "One bun process per web test file, same script for base and working tree; avoids cross-file global fetch descriptor pollution",
+  "baseline": {
+    "files": 183,
+    "pass": 1513,
+    "fail": 32
+  },
+  "current": {
+    "files": 187,
+    "pass": 1528,
+    "fail": 32
+  },
+  "failure_names_identical": true,
+  "added_failures": [],
+  "existing_failures": [
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > a missing restored human credential preserves an active watch session"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > a restored human session clears a stale desktop watch credential"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > a stale legacy Keychain slot does not block the current server session"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > an unpaired normal-header target offers pairing and keeps the old session after cancellation"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > channel deep link focuses the window and opens the channel on the current server"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > channel deep link with a paired other server switches instances then lands on the channel"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > hidden desktop startup defers Keychain restore until the main window is shown"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > logged-in add/pair cancellation preserves the old token, origin, runtime base, and credential"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > offers interactive Keychain authorization only for the native authorization sentinel"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > opens a clicked desktop mention notification at the target message"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > startup restore failure still allows switching to another paired server"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "App desktop server pairing behavior > successful server switch leaves a channel route from the previous server"
+    ],
+    [
+      "web/src/App.test.tsx",
+      "desktop separates personal settings from the local-agent control center"
+    ],
+    [
+      "web/src/components/AgentTokens.rules.test.tsx",
+      "AgentTokens dismiss behavior > Escape and backdrop clicks close, clear drafts, and clean up listeners"
+    ],
+    [
+      "web/src/components/DesktopPairingGate.test.tsx",
+      "DesktopPairingGate > renders a pairing-only desktop sign-in entry"
+    ],
+    [
+      "web/src/components/DesktopSettings.test.tsx",
+      "DesktopSettings > renders an accessible settings trigger with the project sprite"
+    ],
+    [
+      "web/src/components/TokenGate.test.tsx",
+      "TokenGate > interactive locale switching > clicking 中 switches the gate copy to Chinese"
+    ],
+    [
+      "web/src/components/team/TeamBoard.test.tsx",
+      "TeamBoard（#1060 PR B） > 泳道按 受阻→处理中→等待→离线 排列，每张卡带角色/主持/汇报/仓库"
+    ],
+    [
+      "web/src/i18n/strings/Channel.i18n.source.test.ts",
+      "Channel i18n source guard (#350) > defines and uses every audited key in both locales"
+    ],
+    [
+      "web/src/i18n/strings/Channel.loading.source.test.ts",
+      "Channel loading and recovery surfaces (#344 #345 #346 #354) > shows a skeleton before bootstrap and the actionable empty state only afterwards"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > commits an already-restored access token without refreshing credentials again"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > keeps generic restore failures ordinary and preserves their identity"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > keeps paired-server switching as one restore-and-commit action"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > keeps the current connection intact when target restore fails"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > persists an already-rotated credential interactively without a second refresh"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > preserves target origin when a noninteractive Keychain read requires authorization"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > rejects switching to a server that has no device session"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > restores the target session before committing active API and WS base"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "atomic desktop server switching > switching to a private deployment and back preserves the original server session"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "logged-in add and pair flow > cancel or pairing failure returns to the old origin without credential deletion"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "logged-in add and pair flow > commits the target origin only after pairing succeeds"
+    ],
+    [
+      "web/src/lib/serverSwitch.test.ts",
+      "logged-in add and pair flow > moves from the logged-in add view into pairing for the probed target"
+    ]
+  ],
+  "typecheck_exit": 0,
+  "web_build_exit": 0,
+  "build_warning": "existing chunk size warning",
+  "browser_device_e2e": "not performed",
+  "permission_mutations": "none",
+  "published": false,
+  "single_process_run": "not acceptance evidence; cross-file readonly fetch pollution caused cascading failures; isolated baseline comparison performed instead",
+  "review": "Independent review approved local commit; 62 focused tests independently passed; final desktop navigation recheck approved, no remaining blockers"
+}

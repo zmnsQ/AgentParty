@@ -1,3 +1,4 @@
+import "../styles/prototype-chat.css";
 import {useCompactViewport} from "../lib/useCompactViewport";
 import {useLocale} from "../i18n/locale";
 import { StudioIcon } from "./StudioIcon";
@@ -441,6 +442,7 @@ export function Composer({
 
   return (
     <div
+      data-prototype-composer="true"
       className={"composer" + (dragging ? " composer--dragging" : "")}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -511,7 +513,7 @@ export function Composer({
           })}
         </ul>
       )}
-      {compact&&<button type="button" className="composer-more" aria-label={locale==="zh"?"附件与更多":"Attachments and more"} aria-expanded={extrasOpen} onClick={()=>setExtrasOpen(value=>!value)}><StudioIcon name={extrasOpen?"close":"plus"}/></button>}
+      {<button type="button" className="composer-more" aria-label={locale==="zh"?"附件与更多":"Attachments and more"} aria-expanded={extrasOpen} onClick={()=>setExtrasOpen(value=>!value)}><StudioIcon name={extrasOpen?"close":"plus"}/></button>}
       <textarea
         ref={taRef}
         className="composer-input t-mono"
@@ -601,7 +603,7 @@ export function Composer({
       )}
       </div>}
       <div className="composer-actions">
-        <div className="composer-secondary-actions" hidden={compact&&!extrasOpen}>
+        <div className="composer-secondary-actions" hidden={!extrasOpen}>
         {canAttach && (
           <>
             <input

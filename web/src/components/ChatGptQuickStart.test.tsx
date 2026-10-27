@@ -35,7 +35,7 @@ const copies=(root:ReactTestInstance)=>root.findAllByType("button").filter(b=>te
 describe("authorized plugin first-use guidance",()=>{
   test("explains authorization, three usage steps and no automatic subscription",async()=>{
     const root=await render(),body=text(root);
-    expect(body).toContain("OAuth authorized");expect(body).toContain("Not subscribed · no automatic response");
+    expect(body).toContain("Authorization recorded");expect(body).toContain("client manages credentials");expect(body).toContain("does not prove that ChatGPT has refreshed");expect(body).toContain("No event subscription recorded here");
     expect(body).toContain("Verify identity and read access");expect(body).toContain("Send one message back");
     expect(body).toContain("Copying does not count as a passed test");expect(body).not.toContain("credential missing");
     expect(root.findAllByType("textarea")).toHaveLength(4);
@@ -64,7 +64,7 @@ describe("authorized plugin first-use guidance",()=>{
     expired=true;const root=await render();expect(text(root)).toContain("Reauthorization required");expect(copies(root).every(b=>b.props.disabled)).toBe(true);
   });
   test("another agent's subscription does not imply this ChatGPT identity is subscribed",async()=>{
-    otherSubscribed=true;const root=await render();expect(text(root)).toContain("Not subscribed · no automatic response");expect(text(root)).not.toContain("Subscription exists");
+    otherSubscribed=true;const root=await render();expect(text(root)).toContain("No event subscription recorded here");expect(text(root)).not.toContain("Subscription exists");
   });
   test("missing grant shows first-time guidance, not an empty authorized state",async()=>{
     empty=true;const root=await render();expect(text(root)).toContain("No active ChatGPT OAuth connection");expect(copies(root)).toHaveLength(0);
@@ -73,7 +73,7 @@ describe("authorized plugin first-use guidance",()=>{
     failed=true;const root=await render();expect(text(root)).toContain("Connection status could not be checked");expect(copies(root)).toHaveLength(0);
   });
   test("server event configuration failure is actionable and does not disable existing read or reply",async()=>{
-    serverMissing=true;const root=await render();expect(text(root)).toContain("Event callbacks not configured");
+    serverMissing=true;const root=await render();expect(text(root)).toContain("Event callbacks are not configured");
     expect(text(root)).toContain("operator configures callback security");
     expect(copies(root).map(b=>b.props.disabled)).toEqual([false,false,false]);
     expect(calls.every(c=>c.method==="GET")).toBe(true);
@@ -89,6 +89,16 @@ describe("authorized plugin first-use guidance",()=>{
   test("blocks subscription guidance when server transport is not configured",async()=>{
     serverMissing=true;const root=await render();
     expect(root.findAllByType("button").find(b=>text(b)==="Copy event subscription request")!.props.disabled).toBe(true);
+  });
+  test("posting expectations match the manually approved message in both languages",()=>{
+    for (const [locale, zh, message] of [
+      ["en", false, "This is a manually approved ChatGPT group posting test."],
+      ["zh", true, "这是经手动确认的 ChatGPT 群发帖测试。"],
+    ] as const) {
+      expect(connectorTestPrompt("post",slug,name,zh)).toContain(message);
+      expect(ConnectorUsageStrings[locale]["ConnectorUsage.step2Expect"]).toContain(message);
+      expect(connectorTestPrompt("post",slug,name,zh)).not.toContain("test succeeded");
+    }
   });
   test("all guidance translations and exact group-scoped prompts exist in both languages",()=>{
     expect(Object.keys(ConnectorUsageStrings.en).sort()).toEqual(Object.keys(ConnectorUsageStrings.zh).sort());

@@ -30,3 +30,13 @@
 }
 
 @media(min-width:601px){:root .agent-connect-category>header{min-height:90px;align-content:start}}
+
+/* The picker is a guide, not an unverified connection dashboard. */
+:root .agent-connect-boundary{font-size:12px;color:var(--t-muted);padding:8px 10px;background:var(--t-panel2);border-radius:8px}
+:root .agent-connect-option{gap:5px;padding:12px;min-height:0}
+:root .agent-connect-option .agent-connect-prerequisite{font-size:11px;line-height:1.5;color:var(--t-muted);overflow-wrap:anywhere}
+:root .agent-connect-option .agent-connect-availability{font-size:10px;line-height:1.4;color:var(--t-muted);border-top:1px solid var(--t-faint);padding-top:5px;margin-top:2px}
+:root details.agent-team-flow{display:block;padding-top:10px}
+:root .agent-team-flow>summary{cursor:pointer;font-size:12px;font-weight:600;min-height:32px;align-content:center}
+:root .agent-team-flow[open]>p,:root .agent-team-flow[open]>ol{margin-top:8px}
+@media(max-width:600px){:root .agent-connect-categories{gap:14px}:root .agent-connect-category{gap:7px}:root .agent-connect-category .agent-connect-grid{gap:7px}:root .agent-connect-option[data-coding-provider]{min-height:0}:root .agent-connect-option{padding:10px}:root .agent-connect-picker{gap:8px}}

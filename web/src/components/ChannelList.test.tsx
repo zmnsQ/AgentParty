@@ -199,3 +199,33 @@ describe("lastMessagePreview", () => {
     expect(lastMessagePreview(value)).toBeNull();
   });
 });
+
+describe('prototype conversation sidebar', () => {
+  test('search filters real metadata, keeps archived matches accessible, and resets on server change', () => {
+    const archived={...channel('archived-match'),archived_at:3};
+    act(()=>{renderer=create(listView('server-one',[channel('live-one'),archived]));});
+    const r=renderer!;
+    act(()=>r.root.findByProps({type:'search'}).props.onChange({currentTarget:{value:'archived'}}));
+    expect(visibleChannelSlugs(r)).toEqual(['archived-match']);
+    act(()=>r.update(listView('server-two',[channel('new-live')])));
+    expect(r.root.findByProps({type:'search'}).props.value).toBe('');
+    expect(visibleChannelSlugs(r)).toEqual(['new-live']);
+  });
+  test('presence never becomes a fabricated agent roster and explicit roster has no online claim', () => {
+    act(()=>{renderer=create(listView('server',[channel('live',{presence:[presence('human-name','working')]})]));});
+    const r=renderer!;
+    expect(r.root.findAllByProps({className:'prototype-sidebar-agents'})).toHaveLength(0);
+    act(()=>r.update(<LocaleProvider><ChannelList scopeKey="server" channels={[channel('live')]} active="live" error={null} onOpen={()=>{}} agents={[{name:'agent-id',display:'Real nickname'},{name:'agent-id',display:'Real nickname'}]}/></LocaleProvider>));
+    const roster=r.root.findByProps({className:'prototype-sidebar-agents'});
+    expect(roster.findAllByType('li')).toHaveLength(1);
+    expect(roster.findByProps({title:'agent-id'}).children).toEqual(['Real nickname']);
+    expect(roster.findAll(n=>String(n.props.className??'').includes('d-dot'))).toHaveLength(0);
+    expect(r.root.findByProps({'aria-current':'page'}).props.title).toBe('live');
+  });
+  test('filtered channel opens with its stable slug, not its display title', () => {
+    const opened:string[]=[];
+    act(()=>{renderer=create(<LocaleProvider><ChannelList scopeKey="server" channels={[{...channel('stable-id'),title:'Design room'}]} active={null} error={null} onOpen={slug=>opened.push(slug)}/></LocaleProvider>);});
+    const r=renderer!;act(()=>r.root.findByProps({type:'search'}).props.onChange({currentTarget:{value:'DESIGN'}}));
+    act(()=>r.root.findByProps({title:'stable-id'}).props.onClick());expect(opened).toEqual(['stable-id']);
+  });
+});

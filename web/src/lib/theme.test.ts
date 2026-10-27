@@ -35,8 +35,13 @@ afterEach(() => {
 });
 
 describe("theme persistence + application", () => {
-  test("defaults to doodle when nothing stored", () => {
-    expect(DEFAULT_THEME).toBe("doodle");
+  test("defaults to prototype charcoal when nothing stored", () => {
+    expect(DEFAULT_THEME).toBe("midnight");
+    expect(readStoredTheme()).toBe("midnight");
+  });
+
+  test("preserves an explicitly stored light theme", () => {
+    localStorage.setItem("ap_theme", "doodle");
     expect(readStoredTheme()).toBe("doodle");
   });
 
@@ -47,7 +52,7 @@ describe("theme persistence + application", () => {
 
   test("falls back to default for an unknown stored value", () => {
     localStorage.setItem("ap_theme", "banana");
-    expect(readStoredTheme()).toBe("doodle");
+    expect(readStoredTheme()).toBe("midnight");
   });
 
   test("applyTheme sets the data-theme attribute and persists", () => {

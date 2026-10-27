@@ -1,3 +1,4 @@
+import "../styles/prototype-chat.css";
 import { StudioIcon } from "./StudioIcon";
 // 消息渲染：message → doodle 卡片外壳 + mono 元信息 + markdown 正文；
 // status → 时间线分隔条（spec §9 第 2 块）。
@@ -691,6 +692,7 @@ function MessageCardImpl({
   return (
     <article
       id={`msg-${msg.seq}`}
+      data-prototype-message={msg.sender.kind}
       className={"d-card msg-card" + (mine ? " msg-card--own" : "")}
       style={hueStyle}
       tabIndex={-1}
@@ -708,7 +710,7 @@ function MessageCardImpl({
           {msg.sender.avatar_thumb || msg.sender.avatar_url ? (
             <img className="msg-avatar msg-avatar--img" src={msg.sender.avatar_thumb ?? msg.sender.avatar_url} alt="" />
           ) : (
-            <span className="msg-avatar" aria-hidden="true" />
+            <span className="msg-avatar" aria-hidden="true">{Array.from(senderOwnedLabel.trim())[0]?.toLocaleUpperCase()}</span>
           )}
           <AgentInfoPopover
             id={`agent-info-${msg.seq}-${msg.sender.name}`}

@@ -1241,7 +1241,8 @@ export function App() {
 
   return (
     <div className={"app"+(slug!==null?" app--channel":"")}>
-      <header className="app-head">
+      <header className="app-head prototype-rail">
+
         <a
           className="d-title app-logo"
           href={"/" + location.search}
@@ -1252,6 +1253,9 @@ export function App() {
         >
           <Brand/>
         </a>
+        <nav className="prototype-rail-nav" aria-label={t("Studio.workspace")}>
+          <button type="button" className="prototype-rail-button" title={t("Studio.workspace")} aria-label={t("Studio.workspace")} onClick={()=>navigate("/")}><StudioIcon name="message"/></button>
+          <details className="prototype-rail-more" onKeyDown={event=>{if(event.key==="Escape"){event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}><summary className="prototype-rail-button" aria-label={t("App.workspace.tools")} title={t("App.workspace.tools")}><StudioIcon name="tools"/></summary><div className="prototype-rail-popover">
         <span className="d-hand app-tag">{t("App.tagline")}</span>
         <a className="app-docs t-mono" href="/docs">
           {t("App.docs")}
@@ -1339,6 +1343,9 @@ export function App() {
             <NotifyToggle optin={notifyOptin} onChange={setNotifyOptin} />
           </div>
         )}
+          </div></details>
+        </nav>
+        <button type="button" className="prototype-rail-account" title={t("App.settings.section.account")} aria-label={t("App.settings.section.account")} onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/></button>
         <button
           ref={settingsButtonRef}
           type="button"
@@ -1406,7 +1413,7 @@ export function App() {
         </p>
       )}
       <WorkspaceShell route={slug} navigationError={listError} requestOpen={createGroupRequest} title={currentChannel?.title}
-        mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><Brand/></a><button className="d-btn mobile-account-entry" type="button" onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/><span><strong>{me?.display_name??me?.handle??me?.name??t("App.settings.section.account")}</strong><small>{t("App.settings.section.account")}</small></span></button><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}
+        mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><Brand/></a><button className="d-btn mobile-account-entry" type="button" onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/><span><strong>{me?.display_name??me?.handle??me?.name??t("App.settings.section.account")}</strong><small>{t("App.settings.section.account")}</small></span></button><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><a className="d-btn" href="/docs">{t("App.docs")}</a><DesktopDownloadLink desktop={desktop}/><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}
         navigation={<>
           {canCreate && token !== null && (
             <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />

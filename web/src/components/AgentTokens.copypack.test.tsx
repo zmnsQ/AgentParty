@@ -285,7 +285,7 @@ describe("AgentTokens copy join pack · harness 档位 (#902/#944)", () => {
     agentsFixture = [{ name: "codex-bot", owner: "acct-1", channel_scope: "demo", created_at: 0 }];
     const r = await renderOpen();
     const button = r.root.findAll(
-      (n) => n.type === "button" && n.props.children === "rotate and recover",
+      (n) => n.type === "button" && n.props.children === "Replace credential and rebuild instructions",
     );
     expect(button.length).toBe(1);
     await act(async () => {
@@ -309,15 +309,15 @@ describe("OAuth agent identity UX",()=>{
     agentsFixture=[{name:"ac-oauth-fixture",owner:"acct-1",channel_scope:"demo",created_at:0,credential_kind:"oauth",oauth:{client_name:"ChatGPT",provider:"chatgpt",status:"authorized",scopes:["group.read"]}}];
     const r=await renderOpen();
     const content=JSON.stringify(r.toJSON());
-    expect(content).toContain("ChatGPT");expect(content).toContain("OAuth authorized");
+    expect(content).toContain("ChatGPT");expect(content).toContain("Authorization recorded");
     expect(content).toContain("Credentials are managed by the connected client");
     expect(content).not.toContain("This browser does not have the token");
-    expect(r.root.findAll(n=>n.type==="button"&&["rotate and recover","rotate","delete","copy token"].includes(String(n.props.children)))).toHaveLength(0);
+    expect(r.root.findAll(n=>n.type==="button"&&["Replace credential and rebuild instructions","rotate","delete","copy token"].includes(String(n.props.children)))).toHaveLength(0);
     expect(r.root.findAll(n=>n.type==="select"&&["agenttokens-pack-harness-select","agenttokens-resident-runner"].some(v=>String(n.props.id??n.props.className).includes(v)))).toHaveLength(0);
   });
   test("an expired OAuth grant says reauthorization instead of asking for a token reset",async()=>{
     agentsFixture=[{name:"ac-oauth-fixture",owner:"acct-1",channel_scope:"demo",created_at:0,credential_kind:"oauth",oauth:{client_name:"ChatGPT",provider:"chatgpt",status:"reconnect_required",scopes:[]}}];
     const r=await renderOpen();const content=JSON.stringify(r.toJSON());
-    expect(content).toContain("reauthorization needed");expect(content).not.toContain("rotate and recover");
+    expect(content).toContain("reauthorization needed");expect(content).not.toContain("Replace credential and rebuild instructions");
   });
 });

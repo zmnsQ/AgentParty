@@ -1,0 +1,4 @@
+# Optional wire dependencies. Review/install only in the approved isolated host.
+# No dependency is installed by configuration checks or unit tests.
+noiseprotocol==0.3.1
+websockets==16.0

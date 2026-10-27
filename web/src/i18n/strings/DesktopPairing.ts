@@ -3,7 +3,7 @@ import { registerDict, type LocaleDict } from "../dict";
 export const DesktopPairingStrings: LocaleDict = {
   en: {
     "DesktopPairing.title": "Pair this desktop",
-    "DesktopPairing.subtitle": "Approve this app from your signed-in browser.",
+    "DesktopPairing.subtitle": "Sign this Agent Commons desktop app into your account using your browser. This does not connect Muse, pair a Gadget or start an agent.",
     "DesktopPairing.start": "Start pairing",
     "DesktopPairing.creating": "Creating a secure pairing",
     "DesktopPairing.codeLabel": "Your pairing code",
@@ -19,7 +19,7 @@ export const DesktopPairingStrings: LocaleDict = {
   },
   zh: {
     "DesktopPairing.title": "配对这台桌面设备",
-    "DesktopPairing.subtitle": "请在已登录的系统浏览器中批准此应用。",
+    "DesktopPairing.subtitle": "在已登录的浏览器中批准 Agent Commons 桌面端登录。此操作不是 Muse / Gadget 配对，也不会启动 Agent。",
     "DesktopPairing.start": "开始配对",
     "DesktopPairing.creating": "正在创建安全配对",
     "DesktopPairing.codeLabel": "你的配对短码",

@@ -1,3 +1,4 @@
+import {registerMusePersonalRoutes} from "./muse-personal";
 import {registerMuseConnectorRoutes} from "./muse-connector";
 import type { Context, Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -575,4 +576,5 @@ export function registerCollaborationRoutes(app: Hono<AppContext>, deps: Depende
   }));
   registerGrokAutomationRoutes(app, { access });
   registerMuseConnectorRoutes(app,{access});
+  registerMusePersonalRoutes(app,{access});
 }

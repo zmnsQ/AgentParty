@@ -21,36 +21,46 @@ beforeEach(()=>{
  }) as typeof fetch;
 });
 afterEach(async()=>{if(renderer)await act(async()=>renderer?.unmount());renderer=null;globalThis.fetch=originalFetch;if(storage)Object.defineProperty(globalThis,'localStorage',storage);else Reflect.deleteProperty(globalThis,'localStorage');});
-async function render(){await act(async()=>{renderer=create(<LocaleProvider><MuseCloudPanel token="fixture" slug="group" canManage/></LocaleProvider>);});return renderer!.root;}
+async function render(mode:'mcp'|'gadget'|null='mcp'){await act(async()=>{renderer=create(<LocaleProvider><MuseCloudPanel token="fixture" slug="group" canManage/></LocaleProvider>);});if(mode)await act(async()=>renderer!.root.findAllByProps({className:'muse-method'})[mode==='mcp'?0:1]!.props.onClick());return renderer!.root;}
 describe('Muse Cloud staged connection UI',()=>{
  test('shows independent OAuth, pairing and review states without writes on render',async()=>{
   const root=await render(),body=text(root);
-  expect(body).toContain('Not configured');expect(body).toContain('A paired device is required');expect(body).toContain('No verified review decision');
-  expect(root.findByProps({className:'muse-steps'}).findAllByType('li')).toHaveLength(4);expect(root.findByProps({className:'muse-native-steps'}).findAllByType('li')).toHaveLength(2);expect(calls.every(x=>x.method==='GET')).toBe(true);expect(root.findByProps({type:'url'}).props.value).toBe('');
+  expect(body).toContain('Not configured');expect(body).toContain('not this website signing in to control your personal Muse');
+  expect(root.findByProps({className:'muse-steps'}).findAllByType('li')).toHaveLength(3);expect(root.findByProps({className:'muse-native-steps'}).findAllByType('li')).toHaveLength(2);expect(calls.every(x=>x.method==='GET')).toBe(true);expect(root.findByProps({type:'url'}).props.value).toBe('');
  });
- test('Gadget is primary, requires explicit staged setup, and preserves collapsed OAuth',async()=>{
-  const root=await render();
-  const primary=root.findByProps({className:'muse-gadget-primary'}),body=text(primary);
-  expect(body).toContain('Recommended: Gadget event bridge');
-  expect(body).toContain('Pair an isolated device yourself');
-  expect(body).toContain('group-scoped bridge identity');
-  expect(body).toContain('Explicitly enable');
-  expect(body).toContain('does not mean delivered or replied');
-  expect(body).toContain('No reply-stream listener is claimed');
-  expect(primary.findAllByType('li')).toHaveLength(4);
-  expect(primary.findAllByType('button')).toHaveLength(0);
-  expect(primary.findAllByType('a').some(a=>a.props.href==='https://github.com/facebookincubator/muse-gadget-sdk')).toBe(true);
-  const legacy=root.findByProps({className:'muse-legacy'});
-  expect(legacy.type).toBe('details');expect(legacy.props.open).toBeUndefined();
-  expect(text(legacy)).toContain('native MCP and OAuth');
-  expect(legacy.findAllByType('input').some(i=>i.props.value==='https://commons.test/api/channels/group/mcp')).toBe(true);
+ test('first screen makes the three routes distinct without URLs, credentials or write actions',async()=>{
+  const root=await render(null),body=text(root);
+  expect(root.findAllByProps({className:'muse-method'})).toHaveLength(3);
+  expect(body).toContain('MCP · Let Muse use group tools');expect(body).toContain('Gadget · Relay tasks through a paired device');
+  expect(body).toContain('This is not web sign-in to Muse');expect(body).toContain('Requires:');
+  expect(root.findAllByType('input')).toHaveLength(0);expect(root.findAllByType('a')).toHaveLength(0);expect(calls.every(x=>x.method==='GET')).toBe(true);
+ });
+ test('personal gateway is opt-in to view and only requests read-only status',async()=>{
+  const root=await render(null);
+  expect(calls.some(x=>x.url.endsWith('/bridges/muse-personal'))).toBe(false);
+  await act(async()=>root.findAllByProps({className:'muse-method'})[2]!.props.onClick());
+  expect(calls.filter(x=>x.url.endsWith('/bridges/muse-personal'))).toHaveLength(1);
   expect(calls.every(x=>x.method==='GET')).toBe(true);
+  expect(text(root)).toContain('Real account testing is deferred');
+  expect(root.findAllByType('input')).toHaveLength(0);
+ });
+ test('Gadget steps disclose prerequisites and keep repository references in advanced details',async()=>{
+  const root=await render('gadget'),primary=root.findByProps({className:'muse-gadget-primary'}),body=text(primary);
+  expect(body).toContain('This is not web authorization');expect(body).toContain('Stop here if none is available');expect(body).toContain('not marked online');
+  expect(primary.findByType('details').props.open).toBeUndefined();expect(text(primary.findByType('summary'))).toContain('not a connect button');
+  expect(primary.findAllByType('li')).toHaveLength(4);expect(root.findAllByType('input')).toHaveLength(0);expect(root.findAllByType('form')).toHaveLength(0);
+  expect(root.findAllByProps({className:'muse-legacy'})).toHaveLength(0);expect(calls.every(x=>x.method==='GET')).toBe(true);
+ });
+ test('switching methods returns to chooser without configuration mutations',async()=>{
+  const root=await render('gadget');await act(async()=>root.findByProps({className:'d-btn muse-method-back'}).props.onClick());
+  expect(root.findAllByProps({className:'muse-method'})).toHaveLength(3);expect(root.findAllByProps({className:'muse-gadget-primary'})).toHaveLength(0);
+  await act(async()=>root.findAllByProps({className:'muse-method'})[0]!.props.onClick());expect(root.findAllByProps({type:'url'})).toHaveLength(1);expect(calls.every(x=>x.method==='GET')).toBe(true);
  });
  test('MFA gate hides client registration',async()=>{
   canConfigure=false;const root=await render();expect(text(root)).toContain('two-step verification');expect(root.findAllByType('form')).toHaveLength(0);expect(calls.every(x=>x.method==='GET')).toBe(true);
  });
  test('authorized account does not imply session wake or platform approval',async()=>{
-  authorized=true;const root=await render();expect(text(root)).toContain('Authorization saved · current usability unverified');expect(text(root)).toContain('A paired device is required');expect(text(root)).toContain('No verified review decision');
+  authorized=true;const root=await render();expect(text(root)).toContain('Authorization saved · current usability unverified');expect(text(root)).toContain('immediate wake-ups are not guaranteed');
  });
  test('expired access is not presented as working and recovery does not mutate credentials',async()=>{
   authorized=true;oauthStatus='refresh_required';const root=await render();

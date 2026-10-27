@@ -324,6 +324,11 @@ export function DesktopAgentPanel({
         </span>
       </div>
 
+      <details className="desktop-agent-setup" open={noConfig || undefined}>
+        <summary>{t("DesktopSettings.agent.setupTitle")}</summary>
+        <ol>{[1, 2, 3].map(step => <li key={step}>{t(`DesktopSettings.agent.setup${step}`)}</li>)}</ol>
+      </details>
+
       {noConfig ? (
         <p className="desktop-agent-empty">{t("DesktopSettings.agent.empty")}</p>
       ) : (

@@ -2,6 +2,7 @@ import { registerDict, type LocaleDict } from "../dict";
 
 export const AppStrings: LocaleDict = {
   en: {
+    "App.workspace.tools": "Workspace tools",
     "App.join.failed": "Failed to join",
     "App.join.loginFailed": "Couldn't start sign-in",
     "App.join.backHome": "Back to home",
@@ -87,6 +88,7 @@ export const AppStrings: LocaleDict = {
     "App.docs": "docs ↗",
   },
   zh: {
+    "App.workspace.tools": "工作区工具",
     "App.join.failed": "加入失败",
     "App.join.loginFailed": "无法开始登录",
     "App.join.backHome": "返回首页",

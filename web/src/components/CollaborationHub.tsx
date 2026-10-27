@@ -37,6 +37,7 @@ export function CollaborationHub(props: CollaborationHubProps) {
 
 function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server, initialTab, initialProvider }: CollaborationHubProps & { server: string }) {
   const t = useT();
+  const [apiProvider,setApiProvider] = useState<"hermes"|"manus"|undefined>();
   const [tab, setTab] = useState<Tab>(initialTab??"bridges");
   // Keep the selected tab visible without scrolling the whole mobile dialog.
   useEffect(() => {
@@ -90,10 +91,10 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
     {current !== null && <>
       {!current.permissions.manage && <p className="commons-muted">{t("Collab.readOnly")}</p>}
       <div key={tab} className="commons-panel" id={`commons-panel-${tab}`} role="tabpanel" aria-labelledby={`commons-tab-${tab}`}>
-        {tab === "agents" && <><p className="studio-direct-hint">{t("Studio.directHint")}</p><CloudAgentConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} /></>}
+        {tab === "agents" && <><p className="studio-direct-hint">{t("Studio.directHint")}</p><CloudAgentConnections initialProvider={apiProvider} token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} /></>}
         {tab === "repositories" && <RepositoryConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "files" && <ChannelFiles token={token} slug={slug} canUpload={current.permissions.upload} client={client} />}
-        {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} />}
+        {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} onConfigureApi={provider=>{setApiProvider(provider);setTab("agents");}} />}
       </div>
     </>}
     <footer className="commons-attribution"><details className="commons-project-credit"><summary>{t("Attribution.label")}</summary><OriginalProjectCredit compact /></details></footer>

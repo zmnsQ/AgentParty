@@ -263,7 +263,7 @@ describe("AgentTokens 接入引导入口 (#1009)", () => {
     const r = await renderOpen();
     // 这一档没有「接入引导」按钮，主按钮就是重铸。
     expect(buttonsWithText(r, "join walkthrough").length).toBe(0);
-    const rotate = buttonsWithText(r, "rotate and recover");
+    const rotate = buttonsWithText(r, "Replace credential and rebuild instructions");
     expect(rotate.length).toBe(1);
     await act(async () => {
       void rotate[0]!.props.onClick();

@@ -9,7 +9,7 @@ const visibilitySource = readFileSync(new URL("./components/VisibilityToggle.tsx
 
 describe("channel header controls", () => {
   test("the global header owns the mention toggle and the channel only consumes its state", () => {
-    expect(appSource).toMatch(/<header className="app-head">[\s\S]*className="app-channel-notify"[\s\S]*<NotifyToggle/);
+    expect(appSource).toMatch(/<header className="app-head(?: prototype-rail)?">[\s\S]*className="app-channel-notify"[\s\S]*<NotifyToggle/);
     expect(appSource).toContain("notifyOptin={notifyOptin}");
     expect(channelSource).not.toContain("<NotifyToggle");
   });

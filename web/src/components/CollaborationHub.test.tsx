@@ -133,6 +133,9 @@ describe("cloud agent collaboration controls", () => {
     expect(text(renderer!.root)).toContain("MCP OAuth 2.1");
     expect(text(renderer!.root)).toContain("MCP Events");
     await click("Edit");
+    expect(text(renderer!.root)).toContain("running Hermes API Server address");
+    expect(text(renderer!.root)).toContain("does not send a task or start a paid run");
+    expect(saves).toBe(0);
     const password = renderer!.root.findByProps({ type: "password" });
     expect(password.props.value).toBe(""); expect(password.props.required).toBe(false);
     await act(async () => { password.props.onChange({ target: { value: "new-secret" } }); });
@@ -476,4 +479,16 @@ describe("file upload follow-up scope", () => {
     await act(async () => { next.resolve({ files: [], cursor: null }); });
     expect(text(renderer!.root)).not.toContain("notes.txt");
   });
+});
+
+test("API guide handoff preselects the requested provider without saving or running",async()=>{
+ let mutations=0;
+ const root=await mount(<CloudAgentConnections token="token" slug="demo" initialProvider="manus" summary={{...summary,connections:[]}} client={client({saveConnection:async()=>{mutations++;return {connection};},run:async()=>{mutations++;return {run};}})} onChanged={async()=>{}}/>);
+ expect(root.findByType("select").props.value).toBe("manus");
+ expect(root.findAllByProps({type:"password"})[0]!.props.value).toBe("");
+ expect(mutations).toBe(0);
+});
+test("API guide handoff cannot open a configuration form for a read-only member",async()=>{
+ const root=await mount(<CloudAgentConnections token="token" slug="demo" initialProvider="hermes" summary={{...summary,connections:[],permissions:{manage:false,run:false,upload:false}}} client={client()} onChanged={async()=>{}}/>);
+ expect(root.findAllByType("form")).toHaveLength(0);
 });

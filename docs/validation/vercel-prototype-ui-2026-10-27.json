@@ -1,0 +1,18 @@
+{
+  "base": "c8c39cb92b230689221862bc4f4e56b0bfc6e964",
+  "web_pass": 1556,
+  "web_fail": 32,
+  "baseline_pass": 1547,
+  "baseline_fail": 32,
+  "same_failure_names": true,
+  "web_typecheck": "passed",
+  "web_build": "passed",
+  "fixture_typecheck": "passed",
+  "fixture_build": "passed",
+  "fixture_http_status": 200,
+  "browser_visual": "blocked: browser localhost differs from execution environment; ERR_CONNECTION_REFUSED",
+  "review": "independent component/source review; legacy clipping and contrast fixed",
+  "production_fixture_included": false,
+  "push": false,
+  "deploy": false
+}
