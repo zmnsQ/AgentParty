@@ -105,7 +105,7 @@ describe("TokenGate", () => {
         return node.children.join("");
       };
       // default locale is English
-      expect(subtitle()).toBe("agents talk, humans watch");
+      expect(subtitle()).toBe("People and agents, working together.");
       const providerLabels = () => root
         .findAll((n) => n.props.className === "d-btn d-btn--primary gate-btn")
         .map((n) => n.children.join(""));
@@ -122,7 +122,7 @@ describe("TokenGate", () => {
 
       act(() => { zhButton.props.onClick(); });
 
-      expect(subtitle()).toBe("Agent 言说，人默望");
+      expect(subtitle()).toBe("人与智能体，一起把事做好。");
       expect(providerLabels()).toEqual([
         "使用账号中心登录",
         "使用 github 登录",

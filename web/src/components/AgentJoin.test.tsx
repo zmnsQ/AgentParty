@@ -1115,6 +1115,7 @@ describe("mixed cloud and coding team onboarding",()=>{
     expect(r.root.findByProps({"data-coding-provider":"claude"})).toBeTruthy();
     expect(r.root.findByProps({"data-provider":"dot"})).toBeTruthy();
     await act(async()=>r.root.findByProps({"data-coding-provider":provider}).props.onClick());
+    await act(async()=>r.root.findByProps({"data-picker-continue":true}).props.onClick());
     await act(async()=>r.root.findByType(CodingAgentSetup).props.onLegacy());
     expect(r.root.findByProps({name:"agent-join-harness",value:provider}).props.checked).toBe(true);
     expect(savedAgents).toHaveLength(0);
@@ -1125,11 +1126,13 @@ describe("mixed cloud and coding team onboarding",()=>{
     expect(back).toBeTruthy();await act(async()=>back!.props.onClick());
     expect(r.root.findByProps({"data-coding-provider":provider})).toBeTruthy();
     await act(async()=>r.root.findByProps({"data-provider":"muse"}).props.onClick());
+    await act(async()=>r.root.findByProps({"data-picker-continue":true}).props.onClick());
     expect(cloud).toBe("muse");expect(savedAgents).toHaveLength(0);
   });
   test.each(["codex","claude"] as const)("%s connection retains its actual harness in the generated join command",async(provider:"codex"|"claude")=>{
     const r=render(undefined,null,{onCloudConnect:()=>{},presence:[],messages:[]});open(r);
     await act(async()=>r.root.findByProps({"data-coding-provider":provider}).props.onClick());
+    await act(async()=>r.root.findByProps({"data-picker-continue":true}).props.onClick());
     await act(async()=>r.root.findByType(CodingAgentSetup).props.onLegacy());
     await act(async()=>r.root.find(node=>node.props.className==="d-btn d-btn--primary"&&node.props.onClick).props.onClick());
     expect(savedAgents).toHaveLength(1);
@@ -1169,4 +1172,12 @@ describe('controlled header invitation',()=>{
   update(r,{active:true,guideSession});expect(steps()).toHaveLength(1);
   expect(savedAgents).toHaveLength(0);
  });
+});
+
+test('controlled invitation Back delegates without creating credentials or reporting a global Close',()=>{
+ let back=0;const changes:boolean[]=[];
+ const r=render(value=>changes.push(value),null,{active:true,presence:[],messages:[],onBack:()=>back++,backLabel:'群详情'});
+ const button=r.root.find(n=>n.type==='button'&&Array.isArray(n.props.children)&&n.props.children.includes('群详情'));
+ act(()=>button.props.onClick());
+ expect(back).toBe(1);expect(changes).not.toContain(false);expect(savedAgents).toHaveLength(0);
 });

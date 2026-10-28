@@ -1,3 +1,4 @@
+import { PlatformIcon } from "./PlatformIcon";
 import "../styles/prototype-chat.css";
 import { StudioIcon } from "./StudioIcon";
 // 消息渲染：message → doodle 卡片外壳 + mono 元信息 + markdown 正文；
@@ -430,10 +431,7 @@ function MessageCardImpl({
   const senderPresentation = resolveIdentityPresentation(msg.sender.name, identityDisplay, {
     kind: msg.sender.kind,
     owner: msg.sender.owner,
-    display:
-      msg.sender.kind === "human"
-        ? msg.sender.display_name || msg.sender.handle || msg.sender.owner
-        : msg.sender.handle,
+    display: resolveSenderLabel(msg.sender, identityDisplay),
   });
   const senderLabel = senderPresentation.label;
   // #858：只有跟别人撞名的身份才带技术区分码；不撞名时 disambiguator 为 undefined，显示完全不变。
@@ -707,7 +705,9 @@ function MessageCardImpl({
     >
       <header className="d-meta msg-head">
         <div className="msg-head-main">
-          {msg.sender.avatar_thumb || msg.sender.avatar_url ? (
+          {msg.sender.kind === "agent" ? (
+            <span className="msg-avatar"><PlatformIcon platform={identityDisplay?.[msg.sender.name]?.connector_type} size={24} decorative /></span>
+          ) : msg.sender.avatar_thumb || msg.sender.avatar_url ? (
             <img className="msg-avatar msg-avatar--img" src={msg.sender.avatar_thumb ?? msg.sender.avatar_url} alt="" />
           ) : (
             <span className="msg-avatar" aria-hidden="true">{Array.from(senderOwnedLabel.trim())[0]?.toLocaleUpperCase()}</span>

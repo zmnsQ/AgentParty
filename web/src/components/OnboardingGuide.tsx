@@ -31,10 +31,12 @@ const STEP_KEYS = ["step1", "step2", "step3", "step4"] as const;
 export function OnboardingGuide({
   forceOpen = false,
   onClose,
+  onBack,
   returnFocusRef,
 }: {
   forceOpen?: boolean;
   onClose?: () => void;
+  onBack?: () => void;
   returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const t = useT();
@@ -76,6 +78,7 @@ export function OnboardingGuide({
         >
           <StudioIcon name="close" />
         </button>
+        {onBack && <button type="button" className="d-btn" onClick={() => { setOpen(false); onBack(); }}>{t("Onboarding.backSettings")}</button>}
         <img className="onboarding-art" src="/brand/workspace.png" width="1448" height="1086" alt=""/>
         <h2 className="d-title onboarding-title" id="onboarding-title">
           {t("Onboarding.title")}

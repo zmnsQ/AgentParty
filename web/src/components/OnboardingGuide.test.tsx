@@ -265,3 +265,24 @@ describe("Onboarding i18n (#146)", () => {
     expect(renderT("en", "Onboarding.step2.title")).toBe(OnboardingStrings.en["Onboarding.step2.title"]);
   });
 });
+
+test('settings guide exposes Back separately from dismiss', () => {
+  localStorage.setItem(STORAGE_KEY, '1');
+  let back = 0; let closed = 0;
+  const root = render({forceOpen:true,onBack:()=>back++,onClose:()=>closed++});
+  const button = root.findAllByType('button').find(node => String(node.props.children).includes('Back') || String(node.props.children).includes('返回设置'));
+  expect(button).toBeDefined();
+  act(()=>button!.props.onClick());
+  expect(back).toBe(1); expect(closed).toBe(0);
+});
+
+
+test("return from first-visit help clears internal visibility without claiming completion", () => {
+  let returned = 0;
+  const root = render({ onBack: () => { returned++; } });
+  const back = root.findAllByType("button").find(node => node.children.some(child => typeof child === "string" && child.includes("Back to settings")))!;
+  act(() => back.props.onClick());
+  expect(returned).toBe(1);
+  expect(steps()).toHaveLength(0);
+  expect(localStorage.getItem(STORAGE_KEY)).toBe(null);
+});

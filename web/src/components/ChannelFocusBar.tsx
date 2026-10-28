@@ -84,6 +84,7 @@ export function PendingDecisionLoadNotice({
 
 export function ChannelFocusBar({
   focus,
+  displayOf = (name: string) => name,
   decisionState,
   supplementalOverview,
   viewerIsModerator = false,
@@ -93,6 +94,7 @@ export function ChannelFocusBar({
   onRetryDecisions,
 }: {
   focus: ChannelFocus;
+  displayOf?: (name:string)=>string;
   decisionState?: PendingDecisionLoadState;
   /** Extra attention owned by the Focus module (for example HostBoard), even when focus.items is empty. */
   supplementalOverview?: {
@@ -145,7 +147,7 @@ export function ChannelFocusBar({
     const body = (
       <>
         <span className={`focus-dot focus-dot--${item.state}`} aria-hidden="true">{STATE_ICON[item.state]}</span>
-        <span className="focus-item-name">{item.name}</span>
+        <span className="focus-item-name">{displayOf(item.name)}</span>
         <span
           className={`focus-item-state focus-item-state--${item.state}`}
           title={item.state === "stalled" ? t("ChannelFocusBar.stalledHint") : undefined}
@@ -154,7 +156,7 @@ export function ChannelFocusBar({
         </span>
       </>
     );
-    const chipTitle = [item.name, stateLabel(item, t), item.label !== item.name ? item.label : null]
+    const chipTitle = [displayOf(item.name), stateLabel(item, t), item.label !== item.name ? item.label : null]
       .filter((part): part is string => part !== null)
       .join(" · ");
     if (onClick !== undefined) {

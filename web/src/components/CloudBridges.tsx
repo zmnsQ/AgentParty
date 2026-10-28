@@ -1,3 +1,4 @@
+import {createGrokSubmissionSafety,notifyGrokSubmissionSafety,type GrokSubmissionSafety} from "../lib/grokSubmissionSafety";
 import {connectionFailure,automationDeliveryLabel} from "../lib/connectionGuidance";
 import {MuseCloudPanel} from "./MuseCloudPanel";
 import {ProviderMark} from "./ProviderMark";
@@ -16,8 +17,8 @@ import type {CloudAgentChoice} from "./AgentConnectionPicker";
 import "../i18n/strings/AgentConnect";
 import "../styles/cloud-bridges.css";
 
-interface Props { token:string;slug:string;canManage:boolean;canRun:boolean;initialProvider?:CloudAgentChoice;showAuthorizationManagement?:boolean;onConfigureApi?(provider:"hermes"|"manus"):void; }
-export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConfigureApi,showAuthorizationManagement=true}:Props){
+interface Props { submissionSafety?:GrokSubmissionSafety; token:string;slug:string;canManage:boolean;canRun:boolean;initialProvider?:CloudAgentChoice;onProviderChange?(provider:CloudAgentChoice):void;showAuthorizationManagement?:boolean;onConfigureApi?(provider:"hermes"|"manus"):void; }
+export function CloudBridges({submissionSafety,token,slug,canManage,canRun,initialProvider,onProviderChange,onConfigureApi,showAuthorizationManagement=true}:Props){
   const t=useT();
   const [selected,setSelected]=useState<CloudAgentChoice|null>(initialProvider??null);
   const {locale}=useLocale();const zh=locale==="zh";
@@ -30,15 +31,39 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
   const [secret,setSecret]=useState("");
   const [apiKey,setApiKey]=useState("");
   const [prompt,setPrompt]=useState("");
-  const [pendingId,setPendingId]=useState<{prompt:string;id:string}|null>(null);
+  // Dispatch safety scope deliberately outlives token/permission refresh. Store
+  // only salted digests + IDs, never prior prompt text or credentials.
+  const submissionKey=JSON.stringify([apiBase(),slug]);
+  const fallbackSubmission=useRef(createGrokSubmissionSafety(apiBase(),slug));
+  if(fallbackSubmission.current.key!==submissionKey)fallbackSubmission.current=createGrokSubmissionSafety(apiBase(),slug);
+  const submissionStore=submissionSafety?.key===submissionKey?submissionSafety:fallbackSubmission.current;
+  const submissions=useRef(submissionStore);
+  submissions.current=submissionStore;
+  const busyRequest=useRef<number|null>(null);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
   const [error,setError]=useState("");
   const alive=useRef(true);
-  const scope=useRef({token,slug,base:apiBase()});
-  scope.current={token,slug,base:apiBase()};
-  const isActive=useCallback(()=>alive.current&&scope.current.token===token&&scope.current.slug===slug&&apiBase()===scope.current.base,[slug,token]);
+  const base=apiBase();
+  const scopeKey=JSON.stringify([token,slug,base,canManage,canRun,submissionStore.salt]);
+  const scope=useRef({key:scopeKey,generation:0});
+  if(scope.current.key!==scopeKey){
+    scope.current={key:scopeKey,generation:scope.current.generation+1};
+    busyRequest.current=null;
+  }
+  const generation=scope.current.generation;
+  const isActive=useCallback(()=>alive.current&&scope.current.generation===generation&&apiBase()===base,[generation,base]);
+  useEffect(()=>{
+    setBusy(submissions.current.inFlight);setState(null);setEvents(null);setAuthorizedAgents(null);setCue([]);
+    setName("Grok Automation");setSecret("");setEndpoint("");setApiKey("");setPrompt("");setError("");setNotice("");
+  },[generation]);
+  useEffect(()=>{
+    const update=()=>setBusy(submissionStore.inFlight||busyRequest.current!==null);
+    submissionStore.listeners.add(update);update();
+    return()=>{submissionStore.listeners.delete(update);};
+  },[submissionStore]);
   const reload=useCallback(async(signal?:AbortSignal)=>{
+    if(!isActive())return;
     const [grok,eventState,connections]=await Promise.all([
       cloudBridgesApi.grok(token,slug,signal),
       canManage ? cloudBridgesApi.events(token,slug,signal) : Promise.resolve(null),
@@ -52,10 +77,11 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
     return()=>{alive.current=false;controller.abort();};
   },[reload,isActive]);
   const task=async(fn:()=>Promise<void>)=>{
-    if(busy||!isActive())return;
+    if(busyRequest.current!==null||submissions.current.inFlight||!isActive())return;
+    busyRequest.current=generation;
     setBusy(true);setError("");setNotice("");
     try{await fn();}catch(e){if(isActive())setError(connectionFailure(e,zh));}
-    finally{if(isActive())setBusy(false);}
+    finally{if(isActive()&&busyRequest.current===generation){busyRequest.current=null;setBusy(false);}}
   };
   const saveGrok=(e:FormEvent)=>{e.preventDefault();void task(async()=>{
     if(!canManage)throw new Error("owner_only");
@@ -72,14 +98,29 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
     if(!canRun)throw new Error("human_member_required");
     const text=prompt.trim();
     if(!text)throw new Error("prompt_required");
-    const id=pendingId?.prompt===text?pendingId.id:crypto.randomUUID();
-    setPendingId({id,prompt:text});
+    const submission=submissions.current;
+    if(submission.inFlight)return;
+    submission.inFlight=true;
+    notifyGrokSubmissionSafety(submission);
+    try {
+    const digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`${submission.salt}\0${text}`)))).map(v=>v.toString(16).padStart(2,"0")).join("");
+    if(!isActive())return; // scope may change while hashing; no request was sent
+    const id=submission.ids.get(digest)??crypto.randomUUID();
+    submission.ids.set(digest,id);
     const r=await cloudBridgesApi.sendToGrok(token,slug,{prompt:text,request_id:id});
     if(isActive()){
       setNotice(zh?`投递状态：${automationDeliveryLabel(r.delivery.state,zh)}（不代表 Bot 已完成）`:`Delivery: ${automationDeliveryLabel(r.delivery.state,zh)} (not proof of Bot completion)`);
-      setPrompt("");setPendingId(null);
+      // Unknown/submitting is not a safe new submission: retain input and request ID.
+      if(r.delivery.state==="submitted"||r.delivery.state==="rejected"){setPrompt("");submission.ids.delete(digest);}
     }
     await reload();
+    } finally {
+      submission.inFlight=false;
+      notifyGrokSubmissionSafety(submission);
+      // Releasing transport lock is safe across credential refresh; do not
+      // publish the old response, prompt, notice, or error into the new UI.
+      if(alive.current&&submissions.current===submission)setBusy(false);
+    }
   });};
   return <section className="cloud-bridges" aria-label={zh?"Agent 接入指南":"Agent connection guides"}>
     <h2>{zh?"选择平台，再按步骤接入":"Choose a platform, then follow its steps"}</h2>
@@ -114,7 +155,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
     <p className="commons-note">{t("AgentConnect.testWarning")}</p>
     <div className="agent-connect-tabs" aria-label={t("AgentConnect.cloud")}>
       {(["dot","muse","cue","hermes","grok"] as const).map(provider=><button className="d-btn" type="button" key={provider}
-        aria-pressed={selected===provider} onClick={()=>setSelected(provider)}><ProviderMark provider={provider}/>{t(`AgentConnect.${provider}`)}</button>)}
+        aria-pressed={selected===provider} onClick={()=>{setSelected(provider);onProviderChange?.(provider);}}><ProviderMark provider={provider}/>{t(`AgentConnect.${provider}`)}</button>)}
     </div>
     {selected==="dot"&&<ChatGptQuickStart key={`${slug}:${token}`} token={token} slug={slug} canManage={canManage} />}
     {(selected==="dot"||selected==="muse")&&<details className="cloud-bridge-card"><summary>{t("AgentConnect.security")}</summary>

@@ -1,3 +1,5 @@
+import { nativeMuseRedirects } from "./collaboration/muse-native";
+import { isOpaqueAccount } from "@agentparty/shared/identity";
 import { registerBrowserAuth } from "./browser-auth/routes";
 // worker 入口 — rest 路由 + ws 升级转发
 import {
@@ -962,6 +964,26 @@ async function mintOrRotateProfileChannelToken(
     .run();
   if ((saved.meta.changes ?? 0) === 0) return { superseded: true };
   return { token, lineage };
+}
+
+// Shared display policy for /me and channel identities. No manual-edit flag:
+// a saved handle is not proof that it was deliberately chosen by the user.
+async function savedHumanNickname(account: string, profile: {
+  handle: string | null; provider: string | null; provider_user_id: string | null;
+} | null): Promise<string | null> {
+  const handle = profile?.handle || null;
+  // Prefer the saved readable handle, which survives provider display refreshes.
+  // No manual-edit flag exists: this is not proof of a deliberate user edit.
+  // Exclude known generated defaults (an intentionally identical value cannot
+  // be distinguished without a future schema change).
+  const generatedHandle = profile?.provider
+    ? `${profile.provider}-${(await sha256Hex(`${profile.provider}:${account}`)).slice(0, 10)}`
+    : null;
+  const githubDefault = profile?.provider === "github" && profile.provider_user_id
+    ? `gh-${profile.provider_user_id}` : null;
+  const readableHandle = handle && validateHandleFormat(handle) && !isOpaqueAccount(handle)
+    && handle !== generatedHandle && handle !== githubDefault ? handle : null;
+  return readableHandle;
 }
 
 function isOpaqueHumanSessionName(name: string): boolean {
@@ -3184,7 +3206,7 @@ app.get("/api/me", requireBearer, async (c) => {
   const profile = id.account == null
     ? null
     : await c.env.DB.prepare(
-        `SELECT handle, display_name, avatar_url, avatar_thumb, provider, tenant_key
+        `SELECT handle, display_name, avatar_url, avatar_thumb, provider, provider_user_id, tenant_key
            FROM account_profiles
           WHERE account = ?`,
       )
@@ -3195,6 +3217,7 @@ app.get("/api/me", requireBearer, async (c) => {
           avatar_url: string | null;
           avatar_thumb: string | null;
           provider: string | null;
+          provider_user_id: string | null;
           tenant_key: string | null;
         }>();
   // #165：agent 的昵称按 token name 存（非 per-account），单独取，作为 handle 回给网页 me chip。
@@ -3203,10 +3226,16 @@ app.get("/api/me", requireBearer, async (c) => {
     : (await c.env.DB.prepare("SELECT nickname FROM agent_nicknames WHERE name = ?")
         .bind(id.name)
         .first<{ nickname: string | null }>())?.nickname ?? null;
+  const nickname = id.kind === "agent" ? agentNickname
+    : id.kind === "human" && id.account ? await savedHumanNickname(id.account, profile) : null;
+  const preferredDisplay = id.kind === "agent" ? nickname || id.name
+    : nickname || profile?.display_name || id.displayName || id.name;
   // 会员骨架（#277）：账号维度 free/member。无账号会话（legacy/readonly）也回落 free，让工具统一读这两个字段。
   const membership = await loadMembership(c.env.DB, id.account);
   return c.json({
     name: id.name,
+    preferred_display: preferredDisplay,
+    ...(nickname ? { nickname } : {}),
     email: id.email ?? null,
     kind: id.kind,
     role: id.role,
@@ -3248,7 +3277,7 @@ app.get("/api/me", requireBearer, async (c) => {
 // readonly/legacy 无账号 token 一律 403。撞保留名 / 撞任意 token 名 / 已被别的账号占用 → 409。
 app.put("/api/me/handle", requireBearer, async (c) => {
   const id = c.get("identity");
-  if (id.role === "readonly" || id.account == null) {
+  if (id.role !== "human" || id.account == null) {
     return c.json(errorBody("forbidden", "setting a handle requires a human account session"), 403);
   }
   const body = (await c.req.json().catch(() => null)) as { handle?: unknown } | null;
@@ -7022,7 +7051,7 @@ app.get("/api/channels/:slug/identities", async (c) => {
   if (!(await canAccessLoadedChannel(c.env.DB, c.get("identity"), channel))) {
     return c.json(errorBody("forbidden", "not allowed in this channel"), 403);
   }
-  const identities = new Map<string, { name: string; kind?: "agent" | "human"; account?: string; display: string; handle?: string }>();
+  const identities = new Map<string, { name: string; kind?: "agent" | "human"; account?: string; display: string; handle?: string; nickname?: string; connector_type?: "muse" | "chatgpt" | "hermes" | "manus" }>();
   const add = (identity: { name: string; kind?: "agent" | "human"; account?: string; display?: string; handle?: string | null }) => {
     const prev = identities.get(identity.name);
     const kind = identity.kind ?? prev?.kind;
@@ -7034,6 +7063,7 @@ app.get("/api/channels/:slug/identities", async (c) => {
       ...(kind === undefined ? {} : { kind }),
       ...(account === undefined ? {} : { account }),
       ...(handle === undefined ? {} : { handle }),
+      ...(prev?.nickname === undefined ? {} : { nickname: prev.nickname }),
       display: explicitDisplay ?? (kind === "human" && account ? account : (prev?.display ?? identity.name)),
     });
   };
@@ -7122,17 +7152,98 @@ app.get("/api/channels/:slug/identities", async (c) => {
   );
   for (const account of humanAccounts) {
     const profile = await c.env.DB.prepare(
-      `SELECT handle, display_name
+      `SELECT handle, display_name, provider, provider_user_id
          FROM account_profiles
         WHERE account = ?`,
     )
       .bind(account)
-      .first<{ handle: string | null; display_name: string | null }>();
+      .first<{ handle: string | null; display_name: string | null; provider: string | null; provider_user_id: string | null }>();
     const handle = profile?.handle || null;
-    const display = profile?.display_name || handle || null;
+    const readableHandle = await savedHumanNickname(account, profile);
+    const display = readableHandle || profile?.display_name || handle || null;
     if (display === null) continue;
     for (const identity of identities.values()) {
-      if (identity.kind === "human" && identity.account === account) add({ ...identity, display, handle });
+      if (identity.kind === "human" && identity.account === account) {
+        add({ ...identity, display, handle });
+        if (readableHandle !== null) identities.get(identity.name)!.nickname = readableHandle;
+      }
+    }
+  }
+
+  // Nicknames are per agent identity, not its owner's human profile. Hydrate only
+  // identities already visible in this channel; this is not an agent directory.
+  // Bounded batches stay below D1's bind limit even for long-lived channels.
+  const agentNames = [...identities.values()]
+    .filter((identity) => identity.kind === "agent")
+    .map((identity) => identity.name);
+  for (let offset = 0; offset < agentNames.length; offset += 80) {
+    const names = agentNames.slice(offset, offset + 80);
+    const rows = await c.env.DB.prepare(
+      `SELECT name, nickname FROM agent_nicknames WHERE name IN (${names.map(() => "?").join(",")})`,
+    ).bind(...names).all<{ name: string; nickname: string }>();
+    for (const row of rows.results) {
+      const identity = identities.get(row.name);
+      if (identity?.kind === "agent" && row.nickname) {
+        add({ ...identity, display: row.nickname, handle: row.nickname });
+        // Explicit authority marker: never infer this from display or a DO payload.
+        identities.get(row.name)!.nickname = row.nickname;
+      }
+    }
+  }
+
+  // Display-only connector provenance, never platform-account verification.
+  // Only project metadata onto the already-authorized roster, not a directory.
+  const optionalConnectorRows = <T>(error: unknown): { results: T[] } => {
+    // Older deployments may not enable these optional integrations yet. Only
+    // absent known tables may degrade; do not hide query or infrastructure bugs.
+    const message = error instanceof Error ? error.message : String(error);
+    if (/no such table: (?:main\.)?(?:connector_oauth_grants|connector_oauth_clients|connector_oauth_private_clients|cloud_agent_connections)(?:\s|:|$)/i.test(message)) return { results: [] };
+    throw error;
+  };
+  for (let offset = 0; offset < agentNames.length; offset += 80) {
+    const names = agentNames.slice(offset, offset + 80);
+    const placeholders = names.map(() => "?").join(",");
+    const grants = await c.env.DB.prepare(
+      `SELECT g.agent_name, c.redirects_json, p.provider
+         FROM connector_oauth_grants g
+         JOIN connector_oauth_clients c ON c.client_id = g.client_id
+         LEFT JOIN connector_oauth_private_clients p ON p.client_id = g.client_id
+           AND p.channel_slug = g.channel_slug AND p.owner_account = g.account
+        WHERE g.channel_slug = ? AND g.revoked_at IS NULL AND c.disabled_at IS NULL
+          AND g.agent_name IN (${placeholders})`,
+    ).bind(slug, ...names).all<{ agent_name: string; redirects_json: string; provider: string | null }>()
+      .catch(optionalConnectorRows<{ agent_name: string; redirects_json: string; provider: string | null }>);
+    const candidates = new Map<string, Set<"muse" | "chatgpt" | "hermes" | "manus">>();
+    const remember = (name: string, type: "muse" | "chatgpt" | "hermes" | "manus") => {
+      const values = candidates.get(name) ?? new Set(); values.add(type); candidates.set(name, values);
+    };
+    for (const grant of grants.results) {
+      if (grant.provider === "muse" || nativeMuseRedirects(grant.redirects_json)) {
+        remember(grant.agent_name, "muse"); continue;
+      }
+      let redirects: unknown;
+      try { redirects = JSON.parse(grant.redirects_json); } catch { continue; }
+      if (Array.isArray(redirects) && redirects.length > 0 && redirects.every((value: unknown) => {
+        if (typeof value !== "string" || /[\\\s%]/.test(value)) return false;
+        try {
+          const url = new URL(value);
+          return url.origin === "https://chatgpt.com" && !url.username && !url.password && !url.search && !url.hash
+            && (/^\/connector\/oauth\/[A-Za-z0-9_-]{8,100}$/.test(url.pathname)
+              || url.pathname === "/connector_platform_oauth_redirect");
+        } catch { return false; }
+      })) remember(grant.agent_name, "chatgpt");
+    }
+    const connections = await c.env.DB.prepare(
+      `SELECT agent_name, provider FROM cloud_agent_connections
+        WHERE channel_slug = ? AND revoked_at IS NULL AND agent_name IN (${placeholders})`,
+    ).bind(slug, ...names).all<{ agent_name: string; provider: string }>()
+      .catch(optionalConnectorRows<{ agent_name: string; provider: string }>);
+    for (const connection of connections.results) {
+      if (connection.provider === "hermes" || connection.provider === "manus") remember(connection.agent_name, connection.provider);
+    }
+    for (const [name, types] of candidates) {
+      const identity = identities.get(name);
+      if (identity?.kind === "agent" && types.size === 1) identity.connector_type = [...types][0]!;
     }
   }
 

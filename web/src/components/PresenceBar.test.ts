@@ -1136,3 +1136,11 @@ describe("current identity roster without synthetic connectivity", () => {
     expect(JSON.stringify(next.toJSON())).not.toContain("Removed");
   });
 });
+
+
+test("roster uses the current nickname instead of stale live handle and raw identity fallback",()=>{
+ const r=renderWith({name:"agent-a",kind:"agent",state:"idle",handle:"OldAlias",ts:Date.now()} as PresenceEntry,{identities:{"agent-a":{display:"NewAlias",kind:"agent"}},rosterIdentities:[{name:"agent-a",kind:"agent",display:"agent-a"}]},true);
+ const names=r.root.findAll(node=>node.props.className==="roster-name");
+ expect(names.some(node=>node.children.join("")==="NewAlias")).toBe(true);
+ expect(names.some(node=>node.children.join("")==="OldAlias")).toBe(false);
+});

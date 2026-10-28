@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { nextMentionBadgeCount, shouldMarkSeen, shouldNotify, shouldToast } from "./notify";
+import { nextMentionBadgeCountOnce, nextMentionBadgeCount, shouldMarkSeen, shouldNotify, shouldToast } from "./notify";
 const base = (over = {}) => ({ type:"msg", kind:"message", seq:5, mentions:["leo"], retracted:undefined,
   sender:{name:"bob",kind:"agent"}, body:"hi @leo", ts: Date.now(), ...over } as any);
 
@@ -73,4 +73,19 @@ test("只有窗口可见且消息流贴底时才上报 seen", () => {
   expect(shouldMarkSeen(false, true)).toBe(true);
   expect(shouldMarkSeen(true, true)).toBe(false);
   expect(shouldMarkSeen(false, false)).toBe(false);
+});
+
+test("badge deduplicates repeated delivery but counts a distinct sender message",()=>{
+ const seen=new Set<number>();
+ expect(nextMentionBadgeCountOnce(seen,0,base(),"leo",true)).toBe(1);
+ expect(nextMentionBadgeCountOnce(seen,1,base(),"leo",true)).toBe(1);
+ expect(nextMentionBadgeCountOnce(seen,1,base({seq:6,sender:{name:"other",kind:"agent"}}),"leo",true)).toBe(2);
+});
+test("read reset and foreground-to-background replay cannot resurrect a badge",()=>{
+ const seen=new Set<number>();
+ expect(nextMentionBadgeCountOnce(seen,0,base(),"leo",true)).toBe(1);
+ expect(nextMentionBadgeCountOnce(seen,0,base(),"leo",true)).toBe(0);
+ expect(nextMentionBadgeCountOnce(seen,0,base({seq:6}),"leo",false)).toBe(0);
+ expect(nextMentionBadgeCountOnce(seen,0,base({seq:6}),"leo",true)).toBe(0);
+ expect(nextMentionBadgeCountOnce(new Set(),0,base(),"leo",true)).toBe(1);
 });

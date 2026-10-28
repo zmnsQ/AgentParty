@@ -4,6 +4,7 @@ import type { ChannelRoleAssignment, PresenceEntry, PublicDirectedDelivery, Send
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { LocaleProvider } from "../../i18n/locale";
 import { buildTeamBoard } from "../../lib/teamBoard";
+import { StudioIcon } from "../StudioIcon";
 import { TeamBoard } from "./TeamBoard";
 
 const NOW = 1_700_000_000_000;
@@ -92,7 +93,9 @@ describe("TeamBoard（#1060 PR B）", () => {
     const cards = r.root.findAll((n) => n.type === "li" && typeof n.props["data-lane"] === "string").map((n) => `${n.props["data-name"]}:${n.props["data-lane"]}`);
     expect(cards).toEqual(["worker-b:blocked", "lead:working", "worker-a:waiting", "old:offline"]);
     const text = allText(r);
-    expect(text).toMatch(/★\s+主持/);
+    const hostBadge = r.root.findByProps({className:"team-card-host team-card-host--active"});
+    expect(hostBadge.findByType(StudioIcon).props.name).toBe("star");
+    expect(hostBadge.children.filter(child=>typeof child==="string").join("")).toContain("主持");
     expect(text).toContain("#7 发版");
     expect(text).toContain("汇报给 lead");
     expect(text).toMatch(/leeguooooo\/AgentParty\s*@feat\/x/);

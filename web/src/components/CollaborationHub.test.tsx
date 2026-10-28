@@ -516,3 +516,11 @@ test("one connection entry leads from platform choice to configuration; existing
   expect(renderer!.root.findAllByType("form")).toHaveLength(0);
  } finally {globalThis.fetch=previousFetch;}
 });
+
+test('an explicit files entry overrides a remembered connection tab without reviving a credential form',async()=>{
+ const viewMemory={current:{tab:'bridges' as const,view:'configure' as const,provider:'hermes' as const}};
+ await mount(<CollaborationHub token="token" slug="demo" initialTab="files" viewMemory={viewMemory} client={client()}/>);
+ expect(renderer!.root.findByProps({id:'commons-tab-files'}).props['aria-selected']).toBe(true);
+ expect(renderer!.root.findAll(n=>n.type==='input'&&n.props.type==='password')).toHaveLength(0);
+ expect(text(renderer!.root)).toContain('notes.txt');
+});

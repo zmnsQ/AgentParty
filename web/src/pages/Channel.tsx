@@ -1,3 +1,10 @@
+import {ownedGrokSubmissionSafety,type GrokSubmissionOwnerMemory} from "../lib/grokSubmissionSafety";
+import {apiBase} from "../lib/base";
+import {settleCurrentRequest} from "../lib/latestRequest";
+import {workspaceActionReady} from "../lib/workspaceActionReadiness";
+import {restorePanelScrollWhenReady,type PanelScrollRequest} from "../lib/panelScrollRestore";
+import type {CollaborationView} from "../components/CollaborationHub";
+import {pushPanelOrigin,popPanelOrigin} from "../lib/channelPanelNavigation";
 import {useCompactViewport} from "../lib/useCompactViewport";
 import { ModalPortal } from "../components/ModalPortal";
 import { StudioIcon } from "../components/StudioIcon";
@@ -37,7 +44,7 @@ import {
   HostBoardPanel,
   type HostCandidate,
 } from "../components/HostBoardPanel";
-import { ChannelAdminView, type ChannelAdminMember } from "../components/ChannelAdminView";
+import { ChannelAdminView, type ChannelAdminMember, type ChannelAdminViewMemory } from "../components/ChannelAdminView";
 import { computeChannelFocus } from "../lib/channelFocus";
 import {
   focusMessageNavigationTarget,
@@ -94,6 +101,7 @@ import {
   buildIdentityDisplay,
   formatIdentityPresentation,
   resolveIdentityPresentation,
+  resolveSenderLabel,
   type IdentityDisplayMap,
 } from "../lib/identityDisplay";
 import { mentionCandidates, parseDraftMentions, type DraftMentionStatus } from "../lib/mentions";
@@ -119,7 +127,7 @@ import {
   type AgentFilterKind,
   type AgentFilterMode,
 } from "../lib/filters";
-import { isOwnMention, nextMentionBadgeCount, shouldMarkSeen, shouldNotify, shouldToast } from "../lib/notify";
+import { isOwnMention, nextMentionBadgeCountOnce, shouldMarkSeen, shouldNotify, shouldToast } from "../lib/notify";
 import { historyFallbackRecovered } from "../lib/historyRecovery";
 import {
   beginCharterRead,
@@ -160,9 +168,10 @@ const SCREEN_READER_ONLY_STYLE: CSSProperties = {
 };
 
 interface Props {
+  identityRevision?: number;
   title?: string;
   workspaceAction?:{id:number;panel:"search"|"files"|"charter"|"team"|"connect";agent?:string};
-  onAgentRoster?(slug:string,agents:readonly {name:string;display?:string;role?:string}[]):void;
+  onAgentRoster?(slug:string,agents:readonly {name:string;display?:string;role?:string;connector_type?:string}[]):void;
   slug: string;
   token: string;
   mode: "normal" | "party";
@@ -542,6 +551,8 @@ export function ChannelPanelModal({
   onEscape,
   children,
   hideHeader = false,
+  onBack,
+  backLabel,
   closeDisabled = false,
   shouldRestoreFocus,
 }: {
@@ -552,6 +563,8 @@ export function ChannelPanelModal({
   children: ReactNode;
   // #504：内容自带头部（如团队面板博客风头）时隐藏 modal 默认头，避免双 header。
   hideHeader?: boolean;
+  onBack?: () => void;
+  backLabel?: string;
   closeDisabled?: boolean;
   /** A successful message jump deliberately leaves focus on the destination. */
   shouldRestoreFocus?: () => boolean;
@@ -650,8 +663,9 @@ export function ChannelPanelModal({
         onClick={requestClose}
       />
       <section ref={cardRef} className="channel-panel-card" tabIndex={-1}>
-        {!hideHeader && (
+        {(!hideHeader || onBack) && (
           <header className="channel-panel-head">
+            {onBack && <button type="button" className="d-btn" disabled={closeDisabled} onClick={onBack}>← {backLabel}</button>}
             <div className="channel-panel-titlebox">
               <h2>{title}</h2>
               {subtitle !== undefined && subtitle !== "" && <p className="t-mono">{subtitle}</p>}
@@ -784,9 +798,7 @@ function SearchHitCard({
   const senderPresentation = resolveIdentityPresentation(hit.sender.name, identityDisplay, {
     kind: hit.sender.kind,
     owner: hit.sender.owner,
-    display: hit.sender.kind === "human"
-      ? hit.sender.display_name || hit.sender.handle || hit.sender.owner
-      : hit.sender.handle,
+    display: resolveSenderLabel(hit.sender, identityDisplay),
   });
   const senderLabel = formatIdentityPresentation(
     senderPresentation,
@@ -1049,6 +1061,8 @@ export function CompletionPanel({
   );
 }
 
+interface TaskLedgerView {assignee:string;state:"active"|"all"|TaskState;query:string;priority:number|null;doneLimit:number;expanded:boolean;detail:number|null;}
+
 export function TaskLedgerPanel({
   tasks,
   loading,
@@ -1068,6 +1082,8 @@ export function TaskLedgerPanel({
   onOpenMessage,
   onClose,
   selectedTaskId = null,
+  onSelectedTaskDismiss,
+  viewMemory,
 }: {
   tasks: TaskRecord[];
   loading: boolean;
@@ -1097,6 +1113,8 @@ export function TaskLedgerPanel({
   onOpenMessage?: (seq: number) => void | Promise<void>;
   // 从 Focus 等外部入口精确跳转任务。仅临时穿透筛选，不重置面板内搜索、筛选或草稿。
   selectedTaskId?: number | null;
+  onSelectedTaskDismiss?:()=>void;
+  viewMemory?: {current:TaskLedgerView|null};
 }) {
   const t = useT(), compact = useCompactViewport();
   const [assignDrafts, setAssignDrafts] = useState<Record<number, string>>({});
@@ -1124,20 +1142,22 @@ export function TaskLedgerPanel({
   const [blockingTaskId, setBlockingTaskId] = useState<number | null>(null);
   const [blockDraft, setBlockDraft] = useState("");
   // #271(a)：按受理人筛选看板。"all" 全量，"__unassigned__" 只看未指派。
-  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState(viewMemory?.current?.assignee??"all");
   // 默认进入「未完成」而不是把历史完成项也塞进首屏；用户先看下一步，再按需翻历史。
-  const [stateFilter, setStateFilter] = useState<"active" | "all" | TaskState>("active");
-  const [taskQuery, setTaskQuery] = useState("");
-  const [prioFilter, setPrioFilter] = useState<number | null>(null);
+  const [stateFilter, setStateFilter] = useState<"active" | "all" | TaskState>(viewMemory?.current?.state??"active");
+  const [taskQuery, setTaskQuery] = useState(viewMemory?.current?.query??"");
+  const [prioFilter, setPrioFilter] = useState<number | null>(viewMemory?.current?.priority??null);
   // #504：已完成组默认只显 N 条，避免积累后无界渲染（CodeRabbit #517 指出）；点开加载更多。
-  const [doneLimit, setDoneLimit] = useState(6);
+  const [doneLimit, setDoneLimit] = useState(viewMemory?.current?.doneLimit??6);
   // #271(d)：展开放大——CSS class 切宽度，外层 channel-panel-card 用 :has() 跟随。
-  const [expandedView, setExpandedView] = useState(false);
+  const [expandedView, setExpandedView] = useState(viewMemory?.current?.expanded??false);
   // #271(c)：任务详情作为台账内路由。存 id 不存快照，刷新后始终显示最新记录。
-  const [detailTaskId, setDetailTaskId] = useState<number | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<number | null>(viewMemory?.current?.detail??null);
+  useLayoutEffect(()=>{if(viewMemory)viewMemory.current={assignee:assigneeFilter,state:stateFilter,query:taskQuery,priority:prioFilter,doneLimit,expanded:expandedView,detail:detailTaskId};},[viewMemory,assigneeFilter,stateFilter,taskQuery,prioFilter,doneLimit,expandedView,detailTaskId]);
   const taskTitleRefs = useRef(new Map<number, HTMLButtonElement>());
   const detailBackRef = useRef<HTMLButtonElement | null>(null);
   const detailReturnFocusIdRef = useRef<number | null>(null);
+  const taskListScrollRef=useRef<number|null>(null);
   const selectedTask = selectedTaskId === null
     ? null
     : tasks.find((task) => task.id === selectedTaskId) ?? null;
@@ -1156,13 +1176,16 @@ export function TaskLedgerPanel({
     const returnFocusId = detailReturnFocusIdRef.current;
     if (returnFocusId === null) return;
     detailReturnFocusIdRef.current = null;
+    const body=typeof document==='undefined'?null:document.querySelector<HTMLElement>('.channel-panel-body');
+    if(body&&taskListScrollRef.current!==null)body.scrollTop=taskListScrollRef.current;
     const trigger = taskTitleRefs.current.get(returnFocusId);
     if (typeof trigger?.focus === "function") trigger.focus();
   }, [detailTaskId]);
   const closeTaskDetail = useCallback(() => {
     detailReturnFocusIdRef.current = detailTaskId;
     setDetailTaskId(null);
-  }, [detailTaskId]);
+    onSelectedTaskDismiss?.();
+  }, [detailTaskId,onSelectedTaskDismiss]);
   useEffect(() => {
     if (detailTask === null || typeof window === "undefined") return;
     const onKey = (event: KeyboardEvent) => {
@@ -1436,7 +1459,7 @@ export function TaskLedgerPanel({
             else taskTitleRefs.current.set(task.id, node);
           }}
           aria-label={t("Channel.tasks.detailOpenAria", { id: task.id })}
-          onClick={() => setDetailTaskId(task.id)}
+          onClick={() => {taskListScrollRef.current=typeof document==='undefined'?null:document.querySelector<HTMLElement>('.channel-panel-body')?.scrollTop??null;setDetailTaskId(task.id);}}
         >
           <span className="task-card-leading">
             <span className="t-mono task-id">#{task.id}</span>
@@ -2023,6 +2046,7 @@ function TeamThread({
 }
 
 export function ChannelPage({
+  identityRevision = 0,
   title,
   workspaceAction,
   onAgentRoster,
@@ -2110,9 +2134,6 @@ export function ChannelPage({
   } = useCharterRequestGeneration(slug);
   const [charterError, setCharterError] = useState<string | null>(null);
   const [channelRoles, setChannelRoles] = useState<ChannelRoleInfo[]>([]);
-  const agentRoster=useMemo(()=>channelIdentities.filter(identity=>identity.kind==='agent').map(({name,display})=>({name,display,role:channelRoles.find(role=>role.name===name)?.responsibility??undefined})),[channelIdentities,channelRoles]);
-  useEffect(()=>{onAgentRoster?.(slug,agentRoster);},[onAgentRoster,slug,agentRoster]);
-  useEffect(()=>()=>{onAgentRoster?.(slug,[]);},[onAgentRoster,slug]);
   // 跨 WS/REST 链路共享的成员删除墓碑：participant_removed 可能先于/晚于
   // identities / roles 请求，旧响应不得把已经权威删除的成员重新塞回 roster。
   const removedChannelMembersRef = useRef(new Map<string, number>());
@@ -2126,6 +2147,13 @@ export function ChannelPage({
   const taskLedgerRequestRef = useRef(0);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const taskViewMemory=useRef<TaskLedgerView|null>(null);
+  const collaborationViewMemory=useRef<CollaborationView|null>(null);
+  const submissionServer=apiBase();
+  // Retain the last known owner's guard during async identity refresh. Unknown
+  // identity cannot dispatch or borrow that guard; a new known account replaces it.
+  const submissionMemory=useRef<GrokSubmissionOwnerMemory["current"]>(null);
+  const submissionSafety=ownedGrokSubmissionSafety(submissionMemory,accountKey,submissionServer,slug);
   const [taskActionBusyId, setTaskActionBusyId] = useState<number | null>(null);
   const [taskActionError, setTaskActionError] = useState<string | null>(null);
   const [taskCreating, setTaskCreating] = useState(false);
@@ -2134,13 +2162,39 @@ export function ChannelPage({
   const [roleError, setRoleError] = useState<string | null>(null);
   const [hostAssignError, setHostAssignError] = useState<string | null>(null);
   const [seenCharterRev, setSeenCharterRev] = useState(() => readSeenCharterRev(slug));
+  const channelAdminViewMemory = useRef<ChannelAdminViewMemory | null>(null);
   const [activePanel, setActivePanel] = useState<ChannelPanel | null>(null);
   const [cloudConnectTarget,setCloudConnectTarget]=useState<CloudAgentChoice|null>(null);
   const [activeAdminSurface, setActiveAdminSurface] = useState<AdminSurface | null>(null);
+  const [agentManagerTarget, setAgentManagerTarget] = useState<string | null>(null);
+  type PanelLocation={key:string;details:boolean;panel:ChannelPanel|null;admin:AdminSurface|null;member:MemberDetailRoute|null;task:number|null;files:boolean;provider:CloudAgentChoice|null;manager:string|null;scroll:number};
+  const [panelOrigins,setPanelOrigins]=useState<PanelLocation[]>([]);
+  const panelOriginsRef=useRef(panelOrigins);panelOriginsRef.current=panelOrigins;
+  const restorePanelScrollRef=useRef<PanelScrollRequest|null>(null);
+  const stopPanelScrollRestoreRef=useRef<(()=>void)|null>(null);
+  const panelLocationRef=useRef<PanelLocation|null>(null);
+  panelLocationRef.current=activePanel||activeAdminSurface||detailsOpen?{key:activePanel??activeAdminSurface??"details",details:detailsOpen,panel:activePanel,admin:activeAdminSurface,member:memberDetailRoute,task:selectedTaskId,files:workspaceFiles,provider:cloudConnectTarget,manager:agentManagerTarget,scroll:0}:null;
+  const rememberPanelOrigin=useCallback((target:string)=>{
+    const current=panelLocationRef.current;
+    // An explicit navigation invalidates an older restoration even within the
+    // same panel (for example connections -> files while content is loading).
+    stopPanelScrollRestoreRef.current?.();restorePanelScrollRef.current=null;
+    const body=typeof document==='undefined'?null:document.querySelector<HTMLElement>(current?.details?'.conversation-details-content':current?.admin==='agentTokens'?'.agentmanager-dialog .settings-content':current?.admin==='agentJoin'?'.agent-join-card':'.channel-panel-body');
+    setPanelOrigins(previous=>pushPanelOrigin(previous,current?{...current,scroll:body?.scrollTop??0}:null,target));
+  },[]);
+  useLayoutEffect(()=>{
+    const request=restorePanelScrollRef.current;
+    if(request===null)return;
+    stopPanelScrollRestoreRef.current=restorePanelScrollWhenReady({
+      request,root:document,currentKey:()=>panelLocationRef.current?.key??null,
+      onDone:()=>{if(restorePanelScrollRef.current===request)restorePanelScrollRef.current=null;},
+    });
+    return ()=>{stopPanelScrollRestoreRef.current?.();stopPanelScrollRestoreRef.current=null;};
+  },[activePanel,activeAdminSurface,memberDetailRoute,detailsOpen]);
+
   useEffect(()=>{if(activePanel!==null||activeAdminSurface!==null)setDetailsOpen(false);},[activePanel,activeAdminSurface]);
   // #1009：「接入凭证」面板点「接入引导 / 重新接上」交过来的一次引导会话——转给 AgentJoin 打开四步 stepper。
   const [joinGuideSession, setJoinGuideSession] = useState<JoinGuideSession | null>(null);
-  const [agentManagerTarget, setAgentManagerTarget] = useState<string | null>(null);
   const [localLoopGuardEnabled, setLocalLoopGuardEnabled] = useState(loopGuardEnabled);
   const [localLoopGuardLimit, setLocalLoopGuardLimit] = useState(loopGuardLimit === null ? "" : String(loopGuardLimit));
   const [localWorkflowGuardEnabled, setLocalWorkflowGuardEnabled] = useState(workflowGuardEnabled);
@@ -2202,6 +2256,7 @@ export function ChannelPage({
   tRef.current = t;
   const notifiedSeqRef = useRef<Set<number>>(new Set()); // seq 去重：防同一帧被重复处理时重复弹通知
   const desktopMentionBadgeRef = useRef(0);
+  const badgeSeenSeqRef = useRef<Set<number>>(new Set()); // per channel mount; retain on read/reset and reconnect
   const toastedSeqRef = useRef<Set<number>>(new Set()); // seq 去重：页内 toast 同一帧只弹一次
   const [toasts, setToasts] = useState<MentionToastItem[]>([]);
   const dismissToast = useCallback((seq: number) => {
@@ -2267,6 +2322,8 @@ export function ChannelPage({
   // 服务端会把全部历史 @ 当 live 帧重放）。初始页成功后复位。
   const replayUntrustedRef = useRef(false);
   const initialHistoryRequestRef = useRef(0);
+  const olderHistoryRequestRef = useRef(0);
+  useEffect(() => () => { olderHistoryRequestRef.current += 1; loadingOlderRef.current = false; }, [token, slug]);
   const pendingAnchorRef = useRef<{ height: number; top: number } | null>(null); // prepend 前的滚动锚
   const oldestSeqRef = useRef(0);
   oldestSeqRef.current = state.messages.length > 0 ? state.messages[0]!.seq : 0;
@@ -2402,10 +2459,32 @@ export function ChannelPage({
       })
       .catch((err: unknown) => {
         if (requestId !== channelIdentitiesRequestRef.current) return;
-        setChannelIdentities([]);
+        // A transient refresh failure must not erase the last verified names.
         if (err instanceof AuthError) authFailedRef.current(tRef.current("Channel.error.tokenRevoked"));
       });
   }, [slug, token]);
+
+  useEffect(() => {
+    void loadIdentities();
+    const refresh = () => { if (document.visibilityState !== "hidden") void loadIdentities(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const timer = window.setInterval?.(refresh, 60_000);
+    return () => {
+      if (timer !== undefined) window.clearInterval?.(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [identityRevision, loadIdentities]);
+
+  const nicknameSaved = useCallback((name: string, nickname: string) => {
+    // The server accepted this mutation. Update all projections now, then read
+    // back authority without changing identity, routing or member visibility.
+    channelIdentitiesRequestRef.current += 1;
+    setChannelIdentities(current => current.map(identity => identity.name === name
+      ? { ...identity, display: nickname, handle: nickname, nickname } : identity));
+    void loadIdentities();
+  }, [loadIdentities]);
 
   const loadRoles = useCallback(() => {
     const requestId = ++channelRolesRequestRef.current;
@@ -2816,6 +2895,9 @@ export function ChannelPage({
   // 归档频道同样被这条覆盖（ws 会被 1008 踢掉，历史靠这页 + 上翻）。
   const loadInitialPage = useCallback(() => {
     const request = ++initialHistoryRequestRef.current;
+    olderHistoryRequestRef.current += 1; // invalidate old pages, including old-token failures
+    loadingOlderRef.current = false;
+    pendingAnchorRef.current = null;
     hasMoreRef.current = true;
     // #861：**绝不**在这里把游标清 0。token 静默续期（App.tsx setToken）会让本 effect 与
     // ws effect 在同一次 commit 里重跑，ws effect 读到清 0 的 ref 就会以 since=0 建 socket，
@@ -2981,7 +3063,8 @@ export function ChannelPage({
             }
           }
           if (frame.type === "msg" && !replayUntrustedRef.current) {
-            const nextBadge = nextMentionBadgeCount(
+            const nextBadge = nextMentionBadgeCountOnce(
+              badgeSeenSeqRef.current,
               desktopMentionBadgeRef.current,
               frame,
               selfHandleRef.current,
@@ -3172,8 +3255,10 @@ export function ChannelPage({
     }
     loadingOlderRef.current = true;
     setOlderStatus("loading");
-    fetchMessages(token, slug, { before: oldest, limit: PAGE_SIZE })
-      .then((msgs) => {
+    const request = ++olderHistoryRequestRef.current;
+    void settleCurrentRequest(fetchMessages(token, slug, { before: oldest, limit: PAGE_SIZE }),
+      () => request === olderHistoryRequestRef.current, {
+      success: (msgs) => {
         if (msgs.length < PAGE_SIZE) hasMoreRef.current = false;
         setOlderStatus(hasMoreRef.current ? "idle" : "end");
         if (msgs.length === 0) return;
@@ -3184,17 +3269,18 @@ export function ChannelPage({
         for (const m of msgs) dispatch({ type: "frame", frame: m });
         // 整页都被去重（firstSeq 没变 → layout effect 不跑）时，别让残锚泄漏到下一次
         requestAnimationFrame(() => {
-          pendingAnchorRef.current = null;
+          if (request === olderHistoryRequestRef.current) pendingAnchorRef.current = null;
         });
-      })
-      .catch((err: unknown) => {
+      },
+      error: (err: unknown) => {
         if (err instanceof AuthError) authFailedRef.current(tRef.current("Channel.error.tokenRevoked"));
         else if (err instanceof ForbiddenError) dispatch({ type: "fatal", reason: "forbidden" });
         else setOlderStatus("error");
-      })
-      .finally(() => {
+      },
+      settled: () => {
         loadingOlderRef.current = false;
-      });
+      },
+    });
   }, [token, slug]);
 
   const onScroll = useCallback(() => {
@@ -3361,6 +3447,7 @@ export function ChannelPage({
   }, [lastSeq, seenKey]);
 
   const openPanel = useCallback((panel: ChannelPanel) => {
+    rememberPanelOrigin(panel);
     skipPanelFocusRestoreRef.current = false;
     setActiveAdminSurface(null);
     setMemberDetailRoute(null);
@@ -3371,11 +3458,12 @@ export function ChannelPage({
     }
     if (panel === "tasks" || panel === "team" || panel === "focus") void loadTaskLedger();
     setActivePanel(panel);
-  }, [charter, loadTaskLedger, slug]);
+  }, [charter, loadTaskLedger, slug, rememberPanelOrigin]);
 
 
 
   const openFocusedTask = useCallback((taskId: number) => {
+    rememberPanelOrigin("tasks");
     skipPanelFocusRestoreRef.current = false;
     setActiveAdminSurface(null);
     setMemberDetailRoute(null);
@@ -3385,6 +3473,7 @@ export function ChannelPage({
   }, [loadTaskLedger]);
 
   const setAdminSurface = useCallback((surface: AdminSurface, open: boolean) => {
+    if(open){if(panelLocationRef.current?.admin!==surface)rememberPanelOrigin(surface);}else {stopPanelScrollRestoreRef.current?.();restorePanelScrollRef.current=null;setPanelOrigins([]);}
     setActivePanel(null);
     setMemberDetailRoute(null);
     setActiveAdminSurface(open ? surface : null);
@@ -3402,6 +3491,7 @@ export function ChannelPage({
 
   // 「接入凭证」面板 → 四步引导：先记下 session，再把面板切到 agentJoin（两个面板不打架）。
   const openJoinGuide = useCallback((session: JoinGuideSession) => {
+    rememberPanelOrigin("agentJoin");
     setActivePanel(null);
     setMemberDetailRoute(null);
     setAgentManagerTarget(null);
@@ -3411,7 +3501,7 @@ export function ChannelPage({
 
   // #1103：live session 只读终端。所有入口都调它，打开的是同一份 state.liveSessions[name]。
   const [liveSessionTarget, setLiveSessionTarget] = useState<string | null>(null);
-  const closeLiveSession = useCallback(() => setLiveSessionTarget(null), []);
+  const closeLiveSession = useCallback(() => {setLiveSessionTarget(null);setPanelOrigins([]);}, []);
   const liveSessionsRef = useRef(state.liveSessions);
   liveSessionsRef.current = state.liveSessions;
   const hasLiveSessionFor = useCallback(
@@ -3423,6 +3513,7 @@ export function ChannelPage({
 
   const openTeamMember = useCallback((name: string) => {
     if (!authoritativeMemberNamesRef.current.has(name)) return;
+    rememberPanelOrigin("team");
     skipPanelFocusRestoreRef.current = false;
     setActiveAdminSurface(null);
     setMemberDetailRoute({ name, source: "team" });
@@ -3431,13 +3522,14 @@ export function ChannelPage({
   }, [loadTaskLedger]);
   useEffect(()=>{
     if(!workspaceAction||workspaceAction.id===lastWorkspaceAction.current)return;
+    if(!workspaceActionReady(workspaceAction,{canConnect:canMintAgent&&accountKey!==null&&!state.archived,members:authoritativeMemberNames}))return;
     lastWorkspaceAction.current=workspaceAction.id;
     setWorkspaceFiles(workspaceAction.panel==='files');
-    if(workspaceAction.panel==='files')setCloudConnectTarget(null);
+    if(workspaceAction.panel==='files'){setCloudConnectTarget(null);collaborationViewMemory.current=null;}
     if(workspaceAction.panel==='connect'){if(canMintAgent&&accountKey!==null&&!state.archived)setAdminSurface('agentJoin',true);return;}
     if(workspaceAction.agent){openTeamMember(workspaceAction.agent);return;}
     openPanel(workspaceAction.panel==='files'?'collaboration':workspaceAction.panel);
-  },[workspaceAction,openPanel,openTeamMember,canMintAgent,accountKey,state.archived,setAdminSurface]);
+  },[workspaceAction,openPanel,openTeamMember,canMintAgent,accountKey,state.archived,setAdminSurface,authoritativeMemberNames]);
   const canOpenTeamMember = useCallback(
     (name: string) => authoritativeMemberNamesRef.current.has(name),
     [],
@@ -3450,12 +3542,28 @@ export function ChannelPage({
   }, []);
 
   const closeChannelPanel = useCallback(() => {
+    setPanelOrigins([]);
+    stopPanelScrollRestoreRef.current?.();restorePanelScrollRef.current=null;
     messageNavigationRequestRef.current += 1;
     cancelPendingMessageNavigation();
     setMemberDetailRoute(null);
     setSelectedTaskId(null);
     setActivePanel(null);
   }, [cancelPendingMessageNavigation]);
+
+  const backChannelPanel=useCallback(()=>{
+    const {previous,remaining}=popPanelOrigin(panelOriginsRef.current);
+    if(!previous){closeChannelPanel();return;}
+    stopPanelScrollRestoreRef.current?.();
+    setPanelOrigins(remaining);
+    setDetailsOpen(previous.details);
+    setWorkspaceFiles(previous.files);setCloudConnectTarget(previous.provider);
+    setMemberDetailRoute(previous.member);setSelectedTaskId(previous.task);setAgentManagerTarget(previous.manager);
+    setActiveAdminSurface(previous.admin);setActivePanel(previous.panel);
+    restorePanelScrollRef.current={key:previous.key,top:previous.scroll,selector:previous.details?'.conversation-details-content':previous.admin==='agentTokens'?'.agentmanager-dialog .settings-content':previous.admin==='agentJoin'?'.agent-join-card':'.channel-panel-body'};
+  },[closeChannelPanel]);
+  const panelBackTarget=panelOrigins.at(-1);
+  const panelBackLabel=panelBackTarget?t(panelBackTarget.details?"Studio.id":panelBackTarget.admin==="agentTokens"?"AgentTokens.managerTitle":panelBackTarget.panel==='team'?'Channel.tools.team':panelBackTarget.panel==='tasks'?'Channel.tasks.title':panelBackTarget.panel==='focus'?'ChannelFocusBar.overviewTitle':panelBackTarget.panel==='charter'?'Channel.tools.charter':panelBackTarget.panel==='collaboration'?'Collab.title':panelBackTarget.panel==='admin'?'ChannelAdmin.title':panelBackTarget.admin==='agentJoin'?'AgentConnect.back':'Channel.tools.timeline'):undefined;
 
   // #1113：「本机可介入」里的 @：把 @name 放进输入框开头（已有就不重复），发送仍走 Composer。
   const mentionFromRoster = useCallback((name: string) => {
@@ -3465,9 +3573,10 @@ export function ChannelPage({
   // #1103：live session 取代而不是叠在频道面板上——任一时刻只有一个 aria-modal dialog
   // （否则 Esc/Tab 会被两个 focus trap 同时处理）。
   const openLiveSession = useCallback((name: string) => {
-    closeChannelPanel();
+    rememberPanelOrigin("live-session");
+    setActivePanel(null);setActiveAdminSurface(null);
     setLiveSessionTarget(name);
-  }, [closeChannelPanel]);
+  }, [rememberPanelOrigin]);
 
   const closeMemberDetail = useCallback(() => {
     setMemberDetailRoute(null);
@@ -3982,6 +4091,13 @@ export function ChannelPage({
       }),
     [channelIdentities, mentionOptions, state.messages, state.participants, state.presence],
   );
+  const displayedChannelIdentities = useMemo(() => channelIdentities.map(identity => ({
+    ...identity, display: resolveIdentityPresentation(identity.name, identityDisplay).label,
+  })), [channelIdentities, identityDisplay]);
+  const agentRoster = useMemo(() => displayedChannelIdentities.filter(identity => identity.kind === 'agent').map(({name,display,connector_type}) => ({name,display,connector_type,role:channelRoles.find(role=>role.name===name)?.responsibility??undefined})), [displayedChannelIdentities,channelRoles]);
+  useEffect(()=>{onAgentRoster?.(slug,agentRoster);},[onAgentRoster,slug,agentRoster]);
+  useEffect(()=>()=>{onAgentRoster?.(slug,[]);},[onAgentRoster,slug]);
+
   const activeChannelAdminMembers = useMemo<ChannelAdminMember[]>(() => {
     const names = new Set<string>([
       ...state.participants.map((participant) => participant.name),
@@ -4573,7 +4689,7 @@ export function ChannelPage({
 
   return (
     <div className="chan">
-      <ConversationHeader title={title?.trim()||slug} members={channelIdentities}
+      <ConversationHeader title={title?.trim()||slug} members={displayedChannelIdentities}
         onDetails={()=>setDetailsOpen(true)} connectionStatus={state.status}
         attentionCount={toasts.length} onAttention={()=>{const latest=toasts[toasts.length-1];if(latest)jumpToMention(latest.seq);}}
         onAddAgent={canMintAgent&&accountKey!==null&&!state.archived?()=>setAdminSurface("agentJoin",true):undefined}/>
@@ -4621,6 +4737,7 @@ export function ChannelPage({
         }
         focus={
           <ChannelFocusBar
+            displayOf={name => resolveIdentityPresentation(name, identityDisplay).label}
             focus={channelFocus}
             decisionState={pendingDecisionLoadState}
             supplementalOverview={hostBoardVisible ? {
@@ -4698,6 +4815,7 @@ export function ChannelPage({
               {canMintAgent && accountKey !== null && !state.archived && (
                 <div className="chan-admin-group chan-admin-group--agents">
                   <AgentJoin
+                    channelTitle={title?.trim() || slug}
                     slug={slug}
                     token={token}
                     namePrefix={agentNamePrefix}
@@ -4706,8 +4824,10 @@ export function ChannelPage({
                     accountKey={accountKey}
                     active={activeAdminSurface === "agentJoin"}
                     onActiveChange={(open) => setAdminSurface("agentJoin", open)}
+                    onBack={panelBackTarget?backChannelPanel:undefined}
+                    backLabel={panelBackLabel}
                     guideSession={joinGuideSession}
-                    onCloudConnect={provider=>{setWorkspaceFiles(false);setCloudConnectTarget(provider);openPanel("collaboration");}}
+                    onCloudConnect={provider=>{collaborationViewMemory.current=null;setWorkspaceFiles(false);setCloudConnectTarget(provider);openPanel("collaboration");}}
                   />
                   <AgentTokens
                     slug={slug}
@@ -4718,6 +4838,9 @@ export function ChannelPage({
                     onAuthFailed={onAuthFailed}
                     active={activeAdminSurface === "agentTokens"}
                     onActiveChange={(open) => setAdminSurface("agentTokens", open)}
+                    onBack={panelBackTarget?backChannelPanel:undefined}
+                    backLabel={panelBackLabel}
+                    onNicknameSaved={nicknameSaved}
                     focusAgentName={agentManagerTarget}
                     onGuide={openJoinGuide}
                     onOpenConnections={()=>{setWorkspaceFiles(false);setCloudConnectTarget("dot");openPanel("collaboration");}}
@@ -4753,9 +4876,11 @@ export function ChannelPage({
       {liveSessionTarget !== null && (
         <LiveSessionModal
           name={liveSessionTarget}
-          display={state.presence[liveSessionTarget]?.display_name ?? liveSessionTarget}
+          display={resolveIdentityPresentation(liveSessionTarget, identityDisplay).label}
           session={state.liveSessions[liveSessionTarget] ?? null}
           onClose={closeLiveSession}
+          onBack={panelBackTarget?()=>{setLiveSessionTarget(null);backChannelPanel();}:undefined}
+          backLabel={panelBackLabel}
         />
       )}
 
@@ -4823,6 +4948,8 @@ export function ChannelPage({
             undefined
           }
           onClose={closeChannelPanel}
+          onBack={panelBackTarget?backChannelPanel:undefined}
+          backLabel={panelBackLabel}
           closeDisabled={activePanel === "team" && roleSaving !== null}
           onEscape={
             memberDetailRoute !== null && memberDetailRoute.source === activePanel
@@ -4832,13 +4959,13 @@ export function ChannelPage({
               : undefined
           }
           shouldRestoreFocus={() => !skipPanelFocusRestoreRef.current}
-          hideHeader={activePanel === "team" || activePanel === "tasks" || activePanel === "admin"}
+          hideHeader={activePanel === "team" || activePanel === "tasks"}
         >
           {activePanel === "collaboration" && (
             <Suspense fallback={<p role="status">{t("Collab.loading")}</p>}>
               <CollaborationHub key={`${slug}:${workspaceFiles?"files":"default"}`} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed}
                 initialTab={workspaceFiles?"files":cloudConnectTarget?"bridges":undefined}
-                initialProvider={cloudConnectTarget??undefined} />
+                initialProvider={cloudConnectTarget??undefined} viewMemory={collaborationViewMemory} submissionSafety={submissionSafety} dispatchScopeReady={accountKey!==null} />
             </Suspense>
           )}
           {activePanel === "charter" && (
@@ -4901,6 +5028,7 @@ export function ChannelPage({
           )}
           {activePanel === "focus" && (
             <ChannelFocusPanel
+              displayOf={name => resolveIdentityPresentation(name, identityDisplay).label}
               focus={channelFocus}
               decisionState={pendingDecisionLoadState}
               jumpError={messageNavigationError}
@@ -4946,6 +5074,8 @@ export function ChannelPage({
               onCreateTask={createTaskDraft}
               identities={channelIdentities}
               selectedTaskId={selectedTaskId}
+              onSelectedTaskDismiss={()=>setSelectedTaskId(null)}
+              viewMemory={taskViewMemory}
               onUploadAttachment={canWrite ? (file) => uploadAttachment(token, slug, file) : undefined}
               onOpenMessage={async (seq) => {
                 const located = await navigateToMessage(seq);
@@ -4959,6 +5089,9 @@ export function ChannelPage({
           )}
           {activePanel === "admin" && (
             <ChannelAdminView
+              embeddedHeader
+              viewMemory={channelAdminViewMemory}
+              channelTitle={title?.trim() || slug}
               slug={slug}
               visibility={localVisibility}
               archived={state.archived}

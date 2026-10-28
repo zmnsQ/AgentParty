@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { LocaleProvider } from "./i18n/locale";
 import { apiBase, clearApiBase } from "./lib/base";
+import { StudioIcon } from "./components/StudioIcon";
+import { DesktopPairingGate } from "./components/DesktopPairingGate";
+import { COMMONS_AUTO_UPDATE_ENABLED } from "./lib/desktopUpdater";
 import { applyShareToken, clearShareToken, currentShareToken, isShareMode } from "./lib/api";
 import {
   __resetDesktopRuntimeForTests,
@@ -115,6 +118,8 @@ beforeEach(() => {
     value: { platform: "test-desktop" },
   });
 
+  // The upstream origin is a test server, no longer an implicitly registered official profile.
+  addCustomServerProfile(localStorage, { label: "Legacy fixture", origin: activeOrigin });
   addCustomServerProfile(localStorage, { label: "Private", origin: "https://private.example.com" });
   addCustomServerProfile(localStorage, { label: "Unpaired", origin: unpairedOrigin });
   saveActiveServerOrigin(localStorage, activeOrigin);
@@ -268,9 +273,7 @@ test("desktop separates personal settings from the local-agent control center", 
   expect(root.findAllByProps({ className: "app-settings-btn" })).toHaveLength(1);
   expect(root.findAllByProps({ className: "app-agent-center-btn" })).toHaveLength(1);
   expect(root.findAllByProps({ className: "desktop-settings-trigger" })).toHaveLength(0);
-  expect(root.findByProps({ className: "app-settings-btn" }).findByProps({
-    className: "ap-sprite ap-sprite--settings",
-  })).toBeTruthy();
+  expect(root.findByProps({ className: "app-settings-btn" }).findByType(StudioIcon).props.name).toBe("settings");
 
   await act(async () => root.findByProps({ className: "app-settings-btn" }).props.onClick());
 
@@ -496,7 +499,7 @@ describe("App desktop server pairing behavior", () => {
     expect(channelLinkOpenHandler).not.toBeNull();
     await act(async () => {
       // 无 server：直接在当前实例按 slug 跳。
-      channelLinkOpenHandler?.(["agentparty://channel/general"]);
+      channelLinkOpenHandler?.(["agentparty-commons://channel/general"]);
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(desktopFocusCalls).toEqual(["show", "unminimize", "focus"]);
@@ -504,7 +507,7 @@ describe("App desktop server pairing behavior", () => {
 
     await act(async () => {
       // server 指向未配对实例（不在 profiles 里）：忽略 server，仍在当前实例跳，绝不切服。
-      channelLinkOpenHandler?.([`agentparty://channel/off-server?server=${encodeURIComponent(unpairedOrigin)}`]);
+      channelLinkOpenHandler?.([`agentparty-commons://channel/off-server?server=${encodeURIComponent(unpairedOrigin)}`]);
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(pushedPaths).toContain("/c/off-server");
@@ -574,7 +577,7 @@ describe("App desktop server pairing behavior", () => {
     });
 
     await act(async () => {
-      channelLinkOpenHandler?.([`agentparty://channel/team?server=${encodeURIComponent(privateOrigin)}`]);
+      channelLinkOpenHandler?.([`agentparty-commons://channel/team?server=${encodeURIComponent(privateOrigin)}`]);
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
@@ -743,9 +746,11 @@ describe("App desktop server pairing behavior", () => {
     expect(root.findByProps({ role: "alert" }).children).toContain("The secure desktop session could not be refreshed.");
     expect(root.findByProps({ className: "d-btn d-btn--primary" }).children).toContain("Retry");
     expect(root.findByProps({ className: "desktop-recovery-updater" })).toBeTruthy();
+    // The fork intentionally disables the upstream updater until its own signing/feed is configured.
+    expect(COMMONS_AUTO_UPDATE_ENABLED).toBe(false);
     expect(root.findAll((node) =>
       typeof node.props.className === "string" && node.props.className.split(/\s+/).includes("desktop-updater-trigger"),
-    )).toHaveLength(1);
+    )).toHaveLength(0);
     await act(async () => {
       root.findByProps({ id: "active-server" }).props.onChange({ target: { value: privateOrigin } });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -792,6 +797,31 @@ describe("App desktop server pairing behavior", () => {
     expect(commands).toContain("desktop_credential_authorize");
     expect(commands).toContain("desktop_credential_write_interactive");
     expect(root.findByProps({ className: "app-settings-btn" })).toBeTruthy();
+  });
+
+  test("logged-in pairing success leaves the previous server channel route", async () => {
+    const replacements: string[] = [];
+    location.pathname = "/c/old-server-only";
+    location.href = `${activeOrigin}/c/old-server-only`;
+    history.replaceState = (_state: unknown, _unused: string, url?: string | URL | null) => {
+      const next = String(url ?? ""); replacements.push(next); location.pathname = next.split(/[?#]/)[0] || "/";
+    };
+    await act(async () => {
+      renderer = create(<LocaleProvider><App /></LocaleProvider>);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => renderer!.root.findByProps({ className: "server-switcher-add" }).props.onClick());
+    await act(async () => renderer!.root.findByProps({ id: "desktop-pairing-server" }).props.onChange({target:{value:unpairedOrigin}}));
+    await act(async () => {
+      renderer!.root.findByType(DesktopPairingGate).props.onAuthenticated("new-paired-access", unpairedOrigin);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(replacements).toContain("/");
+    expect(location.pathname).toBe("/");
+    expect(loadActiveServerOrigin(localStorage)).toBe(unpairedOrigin);
+    expect(apiBase()).toBe(unpairedOrigin);
+    expect(credentialDeletes).toBe(0);
   });
 
   test("logged-in add/pair cancellation preserves the old token, origin, runtime base, and credential", async () => {

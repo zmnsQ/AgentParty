@@ -19,6 +19,7 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
     const root=await mount(<AgentConnectionPicker onCloud={p=>{chosen=p;}} onLocal={()=>{local++;}}/>);
     for(const provider of CLOUD_AGENT_CHOICES){
       await act(async()=>{root.findByProps({"data-provider":provider}).props.onClick();});
+      await act(async()=>root.findByProps({"data-picker-continue":true}).props.onClick());
       expect(chosen).toBe(provider);
     }
     expect(text(root)).toContain("ChatGPT dot");expect(text(root)).toContain("Meta Muse");
@@ -30,6 +31,7 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
       const button=renderer!.root.findByProps({"data-coding-provider":provider});
       expect(button.findAllByType("input")).toHaveLength(0);
       await act(async()=>button.props.onClick());
+      await act(async()=>renderer!.root.findByProps({"data-picker-continue":true}).props.onClick());
     }
     expect(selected).toEqual(["codex","codebuddy","claude","other"]);expect(local).toBe(4);expect(network).toBe(0);
     expect(renderer!.root.findAllByType("details")).toHaveLength(1);
@@ -38,7 +40,7 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
     expect(Object.keys(AgentConnectStrings.en).sort()).toEqual(Object.keys(AgentConnectStrings.zh).sort());
     Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:()=>"zh",setItem:()=>{}}});
     const root=await mount(<AgentConnectionPicker onCloud={()=>{}} onLocal={()=>{}}/>);
-    expect(text(root)).toContain("云端工具与 API 连接");expect(text(root)).toContain("编程与执行 Agent");
+    expect(text(root)).toContain("个人 Agent 与服务");expect(text(root)).toContain("编程与执行 Agent");
     expect(text(root)).toContain("Codex");expect(text(root)).toContain("Claude Code");
     expect(text(root)).toContain("同一个群");expect(text(root)).toContain("防循环");
     expect(text(root)).not.toContain("AgentConnect.");
@@ -46,25 +48,34 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
   test("both categories remain visible and platform selection is reversible without side effects",async()=>{
     let cloud:CloudAgentChoice|null=null;let coding:string|null=null;
     const root=await mount(<AgentConnectionPicker onCloud={v=>{cloud=v;}} onLocal={v=>{coding=v;}}/>);
-    expect(root.findAllByProps({className:"agent-connect-category"})).toHaveLength(2);
+    expect(root.findAllByProps({className:"agent-platform-category"})).toHaveLength(2);
     expect(root.findAllByType("details")).toHaveLength(1);
     expect(root.findByType("details").props.open).toBeUndefined();
     await act(async()=>root.findByProps({"data-coding-provider":"claude"}).props.onClick());
-    expect(coding).toBe("claude");expect(cloud).toBeNull();
+    expect(coding).toBeNull();expect(cloud).toBeNull();
+    await act(async()=>root.findByProps({"data-picker-continue":true}).props.onClick());
+    expect(coding).toBe("claude");
     await act(async()=>root.findByProps({"data-provider":"dot"}).props.onClick());
+    expect(cloud).toBeNull();
+    await act(async()=>root.findByProps({"data-picker-continue":true}).props.onClick());
     expect(cloud).toBe("dot");expect(coding).toBe("claude");
     expect(root.findByProps({"data-coding-provider":"codex"})).toBeTruthy();
     expect(text(root)).toContain("not permission changes");
   });
-  test("initial guide cards have prerequisites without actions or invented online status",async()=>{
+  test("compact tiles defer prerequisites until selected and never claim a connection",async()=>{
     let selections=0,requests=0;globalThis.fetch=(async()=>{requests++;throw Error("unexpected request");}) as typeof fetch;
     const root=await mount(<AgentConnectionPicker onCloud={()=>{selections++;}} onLocal={()=>{selections++;}}/>);
-    expect(requests).toBe(0);expect(selections).toBe(0);
-    expect(root.findAllByProps({className:"agent-connect-prerequisite"})).toHaveLength(9);
-    expect(text(root.findByProps({"data-provider":"muse"}))).toContain("Neither option is direct Muse login");
-    expect(text(root.findByProps({"data-provider":"hermes"}))).toContain("running Hermes API Server");
-    expect(text(root)).toContain("connection not checked");
+    expect(root.findAllByProps({className:"agent-platform-tile"})).toHaveLength(9);
+    expect(root.findAllByProps({className:"agent-platform-next"})).toHaveLength(0);
+    expect(root.findAllByProps({className:"agent-connect-prerequisite"})).toHaveLength(0);
+    expect(text(root.findByProps({"data-provider":"grok"}))).toContain("no auto replies");
     await act(async()=>root.findByProps({"data-provider":"muse"}).props.onClick());
+    expect(text(root.findByProps({className:"agent-platform-next"}))).toContain("Neither option is direct Muse login");
+    expect(selections).toBe(0);expect(requests).toBe(0);
+    await act(async()=>root.findByProps({"data-provider":"hermes"}).props.onClick());
+    expect(text(root.findByProps({className:"agent-platform-next"}))).toContain("running Hermes API Server");
+    expect(text(root)).toContain("connection not checked");
+    await act(async()=>root.findByProps({"data-picker-continue":true}).props.onClick());
     expect(selections).toBe(1);expect(requests).toBe(0);
   });
   test("MCP address contains no token and no policy changes happen until the human saves",async()=>{

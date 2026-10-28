@@ -284,3 +284,45 @@ it("current nickname wins over old sender snapshots without changing identity ro
   expect(resolveSenderLabel(sender,undefined)).toBe("OldNickname");
   expect(sender.name).toBe("agent-stable-id");
 });
+
+
+it("current nickname wins over historical sender hints without changing the identity key",()=>{
+ const name="ac-oauth-1234567890";
+ const map=buildIdentityDisplay({channelIdentities:[{name,kind:"agent",display:"新昵称",handle:"新昵称"}],mentionOptions:[],messages:[],participants:[{name,kind:"agent",handle:"旧昵称"}],presence:{}});
+ expect(Object.keys(map)).toEqual([name]);
+ expect(resolveIdentityPresentation(name,map,{kind:"agent",display:"旧昵称"}).label).toBe("新昵称");
+ expect(resolveSenderLabel({name,kind:"agent",handle:"旧昵称"},map)).toBe("新昵称");
+});
+it("raw authoritative fallback cannot erase a readable saved snapshot alias",()=>{
+ const name="ac-oauth-1234567890";
+ const map=buildIdentityDisplay({channelIdentities:[{name,kind:"agent",display:name}],mentionOptions:[],messages:[],participants:[{name,kind:"agent",handle:"小贾"}],presence:{}});
+ expect(map[name]?.display).toBe("小贾");
+ expect(resolveIdentityPresentation(name,map,{display:name}).label).toBe("小贾");
+});
+it("renamed identities sharing a nickname retain separate keys and disambiguators",()=>{
+ const map=buildIdentityDisplay({channelIdentities:[{name:"agent-a",kind:"agent",display:"助理"},{name:"agent-b",kind:"agent",display:"助理"}],mentionOptions:[],messages:[],participants:[],presence:{}});
+ expect(Object.keys(map)).toHaveLength(2);expect(map["agent-a"]?.disambiguator).toBeTruthy();expect(map["agent-a"]?.disambiguator).not.toBe(map["agent-b"]?.disambiguator);
+});
+
+for (const nickname of ["lark-ad72b3f97491-agentparty", "ac-oauth-1234567890", "123e4567-e89b-12d3-a456-426614174000"]) {
+ it(`explicit saved nickname ${nickname} wins even when it resembles a technical identity`,()=>{
+   const name="lark-ad72b3f97491-agentparty";
+   const sender={name,kind:"agent" as const,handle:"Old readable alias"};
+   const map=buildIdentityDisplay({channelIdentities:[{name,kind:"agent",display:nickname,nickname}],mentionOptions:[],messages:[],participants:[sender],presence:{}});
+   expect(map[name]?.display).toBe(nickname);
+   expect(map[name]?.nickname).toBe(nickname);
+   expect(resolveIdentityPresentation(name,map,{display:"Old readable alias"}).label).toBe(nickname);
+   expect(resolveSenderLabel(sender,map)).toBe(nickname);
+   expect(Object.keys(map)).toEqual([name]);
+ });
+}
+it("explicit human nickname overrides SSO snapshots",()=>{
+ const name="human-session";
+ const map=buildIdentityDisplay({channelIdentities:[{name,kind:"human",display:"SSO Name",nickname:"Chosen Name"}],mentionOptions:[],messages:[],participants:[{name,kind:"human",display_name:"SSO Name"}],presence:{}});
+ expect(resolveSenderLabel({name,kind:"human",display_name:"SSO Name"},map)).toBe("Chosen Name");
+});
+it("connector platform comes only from current metadata, never names or aliases",()=>{
+ const map=buildIdentityDisplay({channelIdentities:[{name:"worker",display:"My Agent",kind:"agent",connector_type:"chatgpt"},{name:"muse",display:"ChatGPT",kind:"agent"}],mentionOptions:[],messages:[],participants:[],presence:{}});
+ expect(map.worker?.connector_type).toBe("chatgpt");
+ expect(map.muse?.connector_type).toBeUndefined();
+});

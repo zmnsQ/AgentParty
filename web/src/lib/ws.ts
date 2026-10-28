@@ -63,7 +63,7 @@ export class ChannelSocket {
   }
 
   connect() {
-    if (this.disposed) return;
+    if (this.disposed || this.ws !== null) return;
     this.handlers.onStatus(this.everConnected ? "reconnecting" : "connecting");
     const url =
       wsUrl(`/api/channels/${this.slug}/ws`) +
@@ -77,6 +77,7 @@ export class ChannelSocket {
     let opened = false;
     let helloSent = false;
     ws.onopen = () => {
+      if (this.disposed || this.ws !== ws) return;
       opened = true;
       this.everConnected = true;
       this.handshakeFails = 0;
@@ -110,6 +111,7 @@ export class ChannelSocket {
     };
 
     ws.onmessage = (ev) => {
+      if (this.disposed || this.ws !== ws) return;
       if (typeof ev.data !== "string") return;
       // 任何入站帧（含 pong）都证明链路还活着 → 刷新看门狗时钟、归零在途未答 ping 窗口（issue #130 / #634）
       this.lastFrameAt = Date.now();
@@ -142,6 +144,7 @@ export class ChannelSocket {
     };
 
     ws.onclose = (ev) => {
+      if (this.disposed || this.ws !== ws) return;
       this.clearPing();
       this.ws = null;
       if (this.disposed) return;
@@ -199,8 +202,14 @@ export class ChannelSocket {
     this.disposed = true;
     this.clearPing();
     if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
-    this.ws?.close(1000, "bye");
+    const ws = this.ws;
     this.ws = null;
+    if (ws !== null) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.close(1000, "bye");
+    }
   }
 
   // 修订游标只前移：修订快照是幂等展示事件，收到即视为已消费（不等 ack，与 CLI client.ts 对齐）。

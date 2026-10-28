@@ -29,7 +29,7 @@ async function body(c:Ctx){
  const chunks:Uint8Array[]=[];let size=0;
  try{while(true){const item=await reader.read();if(item.done)break;size+=item.value.byteLength;if(size>2048)return null;chunks.push(item.value);}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
-  const raw=new TextDecoder('utf-8',{fatal:true}).decode(bytes),data=JSON.parse(raw);
+  const raw=new TextDecoder('utf-8',{fatal:true,ignoreBOM:false}).decode(bytes),data=JSON.parse(raw);
   return data&&typeof data==='object'&&!Array.isArray(data)?{raw,data}:null;
  }catch{return null;}finally{void reader.cancel().catch(()=>{});}
 }

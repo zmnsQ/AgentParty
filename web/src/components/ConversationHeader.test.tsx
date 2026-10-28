@@ -29,7 +29,7 @@ test('details controllers stay mounted while the surface closes; permissions omi
 test('production Channel actually composes details and header, not the legacy permanent toolstrip',()=>{
  const source=readFileSync(new URL('../pages/Channel.tsx',import.meta.url),'utf8');
  expect(source).toContain('className="stream transcript" ref={streamRef}');expect(source).toContain('className="conversation-inner"');expect(source).toContain('<ConversationHeader');expect(source).toContain('<ConversationDetails');expect(source).toContain('<ConversationTools');expect(source).not.toContain('<ChannelToolstrip');
- expect(source).toContain("identity.kind==='agent'");expect(source).toContain('onAgentRoster?.(slug,[])');expect(source).toContain("workspaceAction.panel==='files'?'collaboration'");
+ expect(source).toMatch(/identity\.kind\s*===\s*'agent'/);expect(source).toContain('onAgentRoster?.(slug,[])');expect(source).toContain("workspaceAction.panel==='files'?'collaboration'");
 });
 
 test('details sits below existing nested roster dialogs and delegates their focus trap',()=>{
@@ -45,4 +45,9 @@ test('header exposes real pending mentions and connection failure without openin
  expect(jumped).toBe(1);expect(r!.root.findByProps({role:'status'}).children).toEqual(['Disconnected']);
  const css=readFileSync(new URL('../styles/conversation-layout.css',import.meta.url),'utf8');
  expect(css).toContain('height:73px');expect(css).toContain('font-size:12px;font-weight:400');
+});
+test('header uses declared platform metadata with neutral unknown, not nickname guessing',()=>{
+ act(()=>{r=create(<LocaleProvider><ConversationHeader title="Group" members={[{name:'worker',display:'Assistant',kind:'agent',connector_type:'chatgpt'},{name:'muse',display:'ChatGPT',kind:'agent'}]} onDetails={()=>{}}/></LocaleProvider>);});
+ expect(r!.root.findAllByProps({'data-platform':'chatgpt'})).toHaveLength(1);
+ expect(r!.root.findAllByProps({'data-platform':'unknown'})).toHaveLength(1);
 });

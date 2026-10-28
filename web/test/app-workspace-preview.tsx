@@ -10,7 +10,7 @@ history.replaceState(null,'','/');
 await import('../src/main');
 
 // Kept outside React's production root: visible local QA controls, not app UI.
-if(params.get('scroll')==='1'){
+if(params.get('scroll')==='1' && params.get('controls')!=='0'){
 const panel=document.createElement('aside');
 panel.id='fixture-controls';
 panel.setAttribute('aria-label','TEST FIXTURE 本地消息控制');

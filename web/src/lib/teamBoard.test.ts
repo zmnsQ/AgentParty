@@ -176,3 +176,8 @@ describe("buildTeamBoard：一张卡一份事实", () => {
     expect(limited.cards.map((c) => c.name)).toEqual(["lead"]);
   });
 });
+
+test("team board uses current nickname instead of stale participant and presence handles",()=>{
+ const model=buildTeamBoard({presence:[presence("agent",{handle:"OldAlias"})],participants:[sender("agent","agent",{handle:"OldAlias"})],roles:[],identities:[{name:"agent",kind:"agent",display:"NewAlias",handle:"NewAlias"}],now:NOW});
+ expect(model.cards[0]?.name).toBe("agent");expect(model.cards[0]?.display).toBe("NewAlias");expect(model.cards[0]?.handle).toBe("NewAlias");
+});

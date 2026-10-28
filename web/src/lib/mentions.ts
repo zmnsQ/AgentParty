@@ -16,6 +16,8 @@ import { MENTION_SENDER_RETENTION_MS, mergeSenderIdentity, type SenderIdentitySn
 export type MentionTier = "online" | "wakeable" | "recent";
 
 export interface MentionIdentity {
+  connector_type?: string;
+  nickname?: string;
   name: string;
   display: string;
   kind?: "agent" | "human";
@@ -24,6 +26,7 @@ export interface MentionIdentity {
 }
 
 export interface MentionCandidate {
+  connector_type?: string;
   name: string; // @ 目标（token 名；人类网页会话是 UUID）
   display: string; // 可读名：人类优先显示账号 email，否则 name
   kind: "agent" | "human" | "squad";
@@ -217,8 +220,9 @@ export function mentionCandidates(
       // handle 是稳定的 @ 路由 token，不等于用户应该看到的名字。人类优先显示 SSO 真名；
       // 系统生成的 agent 名则只显示末尾角色，菜单里再配 ownerDisplay 说明归属。
       const display = kind === "human"
-        ? readableDisplay || handle || account || name
-        : handle
+        ? identity?.nickname || readableDisplay || handle || account || name
+        : identity?.nickname || (identity?.display?.trim() && identity.display!==name ? identity.display : undefined)
+          || handle
           || (readableDisplay && readableDisplay !== name ? readableDisplay : undefined)
           || generatedAgentRole(name)
           || readableDisplay
@@ -238,6 +242,7 @@ export function mentionCandidates(
         group,
         account,
         ownerDisplay,
+        ...(identity?.connector_type === undefined ? {} : { connector_type: identity.connector_type }),
         role: assigned?.role ?? p?.role,
         responsibility: assigned?.responsibility ?? undefined,
         note: p?.note ?? undefined,

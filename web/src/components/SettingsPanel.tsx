@@ -1,3 +1,4 @@
+import { preferredMeDisplay } from "../lib/meDisplay";
 import { HomeScreenGuide } from "./HomeScreenGuide";
 import { StudioIcon } from "./StudioIcon";
 import { isTauriEnvironment } from "../lib/desktopUpdater";
@@ -19,6 +20,9 @@ import "../i18n/strings/App";
 import "../i18n/strings/CollaborationHub";
 
 export interface SettingsMe {
+  preferred_display?: string;
+  /** Agent's own saved nickname, distinct from legacy owner handle metadata. */
+  nickname?: string;
   name: string;
   kind: string;
   role: string;
@@ -133,7 +137,7 @@ export function SettingsPanel({
           <h3 className="settings-module-title">{t("App.settings.section.account")}</h3>
           <section className="settings-section">
             <div className="settings-account">
-              <span className="settings-account-name">{me.display_name ?? me.handle ?? me.name}</span>
+              <span className="settings-account-name">{preferredMeDisplay(me)}</span>
               <span className={`settings-account-chip settings-account-chip--${me.kind}`}>{me.kind}</span>
               {me.role !== me.kind && <span className="settings-account-chip">{me.role}</span>}
             </div>
@@ -153,7 +157,7 @@ export function SettingsPanel({
             {canSetHandle && (
               <div className="settings-handle">
                 <HandleSetup
-                  current={me.handle}
+                  current={me.kind === "agent" ? me.nickname ?? null : me.handle}
                   mode={me.kind === "agent" ? "nickname" : "handle"}
                   onSaved={(value) => onHandleSaved?.(value)}
                 />

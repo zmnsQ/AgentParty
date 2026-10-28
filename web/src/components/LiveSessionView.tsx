@@ -126,13 +126,15 @@ export function LiveSessionView({ name, display, session, compact = false }: Liv
 }
 
 export interface LiveSessionModalProps {
+  onBack?:()=>void;
+  backLabel?:string;
   name: string;
   display: string;
   session: LiveSession | null;
   onClose: () => void;
 }
 
-export function LiveSessionModal({ name, display, session, onClose }: LiveSessionModalProps) {
+export function LiveSessionModal({ name, display, session, onClose, onBack, backLabel }: LiveSessionModalProps) {
   const t = useT();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useModalFocusTrap({ active: true, containerRef: dialogRef, onEscape: onClose });
@@ -148,6 +150,7 @@ export function LiveSessionModal({ name, display, session, onClose }: LiveSessio
       <button className="channel-panel-scrim" type="button" aria-label={t("Channel.tools.close")} onClick={onClose} />
       <section className="channel-panel-card live-session-card">
         <header className="channel-panel-head">
+          {onBack&&<button type="button" className="d-btn" onClick={onBack}>← {backLabel}</button>}
           <div className="channel-panel-titlebox">
             <h2>{t("LiveSession.title", { name: display })}</h2>
           </div>

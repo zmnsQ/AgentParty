@@ -258,6 +258,10 @@ describe("VisibilityToggle confirmation", () => {
       );
     });
 
+    // The permission editor is intentionally collapsed until the user opens it.
+    await act(async () => {
+      renderer!.root.findAllByProps({ className: "channel-admin-disclosure" })[0]!.props.onToggle({ currentTarget: { open: true } });
+    });
     const publicButton = renderer!.root
       .findAllByType("button")
       .find((node) => node.props.className === "vis-seg-btn" && node.children.includes("public"))!;
@@ -320,6 +324,10 @@ describe("VisibilityToggle confirmation", () => {
       );
     });
 
+    // The permission editor is intentionally collapsed until the user opens it.
+    await act(async () => {
+      renderer!.root.findAllByProps({ className: "channel-admin-disclosure" })[0]!.props.onToggle({ currentTarget: { open: true } });
+    });
     const publicButton = renderer!.root
       .findAllByType("button")
       .find((node) => node.props.className === "vis-seg-btn" && node.children.includes("public"))!;

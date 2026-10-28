@@ -1,3 +1,4 @@
+import { preferredMeDisplay } from "./lib/meDisplay";
 import {Brand} from "./components/Brand";
 import "./styles/prototype-native-frame.css";
 import {WorkspaceShell} from "./components/WorkspaceShell";
@@ -113,7 +114,6 @@ import {
   beginDesktopServerAdd,
   beginDesktopServerPairing,
   cancelDesktopServerPairing,
-  completeDesktopServerPairing,
   initialDesktopServerPairingFlow,
   switchActiveDesktopServer,
 } from "./lib/serverSwitch";
@@ -201,11 +201,13 @@ export function App() {
   const channelReloadInFlight = useRef<{ key: string; promise: Promise<void> } | null>(null);
   const [me, setMe] = useState<MeInfo | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [guideFromSettings, setGuideFromSettings] = useState(false);
+  const [identityRevision, setIdentityRevision] = useState(0);
   const [createGroupRequest,setCreateGroupRequest] = useState(0);
   const [workspaceAction,setWorkspaceAction]=useState<{id:number;slug:string;agent?:string;panel:'search'|'files'|'charter'|'team'|'connect'}|undefined>();
   useEffect(()=>setWorkspaceAction(undefined),[path,activeOrigin]);
-  const [rosterSnapshot,setRosterSnapshot]=useState<{scope:string;slug:string;agents:readonly {name:string;display?:string;role?:string}[]}|null>(null);
-  const receiveAgentRoster=useCallback((channel:string,agents:readonly {name:string;display?:string;role?:string}[])=>{
+  const [rosterSnapshot,setRosterSnapshot]=useState<{scope:string;slug:string;agents:readonly {name:string;display?:string;role?:string;connector_type?:string}[]}|null>(null);
+  const receiveAgentRoster=useCallback((channel:string,agents:readonly {name:string;display?:string;role?:string;connector_type?:string}[])=>{
     if(channel!==matchChannel(path))return;
     setRosterSnapshot({scope:activeOrigin,slug:channel,agents});
   },[activeOrigin,path]);
@@ -1087,15 +1089,10 @@ export function App() {
         onProfilesChanged={setServerProfiles}
         onExit={() => setServerPairingFlow((flow) => cancelDesktopServerPairing(flow))}
         onAuthenticated={(accessToken, origin) => {
-          saveActiveServerOrigin(localStorage, origin);
-          setApiBase(origin);
-          setActiveOrigin(origin);
-          setServerPairingFlow((flow) => completeDesktopServerPairing(flow));
-          setAuthError(null);
-          setChannels(null);
-          setListError(null);
-          setMe(null);
-          activateDesktopHumanSession(accessToken);
+          // Pairing a different instance must commit its credential and route
+          // together, just like switching an already paired server. Never carry
+          // the old instance's /c/:slug into the newly authorized instance.
+          return switchDesktopOrigin(origin, accessToken);
         }}
       />
     );
@@ -1283,7 +1280,7 @@ export function App() {
             {me.avatar_thumb !== null || me.avatar_url !== null ? (
               <img className="app-me-avatar" src={me.avatar_thumb ?? me.avatar_url ?? ""} alt="" />
             ) : null}
-            <strong className="app-me-name">{me.display_name ?? me.handle ?? me.name}</strong>
+            <strong className="app-me-name">{preferredMeDisplay(me)}</strong>
             <span className={`app-me-chip app-me-chip--${me.kind}`}>{me.kind}</span>
             {/* role 与 kind 相同时（human/human、agent/agent）不重复显示，只有 readonly 等差异角色才补一个 chip */}
             {me.role !== me.kind && <span className="app-me-chip">{me.role}</span>}
@@ -1396,10 +1393,13 @@ export function App() {
                 }
           }
           onHandleSaved={(handle) => {
-            setMe((prev) => (prev ? { ...prev, handle } : prev));
+            setMe((prev) => (prev ? { ...prev, ...(prev.kind === "agent" ? { nickname: handle } : { handle }), preferred_display: handle } : prev));
+            setIdentityRevision(value => value + 1);
             setHandleBannerDismissed(true);
           }}
           onShowOnboarding={() => {
+            setGuideFromSettings(true);
+            setSettingsInitialSection("help");
             setSettingsOpen(false);
             setGuideOpen(true);
           }}
@@ -1489,6 +1489,7 @@ export function App() {
               slug={slug}
               title={currentChannel?.title ?? slug}
               onAgentRoster={receiveAgentRoster}
+              identityRevision={identityRevision}
               workspaceAction={workspaceAction?.slug===slug?workspaceAction:undefined}
               token={token}
               mode={channels?.find((c) => c.slug === slug)?.mode ?? "normal"}
@@ -1531,7 +1532,12 @@ export function App() {
       {/* 首次自动显示仍由组件记忆；设置入口可显式重开（#146 / #357）。 */}
       <OnboardingGuide
         forceOpen={guideOpen}
-        onClose={() => setGuideOpen(false)}
+        onBack={guideFromSettings ? () => {
+          setGuideOpen(false);
+          setGuideFromSettings(false);
+          setSettingsOpen(true);
+        } : undefined}
+        onClose={() => { setGuideOpen(false); setGuideFromSettings(false); }}
         returnFocusRef={guideOpen ? onboardingReturnFocusRef : undefined}
       />
     </div>

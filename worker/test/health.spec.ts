@@ -12,6 +12,10 @@ describe("deployment health metadata", () => {
       version: "dev",
       commit: "unknown",
       deployed_at: null,
+      product: "Agent Commons",
+      author: "zmnsQ",
+      project_source: "https://github.com/zmnsQ/AgentParty",
+      original_project: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" },
     });
   });
 });

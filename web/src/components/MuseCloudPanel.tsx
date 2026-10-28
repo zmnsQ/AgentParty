@@ -15,20 +15,38 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
  const [revision,update]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [callback,setCallback]=useState(''),[created,setCreated]=useState<{client_id:string;client_secret:string}|null>(null);
  const epoch=useRef(0),base=apiBase();
- useEffect(()=>{const n=++epoch.current,abort=new AbortController();setState(null);setCreated(null);setError('');
-  if(canManage)void cloudBridgesApi.muse(token,slug,abort.signal).then(data=>{if(epoch.current===n&&!abort.signal.aborted&&base===apiBase())setState(data);})
+ const scope=JSON.stringify([base,slug]),currentScope=useRef(scope);currentScope.current=scope;
+ const inFlight=useRef(new Set<string>()),uncertain=useRef(new Set<string>()),revocationTarget=useRef(new Map<string,string>());
+ const [blocked,setBlocked]=useState(false);
+ const uncertainText=locale==='zh'?'上次变更结果待确认。请检查现有客户端，不要重复创建或撤销。':'The previous change needs confirmation. Inspect existing clients; do not repeat creation or revocation.';
+ useEffect(()=>{const n=++epoch.current,abort=new AbortController();setState(null);setCreated(null);setCallback('');setNotice('');setError('');setBusy(inFlight.current.has(scope));setBlocked(uncertain.current.has(scope));
+  if(canManage)void cloudBridgesApi.muse(token,slug,abort.signal).then(data=>{if(epoch.current===n&&!abort.signal.aborted&&base===apiBase()){
+    setState(data);
+    const target=revocationTarget.current.get(scope);
+    // A disabled exact client is affirmative revocation evidence. Absence or a
+    // new client ID is not proof of what happened to an ambiguous creation.
+    if(!inFlight.current.has(scope)&&target&&data.clients.some(client=>client.client_id===target&&client.disabled)){
+     uncertain.current.delete(scope);revocationTarget.current.delete(scope);setBlocked(false);
+    }
+   }})
    .catch(()=>{if(!abort.signal.aborted&&epoch.current===n)setError(t('Muse.error'));});
   return()=>{abort.abort();++epoch.current;};
  },[token,slug,canManage,revision,base,locale]);
  useEffect(()=>{setMethod(null);},[token,slug,base]);
- const copy=async(value:string)=>{if(await copyText(value))setNotice(t('Muse.copied'));};
- const run=async(action:()=>Promise<void>)=>{if(busy)return;const n=epoch.current;setBusy(true);setError('');
-  try{await action();}catch{if(epoch.current===n)setError(t('Muse.error'));}finally{if(epoch.current===n)setBusy(false);}};
- const create=(e:FormEvent)=>{e.preventDefault();void run(async()=>{
+ const copy=async(value:string)=>{const n=epoch.current;try{if(await copyText(value)&&epoch.current===n&&currentScope.current===scope&&base===apiBase())setNotice(t('Muse.copied'));}catch{/* clipboard failure is not a successful copy */}};
+ const run=async(action:()=>Promise<void>,mutation=false)=>{
+  if(!canManage||currentScope.current!==scope||base!==apiBase()||inFlight.current.has(scope)||(mutation&&uncertain.current.has(scope)))return;
+  const n=epoch.current;inFlight.current.add(scope);setBusy(true);setError('');
+  if(mutation)uncertain.current.add(scope);
+  try{await action();if(epoch.current===n&&base===apiBase()&&mutation){uncertain.current.delete(scope);revocationTarget.current.delete(scope);}}
+  catch{if(epoch.current===n)setError(t('Muse.error'));}
+  finally{inFlight.current.delete(scope);if(currentScope.current===scope){setBusy(false);setBlocked(uncertain.current.has(scope));}}
+ };
+ const create=(e:FormEvent)=>{e.preventDefault();if(created||!callback.trim()||!state?.can_configure)return;void run(async()=>{
   const n=epoch.current;const result=await cloudBridgesApi.createMuseClient(token,slug,callback.trim());
   if(epoch.current!==n||base!==apiBase())return;setCreated(result);setCallback('');setNotice(t('Muse.created'));
-  const latest=await cloudBridgesApi.muse(token,slug);if(epoch.current===n)setState(latest);
- });};
+  const latest=await cloudBridgesApi.muse(token,slug);if(epoch.current===n&&base===apiBase())setState(latest);
+ },true);};
  const prompt=locale==='zh'?`使用已授权的 Agent Commons 连接。先调用 party_profile，确认群组是 ${slug}。只读取最近 5 条消息，不发帖、不修改文件、不通知其他智能体；不匹配就停止。`:
   `Use your authorized Agent Commons connector. First call party_profile and verify group ${slug}. Read only the latest 5 messages. Do not post, change files or notify agents; stop on a group mismatch.`;
  const clients=state?.clients.filter(x=>!x.disabled)??[],authorized=state?.native_authorized===true||clients.some(x=>x.active_grants>0);
@@ -44,6 +62,7 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
   <header className="muse-connect-heading"><ProviderMark provider="muse"/><div><h3>{t('Muse.title')}</h3><p>{locale==='zh'?'先选一种接入方式。工具访问、设备唤醒和实际在线是不同状态。':'Choose one connection method. Tool access, device wake-ups and being online are different states.'}</p></div>
    <button type="button" className="d-btn d-btn--ghost" onClick={()=>update(x=>x+1)} aria-label={t('Muse.refresh')} disabled={busy}><StudioIcon name="refresh"/></button></header>
   {!state&&!error&&<p role="status">{t('Muse.loading')}</p>}{error&&<p role="alert" className="commons-error">{error}</p>}
+  {blocked&&<p role="alert" className="commons-error">{uncertainText}</p>}
   {notice&&<p role="status" className="muse-notice">{notice}</p>}
   {!method&&<div className="muse-methods" aria-label={locale==='zh'?'选择 Muse 接入方式':'Choose a Muse connection method'}>
    <button type="button" className="muse-method" onClick={()=>setMethod('mcp')}><strong>{locale==='zh'?'MCP · 让 Muse 访问本群工具':'MCP · Let Muse use group tools'}</strong><span>{locale==='zh'?'用途：在 Muse 中读取本群，按授权回帖。':'Use: read this group from Muse and reply when authorized.'}</span><span>{locale==='zh'?'前提：Muse 支持自定义 MCP；你在 Muse 中添加连接器，并授权本群。':'Requires: custom MCP support in Muse; add its connector there and authorize this group.'}</span><small>{locale==='zh'?'状态：可查看接入步骤；个人 Muse 是否可用尚未核验。授权不等于实时唤醒。':'Status: setup instructions available; personal Muse connectivity unverified. Authorization does not imply real-time wake-ups.'}</small></button>
@@ -76,20 +95,20 @@ export function MuseCloudPanel({token,slug,canManage}:{token:string;slug:string;
     <li><span className="muse-step-index">1</span><div><h4>{t('Muse.step1')}</h4><p>{t('Muse.step1Help')}</p>
      {!state.can_configure?<p className="commons-note">{t('Muse.mfa')} <a href="/auth/security">{t('Muse.security')}</a></p>:
       <form onSubmit={create} className="muse-oauth-form"><label>{t('Muse.callback')}<input type="url" autoComplete="off" value={callback} onChange={e=>setCallback(e.target.value)} required maxLength={1400}/></label>
-      <button className="d-btn d-btn--primary" disabled={busy||!!created||!callback.trim()}><StudioIcon name="key"/>{t('Muse.create')}</button></form>}
+      <button className="d-btn d-btn--primary" disabled={busy||blocked||!!created||!callback.trim()}><StudioIcon name="key"/>{t('Muse.create')}</button></form>}
      {created&&<div className="muse-secret-once"><strong>{t('Muse.secret')}</strong><p>{t('Muse.secretHint')}</p>
        <label>{t('Muse.client')}<input readOnly value={created.client_id}/></label>
        <label>{t('Muse.secret')}<input type="password" readOnly value={created.client_secret} autoComplete="new-password"/></label>
        <div className="muse-inline-actions"><button className="d-btn" onClick={()=>void copy(created.client_secret)}><StudioIcon name="copy"/>{t('Muse.copy')}</button><button className="d-btn" onClick={()=>setCreated(null)}><StudioIcon name="check"/>{t('Muse.saved')}</button></div>
      </div>}
      <details className="muse-technical"><summary>{t('Muse.authDetails')}</summary><dl>{Object.entries(state.configuration).filter(([,v])=>typeof v==='string').map(([k,v])=><div key={k}><dt>{k}</dt><dd>{String(v)}</dd></div>)}</dl></details>
-     {clients.map(client=><div className="muse-client-row" key={client.client_id}><div><strong>{client.name}</strong><code>{client.client_id}</code></div><button className="d-btn d-btn--ghost" disabled={busy} onClick={()=>{
-       if(!confirm(t('Muse.revokeConfirm')))return;void run(async()=>{await cloudBridgesApi.revokeMuseClient(token,slug,client.client_id);setCreated(null);update(x=>x+1);});
+     {clients.map(client=><div className="muse-client-row" key={client.client_id}><div><strong>{client.name}</strong><code>{client.client_id}</code></div><button className="d-btn d-btn--ghost" disabled={busy||blocked} onClick={()=>{
+       if(!confirm(t('Muse.revokeConfirm')))return;void run(async()=>{revocationTarget.current.set(scope,client.client_id);const n=epoch.current;await cloudBridgesApi.revokeMuseClient(token,slug,client.client_id);if(epoch.current!==n||base!==apiBase())return;setCreated(null);update(x=>x+1);},true);
      }}><StudioIcon name="unlink"/>{t('Muse.revoke')}</button></div>)}
     </div></li>
     <li><span className="muse-step-index">2</span><div><h4>{t('Muse.step2')}</h4><p>{t('Muse.step2Help')}</p><textarea readOnly value={prompt} rows={3} aria-label={t('Muse.testPrompt')}/><button className="d-btn" onClick={()=>void copy(prompt)}><StudioIcon name="copy"/>{t('Muse.copy')}</button></div></li>
     <li><span className="muse-step-index">3</span><div><h4>{t('Muse.step4')}</h4><p>{t('Muse.step4Help')}</p><div className="muse-inline-actions"><button className="d-btn" disabled={busy} onClick={()=>void run(async()=>{
-      const data=await cloudBridgesApi.museReview(token,slug);const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+      const n=epoch.current;const data=await cloudBridgesApi.museReview(token,slug);if(epoch.current!==n||base!==apiBase())return;const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='agent-commons-muse-review.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     })}><StudioIcon name="download"/>{t('Muse.download')}</button><a className="d-btn" href="https://platform.muse.ai/login?return_to=%2Fsubmission" target="_blank" rel="noopener noreferrer"><StudioIcon name="external"/>{t('Muse.portal')}</a></div><small>{t('Muse.noFakeApproval')}</small></div></li>
    </ol></details>

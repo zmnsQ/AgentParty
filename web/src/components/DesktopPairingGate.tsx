@@ -126,7 +126,7 @@ interface Props {
   selectedOrigin: string;
   onSelectOrigin(origin: string): void;
   onProfilesChanged(profiles: ServerProfile[]): void;
-  onAuthenticated(accessToken: string, origin: string): void;
+  onAuthenticated(accessToken: string, origin: string): void | Promise<void>;
   onExit?: () => void;
 }
 
@@ -184,18 +184,23 @@ export function DesktopPairingGate({
     }
     const controller = new AbortController();
     controllerRef.current = controller;
+    const isCurrent=()=>!controller.signal.aborted&&controllerRef.current===controller;
     setPairing(null);
     dispatch({ type: "start" });
     try {
       const secrets = await createDesktopPairingSecrets();
+      if(!isCurrent())return;
       secretsRef.current = secrets;
-      const created = await createDesktopPairing(serverOrigin, secrets, await deviceMetadata());
-      if (controller.signal.aborted) return;
+      const metadata=await deviceMetadata();
+      if(!isCurrent())return;
+      const created = await createDesktopPairing(serverOrigin, secrets, metadata);
+      if (!isCurrent()) return;
       setPairing(created);
       dispatch({ type: "created", intervalSeconds: created.interval });
       if (!(await openDesktopVerificationUrl(created.verification_uri_complete, allowedOrigins))) {
         throw new Error(t("DesktopPairing.browserFailed"));
       }
+      if(!isCurrent())return;
       const result = await pollDesktopPairing({
         intervalSeconds: created.interval,
         expiresInSeconds: created.expires_in,
@@ -208,12 +213,17 @@ export function DesktopPairingGate({
           fetch,
           signal,
         ),
-        onEvent: (event) => dispatch(event.type === "authorization_pending"
+        onEvent: (event) => {
+          // Poll approval is not yet credential storage or application activation.
+          if(!isCurrent()||event.type==="approved")return;
+          dispatch(event.type === "authorization_pending"
           ? { type: "authorization_pending" }
           : event.type === "slow_down"
             ? { type: "slow_down", retryAfterSeconds: event.retryAfterSeconds }
-            : { type: event.type }),
+            : { type: event.type });
+        },
       });
+      if(!isCurrent())return;
       if (result.type === "approved") {
         const accessToken = await finishDesktopPairing(
           result.tokens,
@@ -221,19 +231,21 @@ export function DesktopPairingGate({
           serverOrigin,
           desktopCredentialVaultForOrigin(serverOrigin),
         );
+        if(!isCurrent())return;
         secretsRef.current = null;
+        await onAuthenticated(accessToken, serverOrigin);
+        if(!isCurrent())return;
         dispatch({ type: "approved" });
-        onAuthenticated(accessToken, serverOrigin);
       } else if (result.type === "cancelled") {
         dispatch({ type: "cancel" });
       } else {
         dispatch({ type: result.type });
       }
     } catch (cause) {
-      if (controller.signal.aborted) return;
+      if (!isCurrent()) return;
       dispatch({ type: "fail", message: cause instanceof Error ? cause.message : t("DesktopPairing.error") });
     } finally {
-      if (controllerRef.current === controller) controllerRef.current = null;
+      if (controllerRef.current === controller) {controllerRef.current = null;secretsRef.current=null;}
     }
   };
 

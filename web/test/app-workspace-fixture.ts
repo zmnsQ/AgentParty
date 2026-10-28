@@ -1,7 +1,8 @@
+import type {TaskRecord,TaskSummary} from "@agentparty/shared";
 import { PERSONAL_AGENT_PROVIDERS, type CollaborationSummary, type ChannelRepository, type ChannelFilesResponse } from "@agentparty/shared/collaboration";
 /** Test transport only. No imports of App internals, no production mocks. */
 const self={name:'fixture-human',kind:'human',display:'测试用户'};
-const agents=[{name:'fixture-muse',kind:'agent',display:'Muse · 测试'},{name:'fixture-atlas',kind:'agent',display:'Atlas · 测试'}];
+const agents=[{name:'fixture-muse',kind:'agent',display:'Muse · 测试',connector_type:'muse' as const},{name:'fixture-atlas',kind:'agent',display:'Atlas · 测试',connector_type:'chatgpt' as const}];
 const identities=[self,...agents];
 const messages=[
  {sender:self,body:'【TEST FIXTURE】想做一个自然、有温度的生活方式品牌。我们一起找找方向？'},
@@ -19,6 +20,7 @@ export function installWorkspaceFixture(theme:'doodle'|'midnight') {
  Object.defineProperty(document,'cookie',{configurable:true,get:()=>fixtureCookie,set:(value:string)=>{fixtureCookie=value;}});
  document.documentElement.dataset.theme=theme;
  const requests:string[]=[];
+ const currentIdentities=identities.map(identity=>({...identity}));
  const scrolling = new URLSearchParams(location.search).get('scroll') === '1';
  const historyMessages = scrolling ? Array.from({length:200},(_,i)=>({...messages[1]!,seq:i+1,body:`【TEST FIXTURE】历史消息 ${i+1}\n\n用于滚动位置验收，不是真实消息。`,ts:Date.UTC(2026,9,28)+i*1000})) : [...messages];
  const sockets=new Set<FixtureSocket>();
@@ -38,6 +40,15 @@ export function installWorkspaceFixture(theme:'doodle'|'midnight') {
   const method=init?.method??(input instanceof Request?input.method:'GET');
   requests.push(`${method} ${url.pathname}`);
   const ok=(value:unknown)=>new Response(JSON.stringify(value),{status:200,headers:{'content-type':'application/json'}});
+  const rename=url.pathname.match(/^\/api\/channels\/(fixture-[01])\/agents\/(fixture-(?:muse|atlas))\/nickname$/);
+  if(method==='PUT' && rename){
+   const body=JSON.parse(String(init?.body??'{}'));
+   const identity=currentIdentities.find(item=>item.name===rename[2]);
+   if(identity && typeof body.nickname==='string' && body.nickname.trim()){
+    identity.display=body.nickname.trim();return ok({name:identity.name,nickname:identity.display});
+   }
+   return new Response('{}',{status:400});
+  }
   if(method!=='GET')return new Response('{"error":{"code":"test_fixture_read_only"}}',{status:403});
   if(url.pathname==='/api/auth/github/session')return ok({configured:true,status:'authenticated',access_token:'apb_TEST_FIXTURE_NO_VALID_CREDENTIAL',account:self.name,login:'fixture',mfa_enabled:true});
   if(url.pathname==='/oauth/grants')return ok({connections:[]});
@@ -45,6 +56,10 @@ export function installWorkspaceFixture(theme:'doodle'|'midnight') {
   if(groupMatch){
    const slug=groupMatch[1]!;const resource=groupMatch[2]??'';
    const repository:ChannelRepository={id:'fixture-repository',channel:slug,full_name:'TEST-FIXTURE/design-notes',html_url:'#test-fixture-repository',base_branch:'main',private:true,credential_configured:false,created_at:Date.UTC(2026,9,28)};
+   const task:TaskRecord={type:'task',id:1,channel:slug,title:'【TEST FIXTURE】Muse 视觉方案评审',desc:'【TEST FIXTURE】用于验证群管理 → Muse 成员 → 任务详情 → 返回来源；不是真实指派，不会触发 Agent。',state:'in_progress',assignee:{name:'fixture-muse',kind:'agent'},created_by:self.name,created_by_kind:'human',priority:1,labels:['TEST FIXTURE','视觉验收'],parent_id:null,anchor_seqs:[2],scope:[],blocked_reason:null,external_ref:null,attachments:[],completion_artifact:null,workflow_id:null,created_at:Date.UTC(2026,9,28),updated_at:Date.UTC(2026,9,28),completed_at:null};
+   if(resource==='tasks')return ok({tasks:[task]});
+   if(resource==='tasks/summary')return ok({type:'task_summary',channel:slug,total:1,open:1,triage:0,backlog:0,assigned:0,in_progress:1,needs_review:0,blocked:0,done:0,mine:0} satisfies TaskSummary);
+   if(resource==='tasks/1')return ok({task});
    const policy={enabled:true,allow_write:false,allow_events:false,owner_mfa_enabled:true,require_mfa:true,updated_at:null};
    if(resource==='collaboration')return ok({providers:PERSONAL_AGENT_PROVIDERS,connections:[],repositories:[repository],permissions:{manage:true,run:false,upload:false},mcp_endpoint:`${location.origin}/mcp/${slug}`,execution:'manual-sync'} satisfies CollaborationSummary);
    if(resource==='files')return ok({files:[{key:`${slug}/fixture/visual-notes.txt`,filename:'TEST-FIXTURE-视觉验收说明.txt',content_type:'text/plain',size:96,url:`/api/channels/${slug}/fixture-file`,uploaded_by:self.name,uploaded_at:'2026-10-28T00:00:00Z'}],cursor:null} satisfies ChannelFilesResponse);
@@ -73,13 +88,11 @@ export function installWorkspaceFixture(theme:'doodle'|'midnight') {
    if(around!==null){const index=historyMessages.findIndex(m=>m.seq===Number(around));const start=Math.max(0,index-Math.floor(limit/2));return ok({messages:index<0?[]:historyMessages.slice(start,start+limit)});}
    return ok({messages:historyMessages.filter(m=>m.seq<Number(url.searchParams.get('before')??Number.MAX_SAFE_INTEGER)).slice(-limit)});
   }
-  if(/^\/api\/channels\/fixture-[01]\/identities$/.test(url.pathname))return ok({identities});
+  if(/^\/api\/channels\/fixture-[01]\/identities$/.test(url.pathname))return ok({identities:currentIdentities.map(identity=>({...identity,handle:identity.kind==='agent'?identity.display:undefined,nickname:identity.kind==='agent'?identity.display:undefined}))});
   if(url.pathname.endsWith('/charter'))return ok({charter:'',charter_rev:0,updated_at:0,updated_by:null});
   if(url.pathname.endsWith('/roles'))return ok({roles:[]});
-  if(url.pathname.endsWith('/tasks/summary'))return ok({type:'task_summary',channel:'fixture-0',total:0,open:0,triage:0,backlog:0,assigned:0,in_progress:0,needs_review:0,blocked:0,done:0,mine:0});
-  if(url.pathname.endsWith('/tasks'))return ok({tasks:[]});
   if(url.pathname.endsWith('/squads'))return ok({squads:[]});
-  if(url.pathname.endsWith('/agents'))return ok({agents:[]});
+  if(url.pathname.endsWith('/agents'))return ok({agents:currentIdentities.filter(identity=>identity.kind==='agent').map(identity=>({name:identity.name,nickname:identity.display,connector_type:'connector_type' in identity?identity.connector_type:undefined,owner:self.name,channel_scope:groupMatch?.[1]??'fixture-0',created_at:1}))});
   if(url.pathname.endsWith('/presence'))return ok({presence:[]});
   return new Response(JSON.stringify({error:{code:'unhandled_fixture_endpoint',message:url.pathname}}),{status:404});
  };

@@ -64,3 +64,13 @@ export function nextMentionBadgeCount(
 export function shouldMarkSeen(documentHidden: boolean, stickBottom: boolean): boolean {
   return !documentHidden && stickBottom;
 }
+
+/** Channel-scoped delivery memory survives reconnects and read-count resets. */
+export function nextMentionBadgeCountOnce(
+  seen: Set<number>, current: number, msg: MsgFrame, myHandle: string | null,
+  documentHidden: boolean, myName: string | null = null, now: number = Date.now(),
+): number {
+  if (seen.has(msg.seq)) return current;
+  seen.add(msg.seq);
+  return nextMentionBadgeCount(current, msg, myHandle, documentHidden, myName, now);
+}

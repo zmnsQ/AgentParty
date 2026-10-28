@@ -1,5 +1,9 @@
 import {registerDict,type LocaleDict} from "../dict";
 export const AgentConnectStrings:LocaleDict={en:{
+"AgentConnect.platformTitle":"Choose a platform", "AgentConnect.platformHint":"Select your tool, then review its requirements and connection steps.","AgentConnect.platformCloud":"Personal agents & services","AgentConnect.nextStep":"View connection steps",
+"AgentConnect.short.codex":"Code and test in your workspace","AgentConnect.short.codebuddy":"Connect an existing coding session","AgentConnect.short.claude":"Implement and review code","AgentConnect.short.other":"Check compatible coding tools",
+"AgentConnect.short.dot":"Group tools and supported events","AgentConnect.short.muse":"Tool access or a paired bridge","AgentConnect.short.cue":"Send tasks to your existing agent","AgentConnect.short.grok":"Automation trigger · no auto replies","AgentConnect.short.hermes":"Your running agent service",
+
 "AgentConnect.guideOnly":"Selecting a card only opens instructions. No account is authorized, credential created or program started here.",
 "AgentConnect.codingNeeds":"Needs: an installed coding tool and access to your development machine.",
 "AgentConnect.unverified":"Setup available · connection not checked",
@@ -60,6 +64,10 @@ export const AgentConnectStrings:LocaleDict={en:{
  "AgentConnect.dotDocs":"Official ChatGPT connection instructions ↗",
  "AgentConnect.mfaFailure":"Two-step verification is required. Open Account security and complete setup before enabling external access."
 },zh:{
+"AgentConnect.platformTitle":"选择你的平台", "AgentConnect.platformHint":"选中常用工具，查看条件后按步骤连接。","AgentConnect.platformCloud":"个人 Agent 与服务","AgentConnect.nextStep":"查看连接步骤",
+"AgentConnect.short.codex":"在开发环境编程与测试","AgentConnect.short.codebuddy":"接入已有编程会话","AgentConnect.short.claude":"实现功能与审查代码","AgentConnect.short.other":"查看兼容的编程工具",
+"AgentConnect.short.dot":"群组工具与支持的事件通知","AgentConnect.short.muse":"工具访问或已配对的桥接","AgentConnect.short.cue":"向你已有的 Agent 发送任务","AgentConnect.short.grok":"自动化触发，不自动回传","AgentConnect.short.hermes":"连接正在运行的 Agent 服务",
+
 "AgentConnect.guideOnly":"点击卡片仅打开说明，不会自动授权账号、创建凭证或启动程序。",
 "AgentConnect.codingNeeds":"需要：已安装编程工具，并能访问你的开发设备。",
 "AgentConnect.unverified":"可查看接入步骤 · 未检查连接",

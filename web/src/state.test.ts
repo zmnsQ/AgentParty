@@ -785,3 +785,14 @@ describe("channel state", () => {
     expect(forbidden.sendRejectedSeq).toBe(0);
   });
 });
+
+test("late REST and message_update snapshots cannot roll back a newer edit or retraction",()=>{
+ const latest=msgFrame(6,"",{rev_seq:12,retracted:true,retracted_at:100});
+ const current=channelReducer(initialChannelState,{type:"frame",frame:latest});
+ for(const old of [msgFrame(6,"original"),msgFrame(6,"old edit",{rev_seq:11,edited:true})]) {
+  expect(channelReducer(current,{type:"frame",frame:old})).toBe(current);
+  expect(channelReducer(current,{type:"frame",frame:{type:"message_update",message:old}})).toBe(current);
+ }
+ const next=channelReducer(current,{type:"frame",frame:{type:"message_update",message:msgFrame(6,"new revision",{rev_seq:13,edited:true})}});
+ expect(next.messages).toHaveLength(1);expect(next.messages[0]?.body).toBe("new revision");
+});

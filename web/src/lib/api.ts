@@ -328,6 +328,10 @@ export interface ChannelCharter {
 }
 
 export interface ChannelIdentity {
+  /** Declared connector metadata, not proof of verification or connectivity. */
+  connector_type?: "muse" | "chatgpt" | "hermes" | "manus";
+  /** Explicit saved agent nickname supplied by the authoritative identity endpoint. */
+  nickname?: string;
   name: string;
   display: string;
   kind?: "agent" | "human";
@@ -345,6 +349,10 @@ export type ChannelRoleInfo = ChannelRoleAssignment;
 
 // 当前登录身份（spec §10）：topbar 显示真实 token name/kind/role，owner 仅作归属辅助信息。
 export interface MeInfo {
+  /** Server-resolved display label; optional for older servers. */
+  preferred_display?: string;
+  /** Agent's own saved nickname, distinct from legacy owner handle metadata. */
+  nickname?: string;
   name: string;
   email: string | null;
   kind: "agent" | "human";

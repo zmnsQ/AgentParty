@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import {
   buildDeployPlan,
   buildPreDeploySmokePlan,
@@ -227,18 +227,20 @@ describe("buildPostDeploySmokePlan", () => {
     expect(buildWeb).toBeLessThan(deployAll);
   });
 
-  test("routes the default local deploy through the guarded deploy script", () => {
+  test("the fork default deploy never invokes the historical upstream profile script", () => {
     const pkg = JSON.parse(readFileSync(
       new URL("../worker/package.json", import.meta.url),
       "utf8",
     )) as { scripts: Record<string, string> };
-    expect(pkg.scripts.deploy).toBe("node scripts/deploy-local.mjs");
+    expect(pkg.scripts.deploy).toBe("wrangler deploy");
+    expect(pkg.scripts.deploy).not.toContain("deploy-local");
     expect(pkg.scripts["smoke:runtime-peers"]).toBe("node scripts/smoke-runtime-peers.mjs");
   });
 
-  test("wires the dedicated runtime smoke secret and optional channel into CI", () => {
+  test("preserves upstream CI reference without enabling its deployment workflow", () => {
+    expect(existsSync(new URL("../.github/workflows/worker-deploy.yml", import.meta.url))).toBe(false);
     const workflow = readFileSync(
-      new URL("../.github/workflows/worker-deploy.yml", import.meta.url),
+      new URL("../docs/upstream-workflows/worker-deploy.yml", import.meta.url),
       "utf8",
     );
     expect(() => Bun.YAML.parse(workflow)).not.toThrow();

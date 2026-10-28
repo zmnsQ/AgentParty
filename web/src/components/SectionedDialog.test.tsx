@@ -177,6 +177,7 @@ function renderDialog({
   Object.defineProperty(globalThis, "document", { configurable: true, value: documentHarness });
 
   let renderer!: ReactTestRenderer;
+  let closeCount=0;
   let controlledSection = activeSection;
   const dialog = () => (
     <SectionedDialog
@@ -187,7 +188,7 @@ function renderDialog({
       sections={sections}
       initialSection="general"
       activeSection={controlledSection}
-      onClose={() => {}}
+      onClose={() => {closeCount++;}}
       restoreFocusOnUnmount={restoreFocusOnUnmount}
     />
   );
@@ -214,6 +215,7 @@ function renderDialog({
     document: documentHarness,
     window: windowHarness,
     previous,
+    closeCount:()=>closeCount,
     close,
     tabs: tabElements,
     residentStop,
@@ -360,4 +362,18 @@ describe("SectionedDialog section keyboard navigation", () => {
     expect(selectedTab(renderer).props.id).toBe("test-dialog-tab-general");
     expect(document.activeElement).toBe(tabElements.get("general")!);
   });
+});
+
+
+test('handled child Escape does not dismiss the enclosing sectioned dialog',()=>{
+ const rendered=renderDialog();
+ act(()=>rendered.window.emit('keydown',{key:'Escape',defaultPrevented:true}));
+ expect(rendered.closeCount()).toBe(0);
+ act(()=>rendered.window.emit('keydown',{key:'Escape',defaultPrevented:false}));
+ expect(rendered.closeCount()).toBe(1);
+});
+test('unmount never restores focus to a detached source trigger',()=>{
+ const rendered=renderDialog();rendered.previous.isConnected=false;
+ act(()=>rendered.renderer.unmount());mountedRenderer=null;
+ expect(rendered.previous.focusCount).toBe(1);
 });

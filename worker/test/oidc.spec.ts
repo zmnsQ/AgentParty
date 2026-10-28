@@ -262,6 +262,10 @@ describe("oidc end-to-end via SELF.fetch", () => {
         ],
       },
       cli_client_id: "agentparty-cli",
+      product_name: "Agent Commons",
+      project_author: "zmnsQ",
+      project_source: "https://github.com/zmnsQ/AgentParty",
+      based_on: { name: "AgentParty", author: "Guo Li / leeguoo", source: "https://github.com/leeguooooo/AgentParty", license: "BUSL-1.1" },
     });
   });
 
@@ -278,6 +282,7 @@ describe("oidc end-to-end via SELF.fetch", () => {
     expect(me.status).toBe(200);
     expect(await me.json()).toEqual({
       name: "user-abc",
+      preferred_display: "OIDCUser",
       email: "u@leeguoo.com",
       kind: "human",
       role: "human",

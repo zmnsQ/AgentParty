@@ -55,8 +55,8 @@ describe("#861 初始页失败期间不弹历史", () => {
     // 三个出口各自的判据表达式里都必须出现这面闸（不约束它排在第几个合取项）。
     // 通知：notifiedSeqRef 去重那一段
     expect(source).toMatch(/notifiedSeqRef\.current\.has\(frame\.seq\)[\s\S]{0,200}?!replayUntrustedRef\.current/);
-    // 角标：nextMentionBadgeCount 调用之前
-    expect(source).toMatch(/!replayUntrustedRef\.current[\s\S]{0,200}?nextMentionBadgeCount\(/);
+    // 角标：nextMentionBadgeCountOnce 调用之前
+    expect(source).toMatch(/!replayUntrustedRef\.current[\s\S]{0,200}?nextMentionBadgeCountOnce\(/);
     // toast：toastedSeqRef 去重那一段
     expect(source).toMatch(/toastedSeqRef\.current\.has\(frame\.seq\)[\s\S]{0,200}?!replayUntrustedRef\.current/);
   });

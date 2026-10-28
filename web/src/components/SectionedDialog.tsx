@@ -26,6 +26,8 @@ interface Props<SectionId extends string> {
   initialSection: SectionId;
   activeSection?: SectionId;
   onClose(): void;
+  onBack?(): void;
+  backLabel?: string;
   onActiveSectionChange?(section: SectionId): void;
   restoreFocusOnUnmount?: boolean;
   keepMounted?: boolean;
@@ -74,6 +76,8 @@ export function SectionedDialog<SectionId extends string>({
   initialSection,
   activeSection: controlledSection,
   onClose,
+  onBack,
+  backLabel,
   onActiveSectionChange,
   restoreFocusOnUnmount = true,
   keepMounted = true,
@@ -134,7 +138,7 @@ export function SectionedDialog<SectionId extends string>({
 
     (tabRefs.current.get(activeSection) ?? focusables()[0] ?? panelRef.current)?.focus?.();
     const onKey = (event: KeyboardEvent) => {
-      if (isCompositionKey(event)) return;
+      if (event.defaultPrevented || isCompositionKey(event)) return;
       if (event.key === "Escape") {
         onCloseRef.current();
         return;
@@ -167,7 +171,7 @@ export function SectionedDialog<SectionId extends string>({
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      if (restoreFocusOnUnmountRef.current) previouslyFocused?.focus?.();
+      if (restoreFocusOnUnmountRef.current && previouslyFocused?.isConnected !== false) previouslyFocused?.focus?.();
     };
     // The dialog's focus lifecycle belongs to mount/unmount. Changing a parent
     // callback identity must not tear down and re-arm the trap.
@@ -209,6 +213,7 @@ export function SectionedDialog<SectionId extends string>({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="settings-head">
+          {onBack && <button type="button" className="d-btn settings-back" onClick={onBack}>{backLabel ?? "←"}</button>}
           <h2 className="settings-title" id={titleId}>{title}</h2>
           <button type="button" className="settings-close" aria-label={closeLabel} onClick={onClose}>
             <StudioIcon name="close" />

@@ -583,3 +583,29 @@ describe("TaskLedgerPanel external task selection", () => {
     expect(r.root.findAll((node) => node.props.className === "task-board")).toHaveLength(0);
   });
 });
+
+test('non-sensitive task filters survive panel unmount and remount',()=>{
+ const viewMemory:NonNullable<PanelProps['viewMemory']>={current:null};
+ const r=render('en',baseProps({viewMemory}));
+ const search=r.root.findAll(n=>n.type==='input'&&n.props.value==='').find(n=>n.props.onChange&&n.props.placeholder);
+ expect(search).toBeDefined();
+ act(()=>search!.props.onChange({currentTarget:{value:'retained query'}}));
+ expect(viewMemory.current?.query).toBe('retained query');
+ act(()=>r.unmount());renderer=null;
+ const next=render('en',baseProps({viewMemory}));
+ expect(next.root.findAll(n=>n.type==='input'&&n.props.value==='retained query')).toHaveLength(1);
+ expect(Object.keys(viewMemory.current!)).not.toContain('credential');
+});
+
+test('leaving an externally selected task clears its request so the same task can open again',()=>{
+ let selected:number|null=1;
+ const props=baseProps();
+ const draw=()=> <LocaleProvider><TaskLedgerPanel {...props} selectedTaskId={selected} onSelectedTaskDismiss={()=>{selected=null;renderer!.update(draw());}}/></LocaleProvider>;
+ const r=render('en', {...props,selectedTaskId:selected});
+ act(()=>r.update(draw()));
+ const back=r.root.find(n=>n.type==='button'&&n.props.className==='d-btn task-detail-close');
+ act(()=>back.props.onClick());expect(selected).toBeNull();
+ expect(r.root.findAll(n=>n.props.className==='task-detail-card task-detail-route')).toHaveLength(0);
+ act(()=>{selected=1;r.update(draw());});
+ expect(r.root.findAll(n=>n.props.className==='task-detail-card task-detail-route')).toHaveLength(1);
+});

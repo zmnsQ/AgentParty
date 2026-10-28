@@ -189,3 +189,12 @@ describe("ChannelFocusPanel", () => {
     expect(renderer!.root.findAllByType("button")).toHaveLength(2);
   });
 });
+
+test("pending decision uses current display label while preserving its jump identity",()=>{
+ let jumped=0;
+ const pending=item({name:"fixture-muse",label:"fixture-muse",taskId:null,seq:42,state:"waiting_decision"});
+ act(()=>{renderer=create(<LocaleProvider><ChannelFocusPanel focus={focus([pending])} displayOf={()=>"小贾"} onOpenTask={()=>{}} onJumpSeq={seq=>{jumped=seq;}}/></LocaleProvider>);});
+ expect(renderer!.root.findByType("strong").children).toEqual(["小贾"]);
+ expect(JSON.stringify(renderer!.toJSON())).not.toContain("fixture-muse");
+ act(()=>renderer!.root.findByType("button").props.onClick());expect(jumped).toBe(42);expect(pending.name).toBe("fixture-muse");
+});

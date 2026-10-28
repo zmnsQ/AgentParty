@@ -19,7 +19,7 @@ export async function handleConflict(
   forAccount: string | null,
   opts?: { excludeInviteCode?: string },
 ): Promise<"reserved" | "token_name" | "nickname" | "taken" | "invite_pending" | null> {
-  if (RESERVED_NAMES.includes(handle)) return "reserved";
+  if (RESERVED_NAMES.some((name) => name.toLowerCase() === handle.toLowerCase())) return "reserved";
   const tok = await db.prepare("SELECT 1 FROM tokens WHERE name = ? COLLATE NOCASE").bind(handle).first();
   if (tok) return "token_name";
   const nick = await db

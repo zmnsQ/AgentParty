@@ -1,3 +1,4 @@
+import "./ChannelAdminView.css";
 import { StudioIcon } from "./StudioIcon";
 import {
   type KeyboardEvent,
@@ -14,6 +15,13 @@ import "../i18n/strings/VisibilityToggle";
 import "../i18n/strings/ChannelAdminView";
 
 export type ChannelAdminSection = "access" | "members" | "safety" | "lifecycle";
+
+export interface ChannelAdminViewMemory {
+  slug: string;
+  section: ChannelAdminSection;
+  query: string;
+  filter: "all" | "human" | "agent";
+}
 
 export interface ChannelAdminMember {
   name: string;
@@ -36,6 +44,9 @@ export interface ChannelAdminCapabilities {
 
 export interface ChannelAdminViewProps {
   slug: string;
+  channelTitle?: string;
+  /** The owning dialog already provides its title, Back and Close controls. */
+  embeddedHeader?: boolean;
   visibility: Visibility;
   archived: boolean;
   capabilities: ChannelAdminCapabilities;
@@ -45,6 +56,8 @@ export interface ChannelAdminViewProps {
   invitationControls?: ReactNode;
   safetyControls?: ReactNode;
   initialSection?: ChannelAdminSection;
+  /** In-memory navigation context only; never confirmations, credentials or mutations. */
+  viewMemory?: { current: ChannelAdminViewMemory | null };
   activeSection?: ChannelAdminSection;
   detail?: ReactNode;
   detailBackLabel?: string;
@@ -94,6 +107,8 @@ function sectionFromKey(
  */
 export function ChannelAdminView({
   slug,
+  channelTitle,
+  embeddedHeader = false,
   visibility,
   archived,
   capabilities,
@@ -102,6 +117,7 @@ export function ChannelAdminView({
   invitationControls,
   safetyControls,
   initialSection = "access",
+  viewMemory,
   activeSection: controlledSection,
   detail,
   detailBackLabel = "Back",
@@ -122,7 +138,8 @@ export function ChannelAdminView({
 }: ChannelAdminViewProps) {
   const t = useT();
   const idPrefix = useId();
-  const [internalSection, setInternalSection] = useState<ChannelAdminSection>(initialSection);
+  const remembered = viewMemory?.current?.slug === slug ? viewMemory.current : null;
+  const [internalSection, setInternalSection] = useState<ChannelAdminSection>(() => remembered?.section ?? initialSection);
   const activeSection = controlledSection ?? internalSection;
   const tabRefs = useRef(new Map<ChannelAdminSection, HTMLButtonElement>());
   const memberOpenRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -131,6 +148,25 @@ export function ChannelAdminView({
   const detailWasOpenRef = useRef(false);
   const showingDetail = detail !== undefined && detail !== null;
   const activeMemberCount = members.filter((member) => member.removed !== true).length;
+  const humanCount = members.filter(member => !member.removed && member.kind === "human").length;
+  const agentCount = members.filter(member => !member.removed && member.kind === "agent").length;
+  const [accessExpanded, setAccessExpanded] = useState(false);
+  const [memberFilter, setMemberFilter] = useState<"all" | "human" | "agent">(() => remembered?.filter ?? "all");
+  const [memberQuery, setMemberQuery] = useState(() => remembered?.query ?? "");
+  useEffect(() => {
+    if (viewMemory) viewMemory.current = { slug, section: activeSection, query: memberQuery, filter: memberFilter };
+  }, [viewMemory, slug, activeSection, memberQuery, memberFilter]);
+  const [copiedIdentity, setCopiedIdentity] = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const query = memberQuery.trim().toLocaleLowerCase();
+  const visibleMembers = members.filter(member =>
+    (memberFilter === "all" || member.kind === memberFilter)
+    && (!query || `${member.display} ${member.name}`.toLocaleLowerCase().includes(query)));
+  const copyIdentity = async (name: string) => {
+    setCopyFailed(false);
+    try { await navigator.clipboard.writeText(name); setCopiedIdentity(name); }
+    catch { setCopyFailed(true); }
+  };
 
   useEffect(() => {
     if (!detailWasOpenRef.current && showingDetail) {
@@ -170,6 +206,18 @@ export function ChannelAdminView({
       content: (
         <>
           <h3 className="settings-module-title">{t("ChannelAdmin.access.title")}</h3>
+          <div className="channel-admin-overview">
+            <div><span>{t("ChannelAdmin.overview.people")}</span><strong>{humanCount}</strong></div>
+            <div><span>{t("ChannelAdmin.overview.agents")}</span><strong>{agentCount}</strong></div>
+            <div><span>{t("ChannelAdmin.overview.permission")}</span><strong>{t(!archived && Object.values(capabilities).some(Boolean) ? "ChannelAdmin.overview.manager" : "ChannelAdmin.overview.reader")}</strong></div>
+          </div>
+          <p className="channel-admin-context">{t("ChannelAdmin.overview.hint")}</p>
+          <div className="channel-admin-shortcuts">
+            <button type="button" className="d-btn" onClick={() => selectSection("members")}><StudioIcon name="human" />{t("ChannelAdmin.overview.manageMembers")}</button>
+            <button type="button" className="d-btn" onClick={() => { setMemberFilter("agent"); selectSection("members"); }}><StudioIcon name="agent" />{t("ChannelAdmin.overview.manageAgents")}</button>
+          </div>
+          <details className="channel-admin-disclosure" onToggle={event => setAccessExpanded(event.currentTarget.open)}>
+            <summary><strong>{t("ChannelAdmin.access.visibility")}</strong><span>{t(`Visibility.opt.${visibility}`)}</span></summary>
           <section className="settings-section">
             <div className="settings-label">{t("ChannelAdmin.access.visibility")}</div>
             <p className="settings-hint">
@@ -179,7 +227,7 @@ export function ChannelAdminView({
             </p>
             {!archived && capabilities.manageAccess && accessControls !== undefined
               ? typeof accessControls === "function"
-                ? accessControls(activeSection === "access")
+                ? accessControls(activeSection === "access" && accessExpanded)
                 : accessControls
               : !archived && capabilities.manageAccess && onEditAccess !== undefined && (
               <button type="button" className="d-btn" onClick={onEditAccess}>
@@ -194,8 +242,10 @@ export function ChannelAdminView({
               <p className="settings-hint">{t("ChannelAdmin.actionUnavailable")}</p>
             )}
           </section>
+          </details>
+          <details className="channel-admin-disclosure">
+            <summary><strong>{t("ChannelAdmin.access.invitations")}</strong><span>{t("ChannelAdmin.invitations.hint")}</span></summary>
           <section className="settings-section">
-            <div className="settings-label">{t("ChannelAdmin.access.invitations")}</div>
             {!archived && capabilities.manageAccess && invitationControls !== undefined
               ? invitationControls
               : !archived && capabilities.manageAccess && onManageInvitations !== undefined && (
@@ -218,6 +268,7 @@ export function ChannelAdminView({
               <p className="settings-hint">{t("ChannelAdmin.actionUnavailable")}</p>
             )}
           </section>
+          </details>
         </>
       ),
     },
@@ -227,15 +278,23 @@ export function ChannelAdminView({
       content: (
         <>
           <h3 className="settings-module-title">{t("ChannelAdmin.members.title")}</h3>
-          {members.length === 0
-            ? <p className="settings-hint">{t("ChannelAdmin.members.empty")}</p>
+          <div className="channel-admin-member-tools">
+            <div className="channel-admin-member-filters" role="group" aria-label={t("ChannelAdmin.members.filter")}>
+              {(["all", "human", "agent"] as const).map(filter => <button key={filter} type="button" className="d-btn" aria-pressed={memberFilter === filter} data-member-filter={filter} onClick={() => setMemberFilter(filter)}>{t(`ChannelAdmin.filter.${filter}`)}</button>)}
+            </div>
+            <input type="search" className="d-input" value={memberQuery} aria-label={t("ChannelAdmin.members.search")} placeholder={t("ChannelAdmin.members.search")} onChange={event => setMemberQuery(event.currentTarget.value)} />
+          </div>
+          <p className="channel-admin-context">{t("ChannelAdmin.members.hint")}</p>
+          {copyFailed && <p role="alert" className="guard-setting-error">{t("ChannelAdmin.members.copyFailed")}</p>}
+          {visibleMembers.length === 0
+            ? <p className="settings-hint">{t(members.length === 0 ? "ChannelAdmin.members.empty" : "ChannelAdmin.members.noMatch")}</p>
             : (
                 <div role="list" aria-label={t("ChannelAdmin.members.listLabel")}>
-                  {members.map((member) => {
+                  {visibleMembers.map((member) => {
                     const removing = removingMember === member.name;
                     const restoring = restoringMember === member.name;
                     return (
-                      <article key={member.name} role="listitem" className="settings-section">
+                      <article key={member.name} role="listitem" className="settings-section channel-admin-member-row">
                         <div className="settings-account">
                           <strong className="settings-account-name">{member.display}</strong>
                           <span className={`settings-account-chip settings-account-chip--${member.kind}`}>
@@ -246,10 +305,13 @@ export function ChannelAdminView({
                               {t("ChannelAdmin.members.removed")}
                             </span>
                           )}
-                          {member.display !== member.name && (
-                            <span className="t-mono settings-hint">@{member.name}</span>
-                          )}
+
                         </div>
+                        <details className="channel-admin-identity">
+                          <summary>{t("ChannelAdmin.members.identity")}</summary>
+                          <code>{member.name}</code>
+                          <button type="button" className="d-btn" onClick={() => { void copyIdentity(member.name); }}>{t(copiedIdentity === member.name ? "ChannelAdmin.members.copied" : "ChannelAdmin.members.copy")}</button>
+                        </details>
                         {member.detail != null && member.detail !== "" && (
                           <p className="settings-hint">{member.detail}</p>
                         )}
@@ -348,6 +410,7 @@ export function ChannelAdminView({
       content: (
         <>
           <h3 className="settings-module-title">{t("ChannelAdmin.safety.title")}</h3>
+          <p className="channel-admin-context">{t("ChannelAdmin.safety.hint")}</p>
           {!archived && capabilities.manageSafety && safetyControls !== undefined
             ? safetyControls
             : (
@@ -370,7 +433,8 @@ export function ChannelAdminView({
       content: (
         <>
           <h3 className="settings-module-title">{t("ChannelAdmin.lifecycle.title")}</h3>
-          <section className="settings-section">
+          <p className="channel-admin-danger-note">{t("ChannelAdmin.lifecycle.warning")}</p>
+          <section className="settings-section channel-admin-danger">
             <div className="settings-label">{t("ChannelAdmin.lifecycle.status")}</div>
             <p className="settings-hint">
               {archived
@@ -406,14 +470,14 @@ export function ChannelAdminView({
   const panelId = (section: ChannelAdminSection) => `${idPrefix}-channel-admin-panel-${section}`;
 
   return (
-    <section className="team-blog channel-admin-view" aria-labelledby={titleId}>
+    <section className="team-blog channel-admin-view" aria-labelledby={embeddedHeader ? undefined : titleId} aria-label={embeddedHeader ? t("ChannelAdmin.title") : undefined}>
       <header className="team-blog-head">
-        <div className="team-blog-title">
+        {embeddedHeader ? <span className="channel-admin-channel-name">{channelTitle?.trim() || slug}</span> : <div className="team-blog-title">
           <h2 id={titleId} className="team-blog-name">{t("ChannelAdmin.title")}</h2>
           <span className="t-mono team-blog-prompt">
-            {t("ChannelAdmin.subtitle", { slug })}
+            {channelTitle?.trim() || t("ChannelAdmin.subtitle", { slug })}
           </span>
-        </div>
+        </div>}
         <div className="team-blog-stats" role="list">
           <span className="t-mono team-blog-stat" role="listitem">
             {t(`Visibility.opt.${visibility}`)}
@@ -428,7 +492,7 @@ export function ChannelAdminView({
             {archived ? t("ChannelAdmin.status.archived") : t("ChannelAdmin.status.active")}
           </span>
         </div>
-        {onClose !== undefined && (
+        {!embeddedHeader && onClose !== undefined && (
           <button type="button" className="d-btn team-blog-close" onClick={onClose}>
             {t("ChannelAdmin.close")} <StudioIcon name="close" />
           </button>
@@ -460,9 +524,7 @@ export function ChannelAdminView({
             onClick={() => selectSection(tab.id)}
             onKeyDown={(event) => onTabKeyDown(event, index)}
           >
-            <span className="t-mono team-blog-tab-no">
-              {String(index + 1).padStart(2, "0")}
-            </span>
+            <StudioIcon name={tab.id === "access" ? "settings" : tab.id === "members" ? "human" : tab.id === "safety" ? "shield" : "archive"} size={15} />
             <span className="team-blog-tab-label">{tab.label}</span>
           </button>
         ))}

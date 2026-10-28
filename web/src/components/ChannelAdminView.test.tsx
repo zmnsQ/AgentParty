@@ -6,6 +6,7 @@ import { LocaleProvider } from "../i18n/locale";
 import {
   ChannelAdminView,
   type ChannelAdminSection,
+  type ChannelAdminViewMemory,
   type ChannelAdminViewProps,
 } from "./ChannelAdminView";
 
@@ -223,8 +224,8 @@ describe("ChannelAdminView actions", () => {
       onManageInvitations: () => calls.push("invitations"),
     });
     const buttons = panels(r)[0]!.findAllByType("button");
-    act(() => buttons[0]!.props.onClick());
-    act(() => buttons[1]!.props.onClick());
+    act(() => buttons.find(button => text(button) === "Change access")!.props.onClick());
+    act(() => buttons.find(button => text(button) === "Manage invitations")!.props.onClick());
     expect(calls).toEqual(["access", "invitations"]);
   });
 
@@ -518,4 +519,79 @@ describe("ChannelAdminView permission boundaries", () => {
     expect(text(r)).toContain("Archived");
     expect(r.root.findAll((node) => node.props.role === "alert").map(text)).toContain("old error");
   });
+});
+
+
+describe("ChannelAdminView focused management", () => {
+  test("summarizes actual people and agents and opens filtered agent management", () => {
+    const r = render();
+    expect(text(r.root.findByProps({ className: "channel-admin-overview" }))).toContain("People 1 Agents 1");
+    const shortcut = r.root.findAllByType("button").find(button => text(button) === "View agents")!;
+    act(() => shortcut.props.onClick());
+    expect(tabs(r).find(tab => tab.props["data-admin-section"] === "members")!.props["aria-selected"]).toBe(true);
+    const list = r.root.findByProps({ role: "list", "aria-label": "Channel members" });
+    expect(text(list)).toContain("Worker One");
+    expect(text(list)).not.toContain("Leo");
+  });
+  test("search and type filters persist across management tabs without changing identity keys", () => {
+    const r = render({ onOpenMember: () => {} });
+    act(() => r.root.findByProps({ "data-member-filter": "agent" }).props.onClick());
+    act(() => r.root.findByProps({ type: "search" }).props.onChange({ currentTarget: { value: "worker" } }));
+    select(r, "safety"); select(r, "members");
+    expect(r.root.findByProps({ type: "search" }).props.value).toBe("worker");
+    expect(r.root.findByProps({ "data-admin-member-open": "worker-1" })).toBeTruthy();
+    expect(r.root.findAllByProps({ "data-admin-member-open": "leo" })).toHaveLength(0);
+  });
+  test("puts stable IDs behind an explicit disclosure and keeps nickname as primary", () => {
+    const r = render();
+    const row = r.root.findAll(node => node.props.className === "settings-section channel-admin-member-row")[0]!;
+    expect(text(row.findByProps({ className: "settings-account-name" }))).toBe("Worker One");
+    const disclosure = row.findByProps({ className: "channel-admin-identity" });
+    expect(disclosure.props.open).toBeUndefined();
+    expect(text(disclosure.findByType("code"))).toBe("worker-1");
+  });
+  test("closed access disclosure does not leave confirmation active", () => {
+    const values: boolean[] = [];
+    const r = render({ accessControls: active => { values.push(active); return <span>settings</span>; } });
+    expect(values.at(-1)).toBe(false);
+    act(() => r.root.findAllByType("details")[0]!.props.onToggle({ currentTarget: { open: true } }));
+    expect(values.at(-1)).toBe(true);
+    select(r, "members");
+    expect(values.at(-1)).toBe(false);
+  });
+});
+
+
+test("embedded administration keeps channel context and state without a duplicate title or Close", () => {
+  const r = render({ embeddedHeader: true, channelTitle: "Design team", onClose: () => {} });
+  expect(text(r.root.findByProps({ className: "channel-admin-channel-name" }))).toBe("Design team");
+  expect(r.root.findAllByType("h2")).toHaveLength(0);
+  expect(r.root.findAllByProps({ className: "d-btn team-blog-close" })).toHaveLength(0);
+  expect(text(r)).toContain("2 members");
+  expect(r.root.findAllByProps({ className: "channel-admin-disclosure" }).every(node => node.props.open !== true)).toBe(true);
+});
+
+
+test("restores only non-sensitive management navigation after leaving and returning", () => {
+  const memory: { current: ChannelAdminViewMemory | null } = { current: null };
+  let r = render({ viewMemory: memory });
+  select(r, "members");
+  act(() => r.root.findByProps({ "data-member-filter": "agent" }).props.onClick());
+  act(() => r.root.findByProps({ type: "search" }).props.onChange({ currentTarget: { value: "worker" } }));
+  act(() => r.unmount()); renderer = null;
+  r = render({ viewMemory: memory });
+  expect(tabs(r).find(tab => tab.props["data-admin-section"] === "members")!.props["aria-selected"]).toBe(true);
+  expect(r.root.findByProps({ type: "search" }).props.value).toBe("worker");
+  expect(r.root.findByProps({ "data-member-filter": "agent" }).props["aria-pressed"]).toBe(true);
+  expect(Object.keys(memory.current!).sort()).toEqual(["filter", "query", "section", "slug"]);
+  act(() => r.unmount()); renderer = null;
+  r = render({ viewMemory: memory, activeSection: "safety" });
+  expect(tabs(r).find(tab => tab.props["data-admin-section"] === "safety")!.props["aria-selected"]).toBe(true);
+});
+
+test("does not restore another channel's administration context", () => {
+  const memory: { current: ChannelAdminViewMemory | null } = { current: { slug: "other", section: "members", query: "private search", filter: "agent" } };
+  const r = render({ viewMemory: memory });
+  expect(r.root.findByProps({ type: "search" }).props.value).toBe("");
+  expect(r.root.findByProps({ "data-member-filter": "all" }).props["aria-pressed"]).toBe(true);
 });

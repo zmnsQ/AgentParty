@@ -213,3 +213,13 @@ describe("resolveTeamMemberView", () => {
     expect(member.runtime.online).toBe(false);
   });
 });
+
+test("raw identity fallback does not erase a readable runtime alias in member details",()=>{
+ const member=resolveTeamMemberView({name:"agent",identity:{display:"agent",kind:"agent"},participant:{name:"agent",kind:"agent",handle:"ReadableAlias"}});
+ expect(member.name).toBe("agent");expect(member.display).toBe("ReadableAlias");
+});
+
+test("explicit nickname equal to routing ID wins over stale presence alias",()=>{
+ const view=resolveTeamMemberView({name:"builder",identity:{nickname:"builder",display:"builder",kind:"agent"},presence:presence({handle:"Old Alias"})});
+ expect(view.display).toBe("builder");
+});

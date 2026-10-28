@@ -355,3 +355,33 @@ describe("SettingsPanel (#273)", () => {
     expect(closes).toBe(2);
   });
 });
+
+test("account panel uses the server-resolved nickname rather than SSO label", () => {
+  const r = render({ me: { ...me, kind: "human", preferred_display: "chosen-name", handle: "chosen-name", display_name: "SSO Person" }, initialSection: "account", onClose: () => {}, onLogout: () => {} });
+  expect(r.root.findByProps({ className: "settings-account-name" }).children.join("")).toBe("chosen-name");
+});
+
+test("account panel keeps an agent's own nickname separate from owner metadata", () => {
+  const r = render({ me: { ...me, preferred_display: "My assistant", handle: "owner-handle", display_name: "Owner Person", owner: "owner-account" }, initialSection: "account", onClose: () => {}, onLogout: () => {} });
+  expect(r.root.findByProps({ className: "settings-account-name" }).children.join("")).toBe("My assistant");
+});
+
+test("legacy agent account panel does not present owner name as the agent", () => {
+  const r = render({ me: { ...me, handle: "owner-handle", display_name: "Owner Person", owner: "owner-account" }, initialSection: "account", onClose: () => {}, onLogout: () => {} });
+  expect(r.root.findByProps({ className: "settings-account-name" }).children.join("")).toBe(me.name);
+});
+
+test("agent nickname editor initializes from own nickname rather than owner handle", () => {
+  const r = render({ me: { ...me, nickname: "我的助手", handle: "owner-handle", display_name: "Owner Person" }, canSetHandle: true, onHandleSaved: () => {}, initialSection: "account", onClose: () => {}, onLogout: () => {} });
+  expect(r.root.findByProps({ className: "t-mono handlesetup-input" }).props.value).toBe("我的助手");
+});
+
+test("legacy agent without proven nickname has an empty editor, not owner handle", () => {
+  const r = render({ me: { ...me, handle: "owner-handle", display_name: "Owner Person" }, canSetHandle: true, onHandleSaved: () => {}, initialSection: "account", onClose: () => {}, onLogout: () => {} });
+  expect(r.root.findByProps({ className: "t-mono handlesetup-input" }).props.value).toBe("");
+});
+
+test("human handle editor continues to initialize from own handle", () => {
+  const r = render({ me: { ...me, kind: "human", handle: "human-handle", display_name: "SSO Person" }, canSetHandle: true, onHandleSaved: () => {}, initialSection: "account", onClose: () => {}, onLogout: () => {} });
+  expect(r.root.findByProps({ className: "t-mono handlesetup-input" }).props.value).toBe("human-handle");
+});

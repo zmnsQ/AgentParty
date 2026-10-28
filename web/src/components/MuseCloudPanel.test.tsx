@@ -82,3 +82,78 @@ describe('Muse Cloud staged connection UI',()=>{
  });
  test('EN and ZH dictionaries have matching keys',()=>expect(Object.keys(MuseCloudStrings.en).sort()).toEqual(Object.keys(MuseCloudStrings.zh).sort()));
 });
+
+test('same-turn submits issue only one client creation',async()=>{
+ const root=await render();await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://callback.test/return'}}));
+ const submit=root.findByType('form').props.onSubmit;
+ await act(async()=>{submit({preventDefault(){}});submit({preventDefault(){}});});
+ expect(calls.filter(x=>x.method==='POST')).toHaveLength(1);
+});
+test('pending old-group creation cannot keep the new group busy or reveal its secret',async()=>{
+ const root=await render();const normal=globalThis.fetch;let finish!:(r:Response)=>void;
+ globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>init?.method==='POST'?new Promise<Response>(r=>{finish=r;}):normal(input,init)) as typeof fetch;
+ await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://old.test/callback'}}));
+ await act(async()=>root.findByType('form').props.onSubmit({preventDefault(){}}));
+ await act(async()=>renderer!.update(<LocaleProvider><MuseCloudPanel token="new-token" slug="new-group" canManage/></LocaleProvider>));
+ await act(async()=>root.findAllByProps({className:'muse-method'})[0]!.props.onClick());
+ expect(root.findByProps({type:'url'}).props.value).toBe('');
+ expect(root.findByProps({'aria-label':'Refresh status'}).props.disabled).toBe(false);
+ await act(async()=>finish(Response.json({client_id:'old-client',client_secret:'old-secret'},{status:201})));
+ expect(text(root)).not.toContain('old-client');expect(root.findAllByProps({type:'password'})).toHaveLength(0);
+});
+
+test('token refresh releases completed busy state but preserves uncertain creation lock across status refresh',async()=>{
+ const root=await render();const normal=globalThis.fetch;let finish!:(r:Response)=>void;let posts=0;
+ globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{if(init?.method==='POST'){posts++;return new Promise<Response>(r=>{finish=r;});}return normal(input,init);}) as typeof fetch;
+ await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://old.test/callback'}}));
+ await act(async()=>root.findByType('form').props.onSubmit({preventDefault(){}}));
+ await act(async()=>renderer!.update(<LocaleProvider><MuseCloudPanel token="refreshed" slug="group" canManage/></LocaleProvider>));
+ await act(async()=>root.findAllByProps({className:'muse-method'})[0]!.props.onClick());
+ await act(async()=>finish(Response.json({client_id:'old-client',client_secret:'old-secret'},{status:201})));
+ expect(root.findByProps({'aria-label':'Refresh status'}).props.disabled).toBe(false);
+ expect(text(root)).toContain('previous change needs confirmation');
+ expect(root.findAllByProps({type:'password'})).toHaveLength(0);
+ await act(async()=>root.findByProps({'aria-label':'Refresh status'}).props.onClick());
+ await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://retry.test/callback'}}));
+ await act(async()=>root.findByType('form').props.onSubmit({preventDefault(){}}));
+ expect(posts).toBe(1);expect(root.findByType('form').findByType('button').props.disabled).toBe(true);
+});
+test('ambiguous creation failure stays blocked after read refresh instead of resubmitting',async()=>{
+ const root=await render();const normal=globalThis.fetch;let posts=0;
+ globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{if(init?.method==='POST'){posts++;throw new TypeError('network lost');}return normal(input,init);}) as typeof fetch;
+ await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://callback.test/return'}}));
+ await act(async()=>root.findByType('form').props.onSubmit({preventDefault(){}}));
+ await act(async()=>root.findByProps({'aria-label':'Refresh status'}).props.onClick());
+ await act(async()=>root.findByProps({type:'url'}).props.onChange({target:{value:'https://callback.test/retry'}}));
+ await act(async()=>root.findByType('form').props.onSubmit({preventDefault(){}}));
+ expect(posts).toBe(1);expect(text(root)).toContain('previous change needs confirmation');
+});
+
+test('late clipboard completion cannot announce old-group copy success in the new group',async()=>{
+ const descriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator');let finish!:()=>void;
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:()=>new Promise<void>(r=>{finish=r;})}}});
+ try{
+  const root=await render();const copy=root.findAllByType('button').find(button=>text(button)==='Copy')!;
+  await act(async()=>copy.props.onClick());
+  await act(async()=>renderer!.update(<LocaleProvider><MuseCloudPanel token="new" slug="other" canManage/></LocaleProvider>));
+  await act(async()=>finish());expect(root.findAllByProps({className:'muse-notice'})).toHaveLength(0);
+ }finally{if(descriptor)Object.defineProperty(globalThis,'navigator',descriptor);else Reflect.deleteProperty(globalThis,'navigator');}
+});
+
+test('ambiguous revoke unlocks only when readback explicitly marks that exact client disabled',async()=>{
+ authorized=true;const confirmDescriptor=Object.getOwnPropertyDescriptor(globalThis,'confirm');Object.defineProperty(globalThis,'confirm',{configurable:true,value:()=>true});
+ try{
+  const root=await render();const normal=globalThis.fetch;let disabled=false,deletes=0;
+  globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+   if(init?.method==='DELETE'){deletes++;throw new TypeError('response lost');}
+   const response=await normal(input,init);const value=await response.json();
+   if(value.clients&&disabled)value.clients=value.clients.map((client:any)=>({...client,disabled:client.client_id==='accli_existing'}));
+   return Response.json(value);
+  }) as typeof fetch;
+  await act(async()=>root.findByProps({className:'muse-client-row'}).findByType('button').props.onClick());
+  await act(async()=>root.findByProps({'aria-label':'Refresh status'}).props.onClick());
+  expect(text(root)).toContain('previous change needs confirmation');expect(deletes).toBe(1);
+  disabled=true;await act(async()=>root.findByProps({'aria-label':'Refresh status'}).props.onClick());
+  expect(text(root)).not.toContain('previous change needs confirmation');expect(deletes).toBe(1);
+ }finally{if(confirmDescriptor)Object.defineProperty(globalThis,'confirm',confirmDescriptor);else Reflect.deleteProperty(globalThis,'confirm');}
+});

@@ -246,6 +246,14 @@ function rememberMentionSender(
 }
 
 function applyFrame(state: ChannelState, frame: ServerFrame): ChannelState {
+  // REST pages and live revisions can arrive out of order. A known newer
+  // revision must never be replaced by an older snapshot (including original rev 0).
+  const incoming = frame.type === "msg" || frame.type === "status" ? frame
+    : frame.type === "message_update" ? frame.message : null;
+  if (incoming !== null) {
+    const previous = state.messages.find(message => message.seq === incoming.seq);
+    if (previous !== undefined && (previous.rev_seq ?? 0) > (incoming.rev_seq ?? 0)) return state;
+  }
   switch (frame.type) {
     case "welcome": {
       // welcome 是当前连接从 DO 拿到的完整权威快照，不能与旧连接的 presence 合并；

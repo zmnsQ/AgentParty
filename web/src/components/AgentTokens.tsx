@@ -55,6 +55,8 @@ interface Props {
   onAuthFailed(message: string): void;
   active?: boolean;
   onActiveChange?(open: boolean): void;
+  onBack?(): void;
+  backLabel?: string;
   focusAgentName?: string | null;
   /**
    * #1009：点「接入引导 / 重新接上」时把一次引导会话交给频道页，由它转给 AgentJoin 的四步 stepper。
@@ -62,6 +64,7 @@ interface Props {
    */
   onGuide?(session: JoinGuideSession): void;
   onOpenConnections?(): void;
+  onNicknameSaved?(name: string, nickname: string): void;
   /**
    * 在线名单（频道页的 presence 快照）。ChannelAgentInfo 本身没有在线字段，所以离线判定靠这份；
    * 不传＝无从判断，一律按在线处理（不会误显「重新接上」）。
@@ -111,9 +114,12 @@ export function AgentTokens({
   onAuthFailed,
   active,
   onActiveChange,
+  onBack,
+  backLabel,
   focusAgentName = null,
   onGuide,
   onOpenConnections,
+  onNicknameSaved,
   onlineNames,
   dutyAdapter = desktopAgentAdapter,
   pickDirectory = pickDirectoryDefault,
@@ -154,6 +160,18 @@ export function AgentTokens({
   const [copied, setCopied] = useState<CopyTarget | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
   const isOpen = active ?? open;
+  const mutationEpochRef = useRef(0);
+  const mutationScopeRef = useRef(`${token}\u0000${slug}\u0000${isOpen}`);
+  const mutationScope = `${token}\u0000${slug}\u0000${isOpen}`;
+  if (mutationScopeRef.current !== mutationScope) {
+    mutationScopeRef.current = mutationScope;
+    mutationEpochRef.current += 1;
+  }
+  const nicknamePendingRef = useRef(false);
+  const profilePendingRef = useRef(false);
+  const rulesPendingRef = useRef(false);
+  useEffect(() => () => { mutationEpochRef.current += 1; }, []);
+
   // #895：改选 harness 会写回 vault，但 vault 是 localStorage、React 看不见它变了；
   // 这个计数器是唯一的「vault 已变」信号，少了它面板会继续显示旧档位。
   const [vaultRev, setVaultRev] = useState(0);
@@ -233,6 +251,8 @@ export function AgentTokens({
   }, [onAuthFailed, t, token]);
 
   const close = useCallback(() => {
+    mutationEpochRef.current += 1;
+    setActiveSection("channel"); setAgentQuery(""); setProfileQuery("");
     if (active === undefined) setOpen(false);
     onActiveChange?.(false);
   }, [active, onActiveChange]);
@@ -262,15 +282,18 @@ export function AgentTokens({
 
   useEffect(() => {
     if (isOpen) return;
-    setActiveSection("channel");
+    // Invalidate data reads after dismiss; reopening reads current authority.
+    agentRefreshSeqRef.current += 1;
+    profileRefreshSeqRef.current += 1;
+    setAgents(null);
+    setProfiles(null);
+    // Preserve non-sensitive navigation when another surface temporarily replaces this one.
     setProfileForm(EMPTY_PROFILE_FORM);
     setCreatingProfile(false);
     setEditingRules(null);
     setRulesDraft("");
     setEditingNickname(null);
     setNicknameDraft("");
-    setAgentQuery("");
-    setProfileQuery("");
     setAgentError(null);
     setProfileError(null);
     setCopied(null);
@@ -515,39 +538,50 @@ export function AgentTokens({
   }
 
   function cancelEditNickname() {
+    mutationEpochRef.current += 1;
     setEditingNickname(null);
     setNicknameDraft("");
   }
 
   async function saveNickname(agent: ChannelAgentInfo) {
+    if (nicknamePendingRef.current) return;
+    const epoch = mutationEpochRef.current;
     const nickname = nicknameDraft.trim();
     if (nickname === "") {
       setAgentError(t("AgentTokens.errNicknameInvalid"));
       return;
     }
+    nicknamePendingRef.current = true;
     setSavingNickname(agent.name);
     setAgentError(null);
     try {
       const saved = await setChannelAgentNickname(token, slug, agent.name, nickname);
+      if (epoch !== mutationEpochRef.current) { return; }
       setAgents((current) => current?.map((entry) => entry.name === agent.name ? { ...entry, nickname: saved.nickname } : entry) ?? null);
+      onNicknameSaved?.(agent.name, saved.nickname);
       cancelEditNickname();
     } catch (err) {
+      if (epoch !== mutationEpochRef.current) return;
       if (err instanceof AuthError) onAuthFailed(err.message);
       else if (err instanceof ForbiddenError) setAgentError(t("AgentTokens.errNicknameForbidden"));
       else if (err instanceof ConflictError) setAgentError(t("AgentTokens.errNicknameConflict"));
       else if (err instanceof ValidationError) setAgentError(t("AgentTokens.errNicknameInvalid"));
       else setAgentError(t("AgentTokens.errNicknameSave"));
     } finally {
+      nicknamePendingRef.current = false;
       setSavingNickname(null);
     }
   }
 
   async function createProfile() {
+    if (profilePendingRef.current) return;
+    const epoch = mutationEpochRef.current;
     const handle = profileForm.handle.trim();
     if (handle === "") {
       setProfileError(t("AgentTokens.errProfileInvalid"));
       return;
     }
+    profilePendingRef.current = true;
     setSavingProfile(true);
     setProfileError(null);
     try {
@@ -561,16 +595,19 @@ export function AgentTokens({
         invitable_by: profileForm.invitableBy,
         ...(profileForm.rules.trim() === "" ? {} : { rules: profileForm.rules.trim() }),
       });
+      if (epoch !== mutationEpochRef.current) { return; }
       setProfileForm((current) => ({ ...current, handle: "", repoUrl: "", workdir: "", rules: "" }));
       setSelectedProfileKey(`${created.owner_account}/${created.handle}`);
       setCreatingProfile(false);
       await refreshProfiles();
     } catch (err) {
+      if (epoch !== mutationEpochRef.current) return;
       if (err instanceof AuthError) onAuthFailed(err.message);
       else if (err instanceof ForbiddenError) setProfileError(t("AgentTokens.errProfileForbidden"));
       else if (err instanceof ValidationError) setProfileError(t("AgentTokens.errProfileInvalid"));
       else setProfileError(t("AgentTokens.errProfileSave"));
     } finally {
+      profilePendingRef.current = false;
       setSavingProfile(false);
     }
   }
@@ -582,6 +619,7 @@ export function AgentTokens({
   }
 
   function cancelEditRules() {
+    mutationEpochRef.current += 1;
     setEditingRules(null);
     setRulesDraft("");
   }
@@ -590,6 +628,9 @@ export function AgentTokens({
   // DO UPDATE 做 upsert，缺省字段会被写成 null——所以这里必须把整份 profile 的字段带回去，
   // 只替换 rules，否则重存会把 repo/workdir 等抹掉。
   async function saveProfileRules(profile: ProjectAgentProfile) {
+    if (rulesPendingRef.current) return;
+    rulesPendingRef.current = true;
+    const epoch = mutationEpochRef.current;
     const key = `${profile.owner_account}/${profile.handle}`;
     setSavingRules(key);
     setProfileError(null);
@@ -604,15 +645,18 @@ export function AgentTokens({
         invitable_by: profile.invitable_by,
         rules: rulesDraft.trim(),
       });
+      if (epoch !== mutationEpochRef.current) { return; }
       setEditingRules(null);
       setRulesDraft("");
       await refreshProfiles();
     } catch (err) {
+      if (epoch !== mutationEpochRef.current) return;
       if (err instanceof AuthError) onAuthFailed(err.message);
       else if (err instanceof ForbiddenError) setProfileError(t("AgentTokens.errProfileForbidden"));
       else if (err instanceof ValidationError) setProfileError(t("AgentTokens.errProfileInvalid"));
       else setProfileError(t("AgentTokens.errProfileSave"));
     } finally {
+      rulesPendingRef.current = false;
       setSavingRules(null);
     }
   }
@@ -770,7 +814,7 @@ export function AgentTokens({
                     <p>{t("AgentTokens.oauthNext")}</p>
                     <p>{t("AgentTokens.oauthWake")}</p>
                     {onOpenConnections&&<button type="button" className="d-btn d-btn--primary agenttokens-oauth-guide"
-                      onClick={()=>{onActiveChange?.(false);setOpen(false);onOpenConnections();}}>{t("AgentTokens.oauthOpen")}</button>}
+                      onClick={()=>{setOpen(false);onOpenConnections();}}>{t("AgentTokens.oauthOpen")}</button>}
                   </section>
                 ) : selectedAgentSaved ? (
                   <section className="agentmanager-detail-section">
@@ -1332,7 +1376,10 @@ export function AgentTokens({
           navigationLabel={t("AgentTokens.navigation")}
           sections={sections}
           initialSection="channel"
+          activeSection={activeSection}
           onClose={close}
+          onBack={onBack}
+          backLabel={backLabel}
           onActiveSectionChange={setActiveSection}
           panelClassName="settings-panel--agent-center agentmanager-dialog"
         />

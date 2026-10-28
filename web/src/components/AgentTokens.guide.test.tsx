@@ -143,7 +143,7 @@ afterEach(async () => {
   }
 });
 
-async function renderOpen(): Promise<ReactTestRenderer> {
+async function renderOpen(onNicknameSaved?: (name: string, nickname: string) => void): Promise<ReactTestRenderer> {
   let r!: ReactTestRenderer;
   await act(async () => {
     r = create(
@@ -170,6 +170,7 @@ async function renderOpen(): Promise<ReactTestRenderer> {
         }} onAuthFailed={() => {}}
           onGuide={(session) => { guided.push(session); }}
           onlineNames={onlineNames}
+          onNicknameSaved={onNicknameSaved}
         />
       </LocaleProvider>,
       {
@@ -305,4 +306,56 @@ describe("AgentTokens 接入引导入口 (#1009)", () => {
     expect(buttonsWithText(r, "reconnect").length).toBe(0);
     expect(buttonsWithText(r, "join walkthrough").length).toBe(1);
   });
+});
+
+
+test("nickname save notifies the live channel projection with the stable identity", async () => {
+ const updates: Array<[string,string]> = [];
+ agentsFixture = [{name:"helper-bot",owner:"acct-1",channel_scope:"demo",created_at:1}];
+ const r = await renderOpen((name,nickname)=>updates.push([name,nickname]));
+ await act(async()=>buttonsWithText(r,"set nickname")[0]!.props.onClick());
+ await act(async()=>r.root.findByProps({className:"agenttokens-input agenttokens-nickname-input"}).props.onChange({target:{value:"中文助手"}}));
+ await act(async()=>buttonsWithText(r,"save nickname")[0]!.props.onClick());
+ expect(updates).toEqual([["helper-bot","中文助手"]]);
+});
+
+describe('controlled manager navigation memory',()=>{
+ async function controlled(){
+  let active=true;
+  const draw=()=> <LocaleProvider><AgentTokens slug="demo" token="tok-1" accountKey="acct-1" inviterName="host" charter={null} onAuthFailed={()=>{}} active={active} onActiveChange={value=>{active=value;renderer!.update(draw());}} onGuide={session=>{guided.push(session);active=false;renderer!.update(draw());}} onlineNames={onlineNames}/></LocaleProvider>;
+  await act(async()=>{renderer=create(draw());});
+  return {r:renderer!,show:async(value:boolean)=>{active=value;await act(async()=>renderer!.update(draw()));}};
+ }
+ const tab=(r:ReactTestRenderer,id:string)=>r.root.find(n=>n.type==='button'&&n.props.role==='tab'&&n.props.id===`agent-manager-tab-${id}`);
+ const query=(r:ReactTestRenderer)=>{const selected=r.root.find(n=>n.type==='button'&&n.props.role==='tab'&&n.props['aria-selected']===true);return r.root.find(n=>n.props.id===selected.props['aria-controls']).find(n=>n.type==='input'&&n.props.type==='search');};
+ test('temporary guide departure retains channel search but remasks token; actual Close clears view',async()=>{
+  seedSaved('helper-bot','codex');
+  const {r,show}=await controlled();
+  await act(async()=>query(r).props.onChange({target:{value:'helper'}}));
+  await act(async()=>r.root.find(n=>n.type==='button'&&n.props.className==='d-btn agenttokens-reveal').props.onClick());
+  expect(r.root.find(n=>n.props.className==='agenttokens-token t-mono').props.type).toBe('text');
+  await act(async()=>buttonsWithText(r,'join walkthrough')[0]!.props.onClick());
+  expect(guided).toHaveLength(1);
+  expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(0);
+  await show(true);
+  expect(query(r).props.value).toBe('helper');
+  expect(r.root.find(n=>n.props.className==='agenttokens-token t-mono').props.type).toBe('password');
+  await act(async()=>r.root.find(n=>n.type==='button'&&n.props.className==='settings-close').props.onClick());
+  await show(true);expect(query(r).props.value).toBe('');
+  expect(tab(r,'channel').props['aria-selected']).toBe(true);
+ });
+ test('temporary departure retains projects tab and search but discards unsaved profile form',async()=>{
+  const {r,show}=await controlled();
+  await act(async()=>tab(r,'projects').props.onClick());
+  await act(async()=>query(r).props.onChange({target:{value:'project-query'}}));
+  const handle=r.root.find(n=>n.type==='input'&&n.props['aria-label']==='handle');
+  await act(async()=>handle.props.onChange({target:{value:'temporary-form-value'}}));
+  await show(false);await show(true);
+  expect(tab(r,'projects').props['aria-selected']).toBe(true);
+  expect(query(r).props.value).toBe('project-query');
+  expect(r.root.find(n=>n.type==='input'&&n.props['aria-label']==='handle').props.value).toBe('');
+  await act(async()=>r.root.find(n=>n.type==='button'&&n.props.className==='settings-close').props.onClick());
+  await show(true);expect(tab(r,'channel').props['aria-selected']).toBe(true);
+  await act(async()=>tab(r,'projects').props.onClick());expect(query(r).props.value).toBe('');
+ });
 });

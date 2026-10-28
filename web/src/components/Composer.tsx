@@ -1,3 +1,4 @@
+import { PlatformIcon } from "./PlatformIcon";
 import "../styles/prototype-chat.css";
 import {useCompactViewport} from "../lib/useCompactViewport";
 import {useLocale} from "../i18n/locale";
@@ -497,7 +498,7 @@ export function Composer({
                     choose(c);
                   }}
                 >
-                  <span className="mention-dot" aria-hidden="true" />
+                  {c.kind === "agent" ? <PlatformIcon platform={c.connector_type} size={18} decorative /> : <span className="mention-dot" aria-hidden="true" />}
                   <span className="mention-main">
                     <span className="mention-name t-mono">{c.display}</span>
                     {owner !== null && <span className="mention-owner t-mono">{owner}</span>}

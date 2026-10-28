@@ -76,3 +76,20 @@ test('MFA binding is owner-local, excludes private session from status and delet
  const removed=await owner.request(base,{method:'DELETE'},bindings);expect(await removed.json()).toMatchObject({state:'local_disconnected',provider_session_revoked:false});
  expect((await(await owner.request(base,{},bindings)).json()).configured).toBe(false);DB.db.close();
 });
+
+test('explicit ignoreBOM false preserves existing fatal UTF-8 decoding and signed-text boundaries',async()=>{
+ const payload='{"state":"polling","label":"中文"}';
+ const encode=new TextEncoder();
+ const legacy=(bytes:Uint8Array)=>new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+ const explicit=(bytes:Uint8Array)=>new TextDecoder('utf-8',{fatal:true,ignoreBOM:false}).decode(bytes);
+ for(const raw of [payload,'\uFEFF'+payload,payload+'\n'])expect(explicit(encode.encode(raw))).toBe(legacy(encode.encode(raw)));
+ expect(explicit(encode.encode('\uFEFF'+payload))).toBe(payload);
+ expect(()=>explicit(new Uint8Array([0xc3,0x28]))).toThrow();
+ expect(()=>legacy(new Uint8Array([0xc3,0x28]))).toThrow();
+ // Verification continues to bind the exact decoded text; this option does not
+ // JSON-normalize/re-serialize it or make a BOM-signed body match stripped text.
+ const rawWithBOM='\uFEFF'+payload;
+ expect(await verifyPersonalReport(secret,slug,String(now),nonce,explicit(encode.encode(rawWithBOM)),await sign(rawWithBOM),now)).toBe(false);
+ expect(await verifyPersonalReport(secret,slug,String(now),nonce,payload,await sign(payload),now)).toBe(true);
+ expect(await verifyPersonalReport(secret,slug,String(now),nonce,payload+'\n',await sign(payload),now)).toBe(false);
+});

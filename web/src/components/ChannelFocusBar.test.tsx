@@ -332,3 +332,11 @@ describe("ChannelFocusBar (#682)", () => {
     expect(JSON.stringify(renderer!.toJSON())).toContain("结果查询 + 上传端到端联调");
   });
 });
+
+test("focus chips resolve nickname without changing underlying decision sequence",()=>{
+ let jumped=0;
+ const pending=item({key:"decision-42",name:"fixture-muse",label:"fixture-muse",taskId:null,seq:42,state:"waiting_decision",waitingOnMe:true});
+ act(()=>{renderer=create(<LocaleProvider><ChannelFocusBar focus={focus({items:[pending],empty:false})} displayOf={()=>"小贾"} onJumpSeq={seq=>{jumped=seq;}}/></LocaleProvider>);});
+ expect(renderer!.root.findByProps({className:"focus-item-name"}).children).toEqual(["小贾"]);
+ act(()=>renderer!.root.findByProps({className:"focus-item-btn"}).props.onClick());expect(jumped).toBe(42);expect(pending.name).toBe("fixture-muse");
+});

@@ -25,6 +25,9 @@ let profilesFixture: ProfileFixture[] = [];
 let agentsFixture: AgentFixture[] = [];
 let createdProfileOverride: ProfileFixture | null = null;
 let listAgentsImpl = async () => agentsFixture;
+let nicknameSaveGate: Promise<void> | null = null;
+let nicknameFailure: Error | null = null;
+let profileSaveGate: Promise<void> | null = null;
 let listProfilesImpl = async () => profilesFixture;
 const createCalls: Array<{ token: string; body: Record<string, unknown> }> = [];
 const nicknameCalls: Array<{ token: string; slug: string; name: string; nickname: string }> = [];
@@ -36,6 +39,7 @@ mock.module("../lib/api", () => ({
   createChannelAgent: async (_slug: string, name: string) => ({ name, token: "ap_created" }),
   createProjectAgentProfile: mock(async (token: string, body: Record<string, unknown>) => {
     createCalls.push({ token, body });
+    if (profileSaveGate) await profileSaveGate;
     // upsert：把新 rules 落回 fixture，模拟 worker 的 ON CONFLICT DO UPDATE
     const existing = profilesFixture.find((p) => p.handle === body.handle);
     if (existing) {
@@ -59,6 +63,8 @@ mock.module("../lib/api", () => ({
   }),
   setChannelAgentNickname: mock(async (token: string, slug: string, name: string, nickname: string) => {
     nicknameCalls.push({ token, slug, name, nickname });
+    if (nicknameSaveGate) await nicknameSaveGate;
+    if (nicknameFailure) throw nicknameFailure;
     const agent = agentsFixture.find((entry) => entry.name === name);
     if (agent) agent.nickname = nickname;
     return { name, nickname };
@@ -133,6 +139,9 @@ beforeEach(() => {
   listProfilesImpl = async () => profilesFixture;
   createCalls.length = 0;
   nicknameCalls.length = 0;
+  nicknameSaveGate = null;
+  nicknameFailure = null;
+  profileSaveGate = null;
   Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: memoryStorage({ ap_locale: "en" }) });
   Object.defineProperty(globalThis, "location", { configurable: true, value: { origin: "https://ap.test" } });
@@ -233,7 +242,7 @@ function findClassToken(r: ReactTestRenderer, className: string) {
 function findButton(r: ReactTestRenderer, text: string) {
   return r.root.find((node) =>
     node.type === "button"
-    && node.children.some((child) => child === text)
+    && node.children.map(function flatten(child): string { return typeof child === "string" ? child : child.children.map(flatten).join(""); }).join("") === text
   );
 }
 
@@ -515,8 +524,9 @@ describe("AgentTokens dismiss behavior", () => {
     expect(windowEvents.count("keydown")).toBe(0);
     expect(documentEvents.count("pointerdown")).toBe(0);
 
-    act(() => r.root.find((node) => node.props.className === "d-btn agenttokens-btn").props.onClick());
+    await act(async () => r.root.find((node) => node.props.className === "d-btn agenttokens-btn").props.onClick());
     expect(findButton(r, "Channel identities").props["aria-selected"]).toBe(true);
+    act(() => findButton(r, "Project agents").props.onClick());
     act(() => findButton(r, "new project agent").props.onClick());
     expect(r.root.find((node) => node.props["aria-label"] === "handle").props.value).toBe("");
     act(() => findButton(r, "cancel").props.onClick());
@@ -638,4 +648,53 @@ describe("AgentTokens 转为常驻", () => {
     const r = await renderResident({ canMakeResident: false });
     expect(r.root.findAll((n) => n.props.className === "d-btn agenttokens-resident")).toHaveLength(0);
   });
+});
+
+
+describe("AgentTokens mutation lifecycle", () => {
+  test("same-turn double save is sent once and a late save does not erase a new draft", async () => {
+    agentsFixture = [{ name: "build-bot", owner: "acct-1", channel_scope: "demo", created_at: 1, nickname: "Before" }];
+    const gate = deferred<void>(); nicknameSaveGate = gate.promise;
+    const r = await renderOpen();
+    act(() => findClassToken(r, "agenttokens-edit-nickname").props.onClick());
+    act(() => findClass(r, "agenttokens-input agenttokens-nickname-input").props.onChange({ target: { value: "SavedName" } }));
+    const save = findClass(r, "d-btn d-btn--primary agenttokens-save-nickname");
+    act(() => { void save.props.onClick(); void save.props.onClick(); });
+    expect(nicknameCalls).toHaveLength(1);
+    act(() => windowEvents.emit("keydown", { key: "Escape" }));
+    await act(async () => r.root.findByProps({ className: "d-btn agenttokens-btn" }).props.onClick());
+    act(() => findClassToken(r, "agenttokens-edit-nickname").props.onClick());
+    act(() => findClass(r, "agenttokens-input agenttokens-nickname-input").props.onChange({ target: { value: "KeepNewDraft" } }));
+    await act(async () => { gate.resolve(); await gate.promise; });
+    expect(findClass(r, "agenttokens-input agenttokens-nickname-input").props.value).toBe("KeepNewDraft");
+    expect(nicknameCalls).toHaveLength(1);
+  });
+});
+
+
+test("failed nickname save retains input and exposes an actionable error without claiming success", async () => {
+  agentsFixture = [{ name: "build-bot", owner: "acct-1", channel_scope: "demo", created_at: 1, nickname: "Before" }];
+  nicknameFailure = new Error("network unavailable");
+  const r = await renderOpen();
+  act(() => findClassToken(r, "agenttokens-edit-nickname").props.onClick());
+  act(() => findClass(r, "agenttokens-input agenttokens-nickname-input").props.onChange({ target: { value: "RetryMe" } }));
+  await act(async () => findClass(r, "d-btn d-btn--primary agenttokens-save-nickname").props.onClick());
+  expect(findClass(r, "agenttokens-input agenttokens-nickname-input").props.value).toBe("RetryMe");
+  expect(allText(r)).toContain("Nickname failed to save");
+  expect(agentsFixture[0]!.nickname).toBe("Before");
+  nicknameFailure = null;
+  await act(async () => findClass(r, "d-btn d-btn--primary agenttokens-save-nickname").props.onClick());
+  expect(agentsFixture[0]!.nickname).toBe("RetryMe");
+});
+
+test("same-turn rules submission is bounded to one write", async () => {
+  profilesFixture = [profile()];
+  const gate = deferred<void>(); profileSaveGate = gate.promise;
+  const r = await renderOpen();
+  act(() => findClassToken(r, "agenttokens-edit-rules").props.onClick());
+  const save = findClassToken(r, "agenttokens-save-rules");
+  act(() => { void save.props.onClick(); void save.props.onClick(); });
+  expect(createCalls).toHaveLength(1);
+  await act(async () => { gate.resolve(); await gate.promise; });
+  expect(createCalls).toHaveLength(1);
 });

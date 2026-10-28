@@ -69,6 +69,7 @@ import {CodingAgentSetup,type NativeCodingClient} from "./CodingAgentSetup";
 import {AgentConnectionPicker,type CloudAgentChoice} from "./AgentConnectionPicker";
 
 interface Props {
+  channelTitle?: string;
   slug: string;
   /** 测试注入；生产恒为默认值。 */
   dutyAdapter?: Pick<DesktopAgentAdapter, "dutyAdopt">;
@@ -81,6 +82,8 @@ interface Props {
   accountKey: string;
   active?: boolean;
   onActiveChange?(open: boolean): void;
+  onBack?(): void;
+  backLabel?: string;
   onCloudConnect?(provider:CloudAgentChoice): void;
   /**
    * 频道页的实时 presence / 历史（WS 流）。传了就直接用（不轮询）；缺省时弹窗打开期间每 pollIntervalMs
@@ -306,6 +309,7 @@ function CommandBlock({
 }
 
 export function AgentJoin({
+  channelTitle,
   slug,
   token,
   namePrefix,
@@ -314,6 +318,8 @@ export function AgentJoin({
   accountKey,
   active,
   onActiveChange,
+  onBack,
+  backLabel,
   onCloudConnect,
   dutyAdapter = desktopAgentAdapter,
   desktopDetect = isMacDesktop,
@@ -856,8 +862,9 @@ export function AgentJoin({
           <div className="agent-join-scrim" onClick={close} />
           <div className="d-card agent-join-card">
             <header className="agent-join-card-head">
+              {onBack&&<button type="button" className="d-btn" onClick={()=>{reset();onBack();}}>← {backLabel}</button>}
               <h2 className="d-title agent-join-title">
-                {t("AgentJoin.titlePrefix")} <span className="d-hl">#{slug}</span>
+                {t("AgentJoin.titlePrefix")} <span className="d-hl">{channelTitle?.trim() || slug}</span>
               </h2>
               <button type="button" className="agent-join-close t-mono" onClick={close} aria-label={t("AgentJoin.close")}>
                 <StudioIcon name="close" />
@@ -865,7 +872,7 @@ export function AgentJoin({
             </header>
 
             {onCloudConnect && !localChosen ? <AgentConnectionPicker
-              onCloud={provider=>{close();onCloudConnect(provider);}}
+              onCloud={provider=>{reset();onCloudConnect(provider);}}
               onLocal={provider=>{
                 setHarness(provider==="codex"||provider==="claude"?provider:"other");
                 if(provider==="codex"||provider==="claude")setRunner(provider);
@@ -1005,6 +1012,7 @@ export function AgentJoin({
           <p className="agent-join-sr-only" role="status">{liveNote}</p>
           <div className="d-card agent-join-card agent-join-card--stepper">
             <header className="agent-join-card-head">
+              {onBack&&<button type="button" className="d-btn" onClick={()=>{reset();onBack();}}>← {backLabel}</button>}
               <h2 className="d-title agent-join-title">
                 {/* 中英句式不同，两边都走「前缀 + 名字 + 后缀」，避免某个语言只剩半句（coderabbit on #1006）。 */}
                 <>

@@ -1,0 +1,2 @@
+.platform-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:var(--platform-icon-size,20px);height:var(--platform-icon-size,20px);color:var(--t-text);vertical-align:middle}
+.platform-icon-mask{display:block;width:100%;height:100%;background:currentColor;mask-size:contain;mask-repeat:no-repeat;mask-position:center;-webkit-mask-size:contain;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center}

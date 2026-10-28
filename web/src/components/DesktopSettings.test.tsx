@@ -82,14 +82,14 @@ describe("DesktopSettings", () => {
     expect(html).toBe("");
   });
 
-  test("renders an accessible settings trigger with the project sprite", () => {
+  test("renders an accessible settings trigger with the shared settings icon", () => {
     const html = renderSettings(runtime());
 
-    expect(html).toContain("ap-sprite--settings");
+    expect(html).toContain('data-icon="settings"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-controls="desktop-settings-panel"');
     expect(html).not.toContain("emoji");
-    expect(html).not.toContain("<svg");
+    expect(html).toContain('aria-hidden="true"');
   });
 });
 

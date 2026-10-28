@@ -12,6 +12,7 @@ import type {
  * channel responsibility have different authorities.
  */
 export interface TeamMemberIdentity {
+  nickname?: string;
   display?: string;
   kind?: SenderKind;
   account?: string;
@@ -146,7 +147,7 @@ export function resolveTeamMemberView(input: ResolveTeamMemberInput): TeamMember
       ? nonBlank(presence.display_name) ?? nonBlank(presence.account)
       : null;
   const display =
-    nonBlank(identity?.display) ??
+    identity?.nickname ?? (identity?.display!==name?nonBlank(identity?.display):null) ??
     nonBlank(participant?.handle) ??
     nonBlank(presence?.handle) ??
     participantHumanDisplay ??

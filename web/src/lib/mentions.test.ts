@@ -706,3 +706,21 @@ test("current agent nickname wins over a stale live sender handle for mention ro
   expect(candidates).toHaveLength(1);
   expect(candidates[0]).toMatchObject({name:"新昵称",display:"新昵称",tier:"online"});
 });
+
+
+test("current agent alias labels mentions while stable source identity is preserved",()=>{
+ const name="ac-oauth-1234567890";
+ const result=mentionCandidates([{name,kind:"agent",handle:"旧昵称"}],{},null,NOW,[{name,kind:"agent",display:"新昵称",handle:"新昵称"}])[0]!;
+ expect(result.display).toBe("新昵称");expect(result.name).toBe("新昵称");expect(result.kind).toBe("agent");
+});
+
+test("explicit agent nickname equal to identity wins over stale mention display",()=>{
+ const name="lark-ad72b3f97491-agentparty";
+ const result=mentionCandidates([{name,kind:"agent",handle:"Old Alias"}],{},null,NOW,[{name,kind:"agent",display:name,nickname:name}])[0]!;
+ expect(result.display).toBe(name);
+});
+test("mention carries declared connector metadata without inferring it from nickname",()=>{
+ const result=mentionCandidates([],{},null,NOW,[{name:"worker",kind:"agent",display:"My Agent",connector_type:"muse"},{name:"chatgpt",kind:"agent",display:"ChatGPT"}]);
+ expect(result.find(c=>c.name==="worker")?.connector_type).toBe("muse");
+ expect(result.find(c=>c.name==="chatgpt")?.connector_type).toBeUndefined();
+});

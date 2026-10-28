@@ -1,3 +1,4 @@
+import { PlatformIcon } from "./PlatformIcon";
 // 左侧频道列表：频道名 + 最近一条消息 + 参与者状态点（spec §9 第 1 块）
 import { useEffect, useRef, useState } from "react";
 import type { ChannelInfo } from "../lib/api";
@@ -20,7 +21,7 @@ interface Props {
   onConnect?:()=>void;
   onAgentSelect?: (name: string) => void;
   /** Authoritative agent roster only; presence alone does not identify an agent. */
-  agents?: readonly { name: string; display?: string; role?:string }[];
+  agents?: readonly { name: string; display?: string; role?:string; connector_type?:string }[];
 }
 
 // 分类筛选：全部 / 我创建的（owned）/ 我加入的（member）。只筛 live 段，archived 段独立不受影响。
@@ -91,7 +92,7 @@ function ChannelPill({
       aria-current={c.slug === active ? "page" : undefined}
       title={c.topic ?? c.slug}
     >
-      <span className="prototype-channel-symbol" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M16 9a6 6 0 0 1-6 6H5l-3 2V9a7 7 0 0 1 14 0Z"/></svg></span>
+      <span className="prototype-channel-symbol" aria-hidden="true"><StudioIcon name="group" size={18}/></span>
       <span className="prototype-channel-copy"><span className="chan-head">
         <PresenceDots channel={c} />
         <span className="chan-name">{c.title ?? c.slug}</span>
@@ -216,7 +217,7 @@ function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents, o
       )}
       {uniqueAgents.length > 0 && <section className="prototype-sidebar-agents" aria-label={locale === "zh" ? "你的 Agent" : "Your agents"}>
         <h3 className="side-section-title agent-label">{locale === "zh" ? "你的 Agent" : "Your agents"}<span>{uniqueAgents.length}</span></h3>
-        <ul className="agent-list">{uniqueAgents.map(agent=><li key={agent.name}><button type="button" disabled={!onAgentSelect} onClick={()=>onAgentSelect?.(agent.name)} title={agent.name}><span className="prototype-agent-avatar" aria-hidden="true">{Array.from(agent.display?.trim()||agent.name)[0]?.toLocaleUpperCase()}</span><span>{agent.display?.trim()||agent.name}</span>{agent.role&&<small>{agent.role}</small>}</button></li>)}</ul>
+        <ul className="agent-list">{uniqueAgents.map(agent=><li key={agent.name}><button type="button" disabled={!onAgentSelect} onClick={()=>onAgentSelect?.(agent.name)} title={agent.name}><span className="prototype-agent-avatar" aria-hidden="true"><PlatformIcon platform={agent.connector_type} size={18} decorative /></span><span>{agent.display?.trim()||agent.name}</span>{agent.role&&<small>{agent.role}</small>}</button></li>)}</ul>
       </section>}
       {onConnect&&<button type="button" className="discover-link" onClick={onConnect}><span aria-hidden="true">＋</span>{locale==="zh"?"连接更多 Agent":"Connect more agents"}</button>}
       </div>

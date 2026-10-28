@@ -14,6 +14,7 @@ function itemState(item: FocusItem, t: ReturnType<typeof useT>): string {
 
 export function ChannelFocusPanel({
   focus,
+  displayOf = (name: string) => name,
   decisionState,
   jumpError = null,
   onOpenTask,
@@ -22,6 +23,7 @@ export function ChannelFocusPanel({
   children,
 }: {
   focus: ChannelFocus;
+  displayOf?: (name:string)=>string;
   decisionState?: PendingDecisionLoadState;
   jumpError?: string | null;
   onOpenTask: (taskId: number) => void;
@@ -72,7 +74,7 @@ export function ChannelFocusPanel({
             return (
               <li key={item.key} className={`focus-overview-item focus-overview-item--${item.state}`}>
                 <div className="focus-overview-main">
-                  <strong>{item.name}</strong>
+                  <strong>{displayOf(item.name)}</strong>
                   <span className={`t-mono focus-item-state focus-item-state--${item.state}`}>
                     {itemState(item, t)}
                   </span>
@@ -82,7 +84,7 @@ export function ChannelFocusPanel({
                     </span>
                   )}
                 </div>
-                <p>{item.label}</p>
+                <p>{item.label===item.name?displayOf(item.name):item.label}</p>
                 {action !== null && (
                   <button type="button" className="d-btn" onClick={action.run}>
                     {action.label}

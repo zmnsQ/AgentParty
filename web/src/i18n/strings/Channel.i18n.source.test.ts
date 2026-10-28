@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ChannelStrings } from "./Channel";
+import { StudioStrings } from "./Studio";
 
 const source = readFileSync(resolve(import.meta.dir, "../../pages/Channel.tsx"), "utf8");
 const hostBoardSource = readFileSync(
@@ -144,7 +145,18 @@ describe("Channel i18n source guard (#350)", () => {
       expect(ChannelStrings.en[key], `missing English key: ${key}`).toBeTruthy();
       expect(ChannelStrings.zh[key], `missing Chinese key: ${key}`).toBeTruthy();
       expect(ChannelStrings.zh[key], `Chinese key still mirrors English: ${key}`).not.toBe(ChannelStrings.en[key]);
-      expect(localizedSurfaceSource, `Channel surface does not use: ${key}`).toContain(key);
+      if (key === "Channel.empty.partyWatch") {
+        // Empty conversation guidance moved to the shared welcome component;
+        // preserve locale AND actual mount coverage rather than require retired copy.
+        const welcome=readFileSync(resolve(import.meta.dir,"../../components/ChannelWelcome.tsx"),"utf8");
+        expect(source).toMatch(/bootstrapped && state\.messages\.length === 0 && \(\s*<ChannelWelcome/);
+        for (const replacement of ["Studio.groupEmpty","Studio.groupEmptyHint","Studio.groupEmptyNote"]) {
+          expect(welcome).toContain(`t("${replacement}")`);
+          expect(StudioStrings.en[replacement]).toBeTruthy();
+          expect(StudioStrings.zh[replacement]).toBeTruthy();
+          expect(StudioStrings.zh[replacement]).not.toBe(StudioStrings.en[replacement]);
+        }
+      } else expect(localizedSurfaceSource, `Channel surface does not use: ${key}`).toContain(key);
     }
   });
 

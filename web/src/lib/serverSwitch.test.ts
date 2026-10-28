@@ -40,6 +40,8 @@ beforeEach(() => {
     get length() { return values.size; },
   } });
   storage = globalThis.localStorage;
+  // Explicitly register both fixture origins; production registration validation stays enabled.
+  addCustomServerProfile(storage, { label: "Legacy fixture", origin: "https://agentparty.leeguoo.com" });
   addCustomServerProfile(storage, { label: "Private", origin: "https://party.example.com" });
   saveActiveServerOrigin(storage, "https://agentparty.leeguoo.com");
   setApiBase("https://agentparty.leeguoo.com");

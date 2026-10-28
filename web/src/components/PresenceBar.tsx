@@ -1,3 +1,4 @@
+import { PlatformIcon } from "./PlatformIcon";
 // 顶部 presence 条：每参与者一个手绘胶囊（名字 + 蜡笔状态点 + note + 相对时间），
 // 右端挂连接状态。"对方卡在哪"一眼可见（spec §9 第 3 块）。
 import {useCompactViewport} from "../lib/useCompactViewport";
@@ -13,7 +14,7 @@ import { autoWakeReachable, evaluateHostLease, PRESENCE_TIMEOUT_MS, wakeableStat
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from "react";
 import { isOpaqueAccount } from "@agentparty/shared/identity";
 import { agentHue } from "../lib/agentColor";
-import { disambiguatorForIdentity, type IdentityDisplayMap } from "../lib/identityDisplay";
+import { resolveIdentityPresentation, disambiguatorForIdentity, type IdentityDisplayMap } from "../lib/identityDisplay";
 import { buildPersonRows, type PersonRow } from "../lib/personRoster";
 import { IdentityDisambiguator } from "./IdentityDisambiguator";
 import { gitContextChip } from "../lib/gitContext";
@@ -499,8 +500,7 @@ export function PresenceBar({
       lineage: entry?.lineage ?? sender?.lineage ?? null,
       workflow: entry?.status?.workflow ?? null,
       display:
-        identity?.display ?? assigned?.display ??
-        (kind === "human" ? displayName ?? handle ?? owner ?? name : handle ?? displayName ?? name),
+        resolveIdentityPresentation(name, identities, {kind,owner,display:identity?.display!==name?identity?.display:assigned?.display??(kind === "human" ? displayName ?? handle ?? owner ?? name : handle ?? displayName ?? name)}).label,
       displayName,
       disambiguator: disambiguatorForIdentity(name, identities),
       avatarUrl: sender?.avatar_url ?? entry?.avatar_url ?? null,
@@ -550,7 +550,7 @@ export function PresenceBar({
         handle: null,
         ...meta,
         displayName: null,
-        display: identity?.display ?? assigned?.display ?? identities?.[name]?.display ?? name,
+        display: meta.display,
       };
     }
     if (entry && entry.state !== "offline") {
@@ -688,7 +688,7 @@ export function PresenceBar({
         style={{ "--ah": agentHue(shownDisplay) } as CSSProperties}
       >
         <span className={`presence-ava presence-ava--${it.kind}`} data-reach={reach} aria-hidden="true">
-          {src ? <img src={src} alt="" /> : <span className="presence-ava-initial">{shownDisplay.trim().charAt(0).toUpperCase()}</span>}
+          {it.kind === "agent" ? <PlatformIcon platform={identities?.[it.name]?.connector_type} size={22} decorative /> : src ? <img src={src} alt="" /> : <span className="presence-ava-initial">{shownDisplay.trim().charAt(0).toUpperCase()}</span>}
           <i className="presence-ava-dot" />
         </span>
         <div className="roster-main">
@@ -921,7 +921,7 @@ export function PresenceBar({
                       title={`${row.display} · ${reachText}${sessions > 1 ? ` · ${t("PresenceBar.roster.sessions", { count: sessions })}` : dup}`}
                       style={{ "--ah": agentHue(row.display) } as CSSProperties}
                     >
-                      {src ? <img src={src} alt="" /> : <span className="presence-ava-initial">{row.display.trim().charAt(0).toUpperCase()}</span>}
+                      {row.kind === "agent" ? <PlatformIcon platform={identities?.[item.name]?.connector_type} size={18} decorative /> : src ? <img src={src} alt="" /> : <span className="presence-ava-initial">{row.display.trim().charAt(0).toUpperCase()}</span>}
                       {/* 状态点（飞书式右下角小圆点）：比只靠描边颜色更易读 */}
                       <i className="presence-ava-dot" aria-hidden="true" />
                       {badge > 0 && <i className="presence-ava-dup t-mono">×{badge}</i>}
@@ -1032,7 +1032,7 @@ export function PresenceBar({
                 <LocalOcsSessions
                   rosters={ocsRosters}
                   now={now}
-                  displayOf={(name) => presence[name]?.display_name ?? presence[name]?.handle ?? name}
+                  displayOf={(name) => resolveIdentityPresentation(name,identities,{display:presence[name]?.display_name??presence[name]?.handle}).label}
                   isMentionable={(name) =>
                     Object.hasOwn(presence, name) || participants.some((p) => p.name === name)}
                   {...(onMentionAgent === undefined

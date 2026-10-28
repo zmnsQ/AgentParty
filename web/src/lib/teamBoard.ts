@@ -189,6 +189,8 @@ export function teamLaneOf(
 
 function memberDisplay(view: TeamMemberView, presence: PresenceEntry | null, participant: Sender | null, identity: ChannelIdentity | undefined): string {
   return (
+    identity?.nickname ?? (identity?.display?.trim() && identity.display!==identity.name ? identity.display : null)
+    ??
     nonBlank(presence?.display_name)
     ?? nonBlank(participant?.display_name)
     ?? nonBlank(presence?.handle)
@@ -279,7 +281,7 @@ export function buildTeamBoard(input: BuildTeamBoardInput): TeamBoardModel {
     const view = resolveTeamMemberView({
       name,
       assignment: roleByName.get(name) ?? null,
-      identity: identity ? { display: identity.display, kind: identity.kind, account: identity.account } : null,
+      identity: identity ? { display: identity.display, ...(identity.nickname === undefined ? {} : { nickname: identity.nickname }), kind: identity.kind, account: identity.account } : null,
       presence: entry,
       participant,
     });
@@ -297,7 +299,7 @@ export function buildTeamBoard(input: BuildTeamBoardInput): TeamBoardModel {
       kind: view.kind,
       owner: readable(view.owner),
       account: view.account,
-      handle: nonBlank(entry?.handle) ?? nonBlank(participant?.handle) ?? nonBlank(identity?.handle),
+      handle: nonBlank(identity?.handle) ?? nonBlank(entry?.handle) ?? nonBlank(participant?.handle),
       displayName: nonBlank(entry?.display_name) ?? nonBlank(participant?.display_name),
       otherSessions: [],
       accountCount: 1,

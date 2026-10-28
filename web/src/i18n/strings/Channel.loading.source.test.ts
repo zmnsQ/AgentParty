@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { ChannelStrings } from "./Channel";
 
 const channelSource = readFileSync(resolve(import.meta.dir, "../../pages/Channel.tsx"), "utf8");
+const welcomeSource = readFileSync(resolve(import.meta.dir, "../../components/ChannelWelcome.tsx"), "utf8");
 const styles = readFileSync(resolve(import.meta.dir, "../../styles/app.css"), "utf8");
 
 const keys = [
@@ -31,7 +32,9 @@ describe("Channel loading and recovery surfaces (#344 #345 #346 #354)", () => {
     expect(channelSource).toContain('!bootstrapped && q === ""');
     expect(channelSource).toContain('className="stream-skeleton"');
     expect(channelSource).toContain("bootstrapped && state.messages.length === 0");
-    expect(channelSource).toContain('t("Channel.empty.noMessagesHint")');
+    expect(channelSource).toMatch(/bootstrapped && state\.messages\.length === 0 && \(\s*<ChannelWelcome/);
+    expect(welcomeSource).toContain('t("Studio.groupEmptyHint")');
+    expect(welcomeSource).toContain('onClick={onConnect}');
     expect(styles).toContain(".msg-card--skeleton");
   });
 
@@ -92,4 +95,18 @@ describe("Channel loading and recovery surfaces (#344 #345 #346 #354)", () => {
     expect(channelSource).toContain('t("Channel.history.retry")');
     expect(channelSource).toContain('tRef.current("Channel.history.loadFailed")');
   });
+});
+
+test("older-page completion/error/finally share a generation guard across token refresh and retry",()=>{
+ const start=channelSource.indexOf("const loadOlder = useCallback");
+ const end=channelSource.indexOf("const onScroll",start);
+ const older=channelSource.slice(start,end);
+ expect(older).toContain("settleCurrentRequest(fetchMessages(token, slug");
+ expect(older).toContain("() => request === olderHistoryRequestRef.current");
+ expect(older).toContain("err instanceof AuthError");
+ expect(older).toContain("settled:");
+ expect(channelSource).toContain("useEffect(() => () => { olderHistoryRequestRef.current += 1; loadingOlderRef.current = false; }, [token, slug]);");
+ const initial=channelSource.slice(channelSource.indexOf("const loadInitialPage = useCallback"),channelSource.indexOf("void loadInitialPage();"));
+ expect(initial).toContain("olderHistoryRequestRef.current += 1");
+ expect(initial).toContain("loadingOlderRef.current = false");
 });

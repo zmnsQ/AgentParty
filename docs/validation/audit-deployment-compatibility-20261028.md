@@ -1,0 +1,12 @@
+# Deployment / schema compatibility audit — 2026-10-28
+
+No deployment, migration, account change, paid CI run, or remote configuration mutation occurred.
+
+- This patch adds no schema migration. Existing nickname tables and ACL are unchanged. Connector display metadata tolerates missing optional tables from 0046/0052/0054; only recognized missing-table errors degrade, not arbitrary database failures. Experimental 0055 is not required for display metadata and is not automatically applied or enabled.
+- Current default Worker config has independent resource names, placeholder D1 identity and no upstream account/domain/shutdown. Hosted-membership gating is off. It is not an already configured production account.
+- Legacy `worker/scripts/deploy-local.mjs` and `deploy-ci.mjs` retain upstream profile/database/target defaults. They are **not the current package deployment entry or an active workflow**. Do not run them for this VPS release. The historical workflow remains under `docs/upstream-workflows/` for provenance. Tests assert it is absent from active workflows rather than re-enabling it to satisfy an obsolete assertion.
+- `deploy/vps/deploy-release.py` remains a historical pinned release tool with an old expected release. It must not be blindly run or have its safety pin bypassed. A new authorized deployment requires live current-version discovery, exact new source/tree identity, state backup, normal atomic release switch and health read-back, preserving events/tunnel/config/data. No such deployment occurred in this audit.
+- Selected migration/release/config guard tests: 55/55 passed. Two stale assertions were updated: default entry must not use upstream-profile deploy-local; legacy CI references are inspected in the archive, with an explicit assertion that the active deploy workflow is absent. Pure build-plan, preflight-order and release identity guards remain tested.
+- Complete local Worker regression: 148 files / 1,268 tests passed after correcting four stale exact brand/stylesheet contracts. Worker /api/config tests now include exact independent brand/source/license fields instead of asserting the pre-fork response shape. OAuth consent tests retain CSP/no-inline and author/license links and reference the current stylesheet cache-version.
+
+Remaining: actual server migration inventory, live service/port/health identity, backup restore, service restart and release rollback have not been exercised. These require the separate deployment permission and real deployment environment, not test fixtures.

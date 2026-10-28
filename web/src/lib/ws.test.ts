@@ -233,3 +233,33 @@ describe("ChannelSocket revCursor (issue #117)", () => {
     sock.dispose();
   });
 });
+
+describe("socket lifecycle ownership",()=>{
+ test("dispose ignores already queued open/message/close callbacks",()=>{
+  const frames:ServerFrame[]=[];const statuses:string[]=[];
+  const socket=new ChannelSocket("demo","token",{onFrame:f=>frames.push(f),onStatus:s=>statuses.push(s),onFatal:()=>{}});
+  socket.connect();const ws=FakeSocket.instances[0]!;
+  const open=ws.onopen!, message=ws.onmessage!, close=ws.onclose!;
+  socket.dispose();
+  open();message({data:JSON.stringify({type:"welcome",participants:[],last_seq:42})});close({code:1006,reason:""});
+  expect(frames).toEqual([]);expect(statuses).toEqual(["connecting"]);expect(ws.sent).toEqual([]);
+  flushTimers();expect(FakeSocket.instances).toHaveLength(1);
+ });
+ test("old closed socket cannot poison replacement cursor or schedule another connection",()=>{
+  const frames:ServerFrame[]=[];
+  const socket=new ChannelSocket("demo","token",{...noopHandlers(),onFrame:f=>frames.push(f)});
+  socket.connect();const old=FakeSocket.instances[0]!;old.open();
+  const lateMessage=old.onmessage!, lateClose=old.onclose!;
+  old.drop();flushTimers();const current=FakeSocket.instances[1]!;current.open();
+  lateMessage({data:JSON.stringify({type:"msg",seq:999})});lateClose({code:1006,reason:""});
+  current.deliver({type:"welcome",participants:[],last_seq:0} as unknown as ServerFrame);
+  expect(current.hello().since).toBe(0);expect(frames).toHaveLength(1);
+  current.deliver({type:"msg",seq:1} as ServerFrame);expect(frames).toHaveLength(2);
+  flushTimers();expect(FakeSocket.instances).toHaveLength(2);socket.dispose();
+ });
+ test("repeated connect while connecting or open does not create competing transports",()=>{
+  const socket=new ChannelSocket("demo","token",noopHandlers());
+  socket.connect();socket.connect();FakeSocket.instances[0]!.open();socket.connect();
+  expect(FakeSocket.instances).toHaveLength(1);socket.dispose();
+ });
+});

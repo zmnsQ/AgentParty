@@ -1,3 +1,4 @@
+import type {GrokSubmissionSafety} from "../lib/grokSubmissionSafety";
 import "../i18n/strings/Studio";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CollaborationSummary } from "@agentparty/shared/collaboration";
@@ -18,7 +19,11 @@ import "../styles/collaboration.css";
 const TABS = ["bridges", "files", "repositories"] as const;
 type Tab = typeof TABS[number];
 
+export interface CollaborationView {tab:Tab;view:"setup"|"manage"|"configure";provider:CloudAgentChoice|null;}
 interface CollaborationHubProps {
+  submissionSafety?:GrokSubmissionSafety;
+  dispatchScopeReady?:boolean;
+  viewMemory?:{current:CollaborationView|null};
   token: string;
   slug: string;
   archived?: boolean;
@@ -36,11 +41,13 @@ export function CollaborationHub(props: CollaborationHubProps) {
   return <ScopedCollaborationHub key={scope} {...props} server={server} />;
 }
 
-function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server, initialTab, initialProvider }: CollaborationHubProps & { server: string }) {
+function ScopedCollaborationHub({ submissionSafety, dispatchScopeReady=true, token, slug, archived = false, onAuthFailed, client = collaborationApi, server, initialTab, initialProvider, viewMemory }: CollaborationHubProps & { server: string }) {
   const t = useT();
   const [apiProvider,setApiProvider] = useState<"hermes"|"manus"|undefined>();
-  const [tab, setTab] = useState<Tab>(initialTab==="agents"?"bridges":initialTab??"bridges");
-  const [connectionView,setConnectionView]=useState<"setup"|"manage"|"configure">(initialTab==="agents"?"manage":"setup");
+  const [tab, setTab] = useState<Tab>(initialTab==="agents"?"bridges":initialTab??viewMemory?.current?.tab??"bridges");
+  const [connectionView,setConnectionView]=useState<"setup"|"manage"|"configure">(viewMemory?.current?.view==="manage"?"manage":initialTab==="agents"?"manage":"setup");
+  const [selectedProvider,setSelectedProvider]=useState<CloudAgentChoice|null>(initialProvider??viewMemory?.current?.provider??null);
+  useEffect(()=>{if(viewMemory)viewMemory.current={tab,view:connectionView,provider:selectedProvider};},[tab,connectionView,selectedProvider,viewMemory]);
   // Keep the selected tab visible without scrolling the whole mobile dialog.
   useEffect(() => {
     const item = typeof document !== "undefined" ? document.getElementById?.(`commons-tab-${tab}`) : null;
@@ -101,7 +108,7 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
             <button className="d-btn" type="button" aria-pressed={connectionView!=="manage"} onClick={()=>{setApiProvider(undefined);setConnectionView("setup");}}>{t("Studio.setup")}</button>
             <button className="d-btn" type="button" aria-pressed={connectionView==="manage"} onClick={()=>{setApiProvider(undefined);setConnectionView("manage");}}>{t("Studio.manage")}</button>
           </nav>
-          {connectionView==="setup" && <CloudBridges showAuthorizationManagement={false} token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} onConfigureApi={provider=>{setApiProvider(provider);setConnectionView("configure");}} />}
+          {connectionView==="setup" && <CloudBridges submissionSafety={submissionSafety} showAuthorizationManagement={false} token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run&&dispatchScopeReady} initialProvider={selectedProvider??undefined} onProviderChange={setSelectedProvider} onConfigureApi={provider=>{setApiProvider(provider);setConnectionView("configure");}} />}
           {connectionView!=="setup" && <>
             {connectionView==="configure" && <button className="d-btn" type="button" onClick={()=>setConnectionView("setup")}>{t("Studio.backPlatforms")}</button>}
             <CloudAgentConnections key={connectionView+":"+(apiProvider??"")} initialProvider={connectionView==="configure"?apiProvider:undefined} token={token} slug={slug} summary={current} client={client} onChanged={()=>refresh()} onConnect={()=>{setApiProvider(undefined);setConnectionView("setup");}} />

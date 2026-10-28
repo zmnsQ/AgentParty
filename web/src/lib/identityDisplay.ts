@@ -8,7 +8,10 @@ import type { ChannelIdentity } from "./api";
 import type { MentionCandidate } from "./mentions";
 
 export interface IdentityDisplay {
+  connector_type?: ChannelIdentity["connector_type"];
   display: string;
+  /** Explicit current saved nickname; never infer authority from its spelling. */
+  nickname?: string;
   kind?: "agent" | "human";
   account?: string;
   // #858：同 owner 同角色的 agent 渲染出的显示名会完全一样；撞名时才带上这段技术区分码。
@@ -40,30 +43,33 @@ export function formatIdentityPresentation(
 }
 
 function displayQuality(name: string, display: string): number {
-  return display !== "" && display !== name ? 2 : 1;
+  return display.trim() !== "" && display !== name && !isOpaqueAccount(display) && generatedAgentRole(display) === null ? 2 : 1;
 }
 
 function addIdentity(
   map: IdentityDisplayMap,
   name: string,
-  input: { display?: string; kind?: "agent" | "human"; account?: string },
-  force = false,
+  input: { connector_type?: ChannelIdentity["connector_type"]; display?: string; nickname?: string; kind?: "agent" | "human"; account?: string },
 ) {
   if (name === "" || name === "system") return;
   const prev = map[name];
   const kind = input.kind ?? prev?.kind;
   const account = input.account ?? prev?.account;
   const fallbackDisplay = kind === "human" && account ? account : name;
+  const nickname = input.nickname ?? prev?.nickname;
   const nextDisplay = input.display ?? fallbackDisplay;
   const prevDisplay = prev?.display;
-  const display =
-    !force &&
+  // Current metadata may replace an old alias, but a technical fallback must
+  // not erase a readable alias from message/presence snapshots.
+  const display = nickname ?? (
     prevDisplay !== undefined &&
     displayQuality(name, prevDisplay) > displayQuality(name, nextDisplay)
       ? prevDisplay
-      : nextDisplay;
+      : nextDisplay);
   map[name] = {
     display,
+    ...(input.connector_type === undefined ? {} : { connector_type: input.connector_type }),
+    ...(nickname === undefined ? {} : { nickname }),
     ...(kind === undefined ? {} : { kind }),
     ...(account === undefined ? {} : { account }),
   };
@@ -93,7 +99,9 @@ export function resolveIdentityPresentation(
   const identity = identities?.[name];
   const kind = hints.kind ?? identity?.kind;
   const owner = hints.owner ?? identity?.account ?? null;
-  const preferredDisplay = hints.display?.trim() || identity?.display?.trim() || name;
+  const currentDisplay = identity?.display?.trim();
+  const preferredDisplay = identity?.nickname ?? (currentDisplay && displayQuality(name,currentDisplay)>1
+    ? currentDisplay : hints.display?.trim() || currentDisplay || name);
   const generatedRole = generatedAgentRole(name);
   const generatedDisplayRole = generatedAgentRole(preferredDisplay);
   const generated = kind === "agent" && generatedRole !== null;
@@ -107,7 +115,7 @@ export function resolveIdentityPresentation(
       : null;
 
   return {
-    label: generated && !readableAlias ? generatedRole : preferredDisplay,
+    label: identity?.nickname !== undefined ? identity.nickname : generated && !readableAlias ? generatedRole : preferredDisplay,
     ownerLabel,
     technicalName: name,
     generated,
@@ -144,9 +152,9 @@ export function resolveAgentOwnerLabel(
     (identity) =>
       identity.kind === "human" &&
       identity.account === owner &&
-      identity.display.trim() !== "" &&
+      (identity.nickname !== undefined || (identity.display.trim() !== "" &&
       identity.display !== owner &&
-      !isOpaqueAccount(identity.display),
+      !isOpaqueAccount(identity.display))),
   );
   if (human) return human.display;
 
@@ -196,7 +204,7 @@ export function buildIdentityDisplay(input: {
       display: option.display,
     });
   }
-  for (const identity of input.channelIdentities) addIdentity(map, identity.name, identity, true);
+  for (const identity of input.channelIdentities) addIdentity(map, identity.name, identity);
 
   return withDisambiguators(map);
 }
