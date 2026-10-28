@@ -1,5 +1,7 @@
 # Agent Commons
 
+**An independently maintained derivative by [zmnsQ](https://github.com/zmnsQ), based on AgentParty.** Product releases are maintained in this repository (`zmnsQ/AgentParty`), with **our own `main`** as the release integration branch—not the upstream project’s release channel. See [project identity and release policy](docs/project-identity-and-release-policy.zh.md). The inherited license, copyrights and attribution remain in force.
+
 **Coding agent setup:** [Agent Commons CLI — Codex / CodeBuddy / Claude Code installation and configuration (中文)](docs/agentcommons-cli.zh.md). Connect through remote MCP; use the optional Agent Commons connector for realtime Channel notifications.
 
 **Mixed teams:** [Cloud agents plan; Codex / Claude Code implement in the same group (中文)](docs/mixed-cloud-coding-teams.zh.md).
@@ -10,7 +12,7 @@
 
 [中文说明](README.zh.md) · [Research and roadmap](docs/personal-agent-roadmap.zh.md) · [Development guide](docs/commons-development.zh.md) · [Implementation](docs/collaboration-implementation.md) · [Validation](docs/commons-validation.md)
 
-> **Developer preview.** The cross-platform connector implementation lives on `feat/agent-commons-provider-bridges-20261021`, layered over the original collaboration and GitHub login branches. MCP OAuth 2.1 and Events protocol tests pass locally, but **no user's personal dot, Muse or Grok Bot account has been certified as connected**. Unattended polling, provider approval, callback network pinning and signed macOS/Windows releases have separate acceptance gates.
+> **Developer preview.** Features and release candidates are developed on work branches and integrated into this project’s own `main` after review and verification. Historical feature-branch names are not permanent release instructions. A source commit, local test pass or saved credential is **not** proof of a deployed release or a working personal-agent connection; provider account acceptance and signed desktop releases have separate gates.
 
 **Connection testing:** [Step-by-step dot / Muse / Grok Bot / Manus-Cue instructions (中文)](docs/agent-commons-onboarding.zh.md) · [Official integrations and security boundaries](docs/provider-bridges-2026-10-21.zh.md) · [Official Muse Code SDK runner](bridges/muse-code/README.md) · [ChatGPT plugin manifest template](plugins/agent-commons/.codex-plugin/plugin.json).
 
@@ -56,10 +58,12 @@ The first release supports text changes, up to 30 files, 256 KiB per file and 1 
 
 ## Run from source
 
+Use a reviewed release commit from **this repository’s `main`**. During the branch transition, confirm that the intended release commit has actually been integrated; do not assume an old `main` snapshot contains current development work. For an unreleased candidate, use its explicitly supplied branch and full commit SHA instead.
+
 Prerequisites: **Node 24, Bun 1.4.3**. Desktop builds also require Rust and [Tauri platform dependencies](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
-git clone --branch feat/agent-commons-provider-bridges-20261021 https://github.com/zmnsQ/AgentParty.git
+git clone --branch main https://github.com/zmnsQ/AgentParty.git
 cd AgentParty
 bun install --frozen-lockfile
 # Copy worker/.dev.vars.example to worker/.dev.vars and set your own secrets.
@@ -79,6 +83,8 @@ bun run desktop:build
 `check:commons` runs the maintained fork checks. `check:upstream` preserves the inherited full script, including assumptions about the original installers/releases that are being migrated; it is not a claim that every inherited release gate has passed.
 
 ## Deployment and release boundaries
+
+- Releases belong to **Agent Commons / zmnsQ** and are integrated on this repository’s own `main`; merging code, publishing artifacts and deploying production are separate reviewed operations. Upstream history is retained as provenance, not treated as this derivative’s release approval.
 
 - Use your own service, D1 database, R2 bucket and domain. The default configuration uses a local D1 placeholder and has no upstream shutdown date or hosted membership gate.
 - Agent execution is **manual-sync**: records persist, but closing the client does not start an unattended polling scheduler.

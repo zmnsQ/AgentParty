@@ -16,10 +16,10 @@ import type {CloudAgentChoice} from "./AgentConnectionPicker";
 import "../i18n/strings/AgentConnect";
 import "../styles/cloud-bridges.css";
 
-interface Props { token:string;slug:string;canManage:boolean;canRun:boolean;initialProvider?:CloudAgentChoice;onConfigureApi?(provider:"hermes"|"manus"):void; }
-export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConfigureApi}:Props){
+interface Props { token:string;slug:string;canManage:boolean;canRun:boolean;initialProvider?:CloudAgentChoice;showAuthorizationManagement?:boolean;onConfigureApi?(provider:"hermes"|"manus"):void; }
+export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConfigureApi,showAuthorizationManagement=true}:Props){
   const t=useT();
-  const [selected,setSelected]=useState<CloudAgentChoice>(initialProvider??"dot");
+  const [selected,setSelected]=useState<CloudAgentChoice|null>(initialProvider??null);
   const {locale}=useLocale();const zh=locale==="zh";
   const [state,setState]=useState<GrokBridgeState|null>(null);
   const [events,setEvents]=useState<EventBridgeState|null>(null);
@@ -86,7 +86,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
     <p>{zh?"先确认你已有的工具和账号。安装、授权、绑定本群与实际运行是不同步骤；查看说明不会启动任务。":"Check the tools and accounts you already have. Installation, authorization, group binding and running a task are separate steps. Viewing a guide does not start work."}</p>
     {error&&<p role="alert" className="commons-error">{error}</p>}
     {notice&&<p role="status" className="commons-success">{notice}</p>}
-    {canManage && <details className="cloud-bridge-card connector-presence-overview" aria-label={t("ConnectorUsage.connectionOverviewTitle")}>
+    {canManage && showAuthorizationManagement && <details className="cloud-bridge-card connector-presence-overview" aria-label={t("ConnectorUsage.connectionOverviewTitle")}>
       <summary>{t("ConnectorUsage.connectionOverviewTitle")}</summary>
       <p>{t("ConnectorUsage.connectionOverviewHint")}</p>
       {authorizedAgents===null && <p role="status">{t("ConnectorUsage.connectionStatusUnknown")}</p>}
@@ -120,7 +120,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
     {(selected==="dot"||selected==="muse")&&<details className="cloud-bridge-card"><summary>{t("AgentConnect.security")}</summary>
       <McpSecurityPanel token={token} slug={slug} canManage={canManage} />
     </details>}
-    {(selected==="dot"||selected==="muse")&&<details className="studio-grants-details"><summary>{zh?"已授权连接 · 管理与撤销":"Authorized connections · manage and revoke"}</summary><ConnectorGrants slug={slug} /></details>}
+    {showAuthorizationManagement&&(selected==="dot"||selected==="muse")&&<details className="studio-grants-details"><summary>{zh?"已授权连接 · 管理与撤销":"Authorized connections · manage and revoke"}</summary><ConnectorGrants slug={slug} /></details>}
     {selected==="dot"&&<details className="cloud-bridge-card studio-diagnostics">
       <summary>{zh?"首次连接教程与事件诊断":"First-time setup and event diagnostics"}</summary>
       <details><summary>{t("ConnectorUsage.firstConnection")}</summary>
@@ -140,8 +140,8 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
     {selected==="hermes"&&<article className="cloud-bridge-card">
       <h3>Hermes Agent</h3>
       <p>{zh?"用于向已运行的 Hermes API Server 提交任务，并同步结果回群。不会导入你原有的 CLI 私聊。":"Send tasks to your running Hermes API Server and synchronize results to this group. Existing CLI conversations are not imported."}</p>
-      <ol><li>{zh?"先由管理员准备运行中的 API 服务、服务地址与凭据。没有服务时，请先完成部署；本页面不会替你安装。":"Have your administrator prepare the running API service, its address and credential. This page does not install the server."}</li><li>{zh?"在 API 连接中填写信息，验证后绑定本群。":"Enter the details in API connections to verify and bind this group."}</li><li>{zh?"绑定不代表运行。明确发送任务后，再查看进度和回群结果。":"Binding is not running. Send an explicit task, then check its progress and returned result."}</li></ol>
-      {onConfigureApi&&<button type="button" className="d-btn" onClick={()=>onConfigureApi("hermes")}>{zh?"配置 Hermes API 连接":"Configure Hermes API connection"}</button>}
+      <ol><li>{zh?"先由管理员准备运行中的 API 服务、服务地址与凭据。没有服务时，请先完成部署；本页面不会替你安装。":"Have your administrator prepare the running API service, its address and credential. This page does not install the server."}</li><li>{zh?"下一步填写服务信息，验证后绑定本群。":"Continue to enter service details, then verify and bind this group."}</li><li>{zh?"绑定不代表运行。明确发送任务后，再查看进度和回群结果。":"Binding is not running. Send an explicit task, then check its progress and returned result."}</li></ol>
+      {onConfigureApi&&<button type="button" className="d-btn" onClick={()=>onConfigureApi("hermes")}>{zh?"继续连接 Hermes":"Continue with Hermes"}</button>}
     </article>}
     {selected==="cue"&&<article className="cloud-bridge-card">
       <h3>Manus / Cue · <a href="https://open.manus.ai/docs/v2/agent.list" target="_blank" rel="noreferrer">API v2 ↗</a></h3>
@@ -151,7 +151,7 @@ export function CloudBridges({token,slug,canManage,canRun,initialProvider,onConf
         <button className="d-btn" disabled={busy||!apiKey}>{zh?"查找我的 Cue Agent":"Discover my Cue agents"}</button>
       </form>}
       {cue.length>0&&<ul>{cue.map(agent=><li key={agent.id}><strong>{agent.name}</strong> · <code>{agent.id}</code> <button className="d-btn" type="button" onClick={()=>void navigator.clipboard?.writeText(agent.id)}>{zh?"复制 ID":"Copy ID"}</button></li>)}</ul>}
-      {onConfigureApi&&<button type="button" className="d-btn" onClick={()=>onConfigureApi("manus")}>{zh?"已有 Agent ID，配置 Cue 连接":"Have an agent ID? Configure Cue connection"}</button>}
+      {onConfigureApi&&<button type="button" className="d-btn" onClick={()=>onConfigureApi("manus")}>{zh?"继续连接 Cue":"Continue with Cue"}</button>}
       <p><small>{zh?"向已有个人 Cue 主会话投递任务已支持；不自动导入无法确定归属的私人聊天回复。":"Send to existing Cue main tasks is supported; private replies without reliable request correlation are not imported."}</small></p>
     </article>}
     {selected==="grok"&&<article className="cloud-bridge-card">

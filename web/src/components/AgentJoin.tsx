@@ -410,9 +410,15 @@ export function AgentJoin({
     onActiveChange?.(false);
   }, [onActiveChange, reset]);
 
+  const previousActiveRef = useRef<boolean | undefined>(undefined);
   useEffect(() => {
+    const becameActive = active === true && previousActiveRef.current !== true;
+    previousActiveRef.current = active;
     if (active === false && phase.kind !== "idle") reset();
-  }, [active, phase.kind, reset]);
+    // A header-controlled open has no internal button click. Only the rising
+    // edge opens compose; ordinary rerenders must never replace an active guide.
+    else if (becameActive && phase.kind === "idle" && guideSession === null && recoverName === null) open();
+  }, [active, phase.kind, reset, open, guideSession, recoverName]);
 
 
   const openStepper = useCallback(
@@ -438,7 +444,7 @@ export function AgentJoin({
 
   // 「恢复/重连」入口：成员详情里对离线 agent 点「重新接上」→ 同一个 stepper，② 换成 party recover <chan>。
   useEffect(() => {
-    if (recoverName === null) return;
+    if (recoverName === null || active === false) return;
     if (phase.kind === "stepper" && phase.session.name === recoverName && phase.session.recover) return;
     const sinceTs = startedAtRef.current.get(recoverName) ?? nowFn();
     // recover：这个身份本来就有历史，只认「比打开这一刻更新」的活动（strict）。
@@ -455,11 +461,11 @@ export function AgentJoin({
       sinceTs,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recoverName, slug]);
+  }, [recoverName, slug, active]);
 
   // #1009：「接入凭证」面板的「接入引导 / 重新接上」——同一个 stepper，命令与形态由面板给的 session 决定。
   useEffect(() => {
-    if (guideSession === null) return;
+    if (guideSession === null || active === false) return;
     if (
       phase.kind === "stepper" &&
       phase.session.name === guideSession.name &&
@@ -485,7 +491,7 @@ export function AgentJoin({
       sinceTs,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guideSession, slug]);
+  }, [guideSession, slug, active]);
 
   // 文字在 effect 里填，且晚一拍：区域先以空内容落地，之后内容变化才是读屏认的 live region 更新
   // （区域与文字同一批插入时，多数读屏不念）。延迟可注入，测试不必真等。

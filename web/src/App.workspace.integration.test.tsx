@@ -35,15 +35,19 @@ test('real App root chooses an authorized channel and wires roster through produ
  await act(async()=>channelProps.onAgentRoster('foreign-group',[{name:'wrong'}]));
  expect(renderer!.root.findByType(ChannelList).props.agents).toEqual([{name:'agent-real',display:'Actual roster'}]);
 });
-test('real App scopes rail actions and roster to active group after navigation',async()=>{
+test('real App scopes sidebar agent actions and roster to active group after navigation',async()=>{
  await mount();
- const railButtons=renderer!.root.findAll(n=>n.type==='button'&&n.props.className==='prototype-rail-button');
- // search is the first group-scoped rail button (home precedes it).
- await act(async()=>railButtons[1]!.props.onClick());
+ expect(renderer!.root.findAllByProps({className:'app-head prototype-rail'})).toHaveLength(0);
+ expect(renderer!.root.findAllByProps({className:'workspace-account-controls'})).toHaveLength(1);
+ await act(async()=>renderer!.root.findByType(ChannelList).props.onAgentSelect('agent-real'));
+ expect(channelProps.workspaceAction?.panel).toBe('team');
+ expect(channelProps.workspaceAction?.agent).toBe('agent-real');
  expect(channelProps.workspaceAction?.slug).toBe('fixture-0');
  const previous=channelProps.onAgentRoster;
  await act(async()=>renderer!.root.findByType(ChannelList).props.onOpen('fixture-1'));
  expect(channelProps.slug).toBe('fixture-1');expect(channelProps.workspaceAction).toBeUndefined();
+ await act(async()=>renderer!.root.findByType(ChannelList).props.onAgentSelect('next-agent'));
+ expect(channelProps.workspaceAction?.slug).toBe('fixture-1');expect(channelProps.workspaceAction?.agent).toBe('next-agent');
  expect(renderer!.root.findByType(ChannelList).props.agents).toEqual([]);
  await act(async()=>previous('fixture-0',[{name:'stale'}]));
  expect(renderer!.root.findByType(ChannelList).props.agents).toEqual([]);

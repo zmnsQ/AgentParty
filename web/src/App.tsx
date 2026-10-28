@@ -1,5 +1,5 @@
-import "./styles/prototype-native-frame.css";
 import {Brand} from "./components/Brand";
+import "./styles/prototype-native-frame.css";
 import {WorkspaceShell} from "./components/WorkspaceShell";
 import {isCompactViewport} from "./lib/mobileViewport";
 import { StudioIcon } from "./components/StudioIcon";
@@ -1257,9 +1257,8 @@ export function App() {
   const deploymentOrigin = desktop ? activeOrigin : apiOrigin();
   const currentChannel = channels?.find(channel => channel.slug === slug);
 
-  return (
-    <div className={"app prototype-native-workspace"+(slug!==null?" app--channel":"")}>
-      <header className="app-head prototype-rail">
+  const accountControls = (
+      <header className="workspace-account-controls">
 
         <a
           className="d-title app-logo"
@@ -1269,12 +1268,9 @@ export function App() {
             navigate("/");
           }}
         >
-          <span className="prototype-native-wordmark" aria-hidden="true">a<span>·</span></span><span className="prototype-native-sr">Agent Commons</span>
+          <span className="workspace-brand-label">Agent Commons</span>
         </a>
-        <nav className="prototype-rail-nav" aria-label={t("Studio.workspace")}>
-          <button type="button" className="prototype-rail-button" title={t("Studio.workspace")} aria-label={t("Studio.workspace")} onClick={()=>navigate("/")}><StudioIcon name="message"/></button>
-          {([['search','search'],['files','files'],['charter','announcement'],['team','group']] as const).map(([panel,icon])=><button key={panel} type="button" className="prototype-rail-button" disabled={slug===null} title={t(`App.workspace.${panel}`)} aria-label={t(`App.workspace.${panel}`)} onClick={()=>{if(slug)setWorkspaceAction(previous=>({id:(previous?.id??0)+1,slug,panel}));}}><StudioIcon name={icon}/></button>)}
-        </nav>
+
         <div className="prototype-rail-footer">
           <details className="prototype-rail-more" onKeyDown={event=>{if(event.key==="Escape"){event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}><summary className="prototype-rail-button" aria-label={t("App.workspace.tools")} title={t("App.workspace.tools")}><StudioIcon name="tools"/></summary><div className="prototype-rail-popover">
         <span className="d-hand app-tag">{t("App.tagline")}</span>
@@ -1378,6 +1374,11 @@ export function App() {
         <button type="button" className="prototype-rail-account" title={t("App.settings.section.account")} aria-label={t("App.settings.section.account")} onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/></button>
         </div>
       </header>
+  );
+
+  return (
+    <div className={"app prototype-native-workspace"+(slug!==null?" app--channel":"")}>
+
       <DesktopInstallPrompt desktop={desktop} />
       {settingsOpen && (
         <SettingsPanel
@@ -1434,7 +1435,7 @@ export function App() {
         </p>
       )}
       <WorkspaceShell route={slug} navigationError={listError} requestOpen={createGroupRequest} title={currentChannel?.title}
-        mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><Brand/></a><button className="d-btn mobile-account-entry" type="button" onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/><span><strong>{me?.display_name??me?.handle??me?.name??t("App.settings.section.account")}</strong><small>{t("App.settings.section.account")}</small></span></button><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><a className="d-btn" href="/docs">{t("App.docs")}</a><DesktopDownloadLink desktop={desktop}/><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}
+        mobileActions={accountControls} navigationFooter={accountControls}
         navigation={<>
           {canCreate && token !== null && (
             <CreateChannel showTrigger={false} token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />

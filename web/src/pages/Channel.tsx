@@ -129,6 +129,7 @@ import {
 } from "../lib/charterRequestGeneration";
 import { useCharterRequestGeneration } from "../lib/useCharterRequestGeneration";
 import { isNearBottom, pinToBottom } from "../lib/scrollPin";
+import {stabilizeConversation,observeConversationGeometry,captureReadingAnchor,restoreReadingAnchor,reconcileThreadIdentities,type ThreadRenderIdentity,type ReadingAnchor} from "../lib/conversationScroll";
 import { summarizeReplyPreview } from "../lib/replyPreview";
 import { fmtTime } from "../lib/time";
 import { groupTeamMessages, summarizeTeams, type TeamMessageThread } from "../lib/teams";
@@ -2230,6 +2231,8 @@ export function ChannelPage({
   const pendingSendsRef = useRef<Array<{ id: number; draft: string; replyTo: number | null }>>([]);
   const pendingSendIdRef = useRef(0);
   const stickBottom = useRef(true);
+  const readingAnchorRef = useRef<ReadingAnchor | null>(null);
+  const threadIdentitiesRef = useRef<ThreadRenderIdentity[]>([]);
   const authFailedRef = useRef(onAuthFailed);
   authFailedRef.current = onAuthFailed;
   const {
@@ -3082,15 +3085,6 @@ export function ChannelPage({
     },
     [shareMode],
   );
-  useLayoutEffect(() => {
-    const el = streamRef.current;
-    if (el !== null) pinToBottom(el, stickBottom.current);
-    const frame = window.requestAnimationFrame(() => {
-      const current = streamRef.current;
-      if (current !== null) pinToBottom(current, stickBottom.current);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [lastSeq]);
 
   useEffect(() => {
     if (shouldMarkSeen(document.hidden, stickBottom.current)) sendSeen(lastSeq);
@@ -3106,14 +3100,11 @@ export function ChannelPage({
   useEffect(() => {
     const el = streamRef.current;
     if (el === null) return;
-    const repin = () => pinToBottom(el, stickBottom.current);
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(repin);
-    observer?.observe(el);
-    el.addEventListener("load", repin, true);
-    return () => {
-      observer?.disconnect();
-      el.removeEventListener("load", repin, true);
+    const repin = () => {
+      if (pendingAnchorRef.current !== null) return;
+      readingAnchorRef.current = stabilizeConversation(el, stickBottom.current, readingAnchorRef.current);
     };
+    return observeConversationGeometry(el, repin);
   }, []);
 
   // 当前频道已加载窗口里所有 @我的确定性通知 id：聚焦时据此精确清掉本频道在通知中心的
@@ -3153,6 +3144,7 @@ export function ChannelPage({
     if (anchor === null || el === null) return;
     pendingAnchorRef.current = null;
     el.scrollTop = el.scrollHeight - anchor.height + anchor.top;
+    readingAnchorRef.current = captureReadingAnchor(el);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firstSeq]);
 
@@ -3208,7 +3200,9 @@ export function ChannelPage({
   const onScroll = useCallback(() => {
     const el = streamRef.current;
     if (el === null) return;
-    stickBottom.current = isNearBottom(el);
+    // A reader even slightly above the bottom must not be pulled down again.
+    stickBottom.current = isNearBottom(el, 2);
+    readingAnchorRef.current = captureReadingAnchor(el);
     if (stickBottom.current) sendSeen(lastSeqRef.current); // 滚到底＝看到了最新，回执已读
     if (el.scrollTop < TOP_LOAD_PX) loadOlder();
   }, [loadOlder, sendSeen]);
@@ -3860,6 +3854,20 @@ export function ChannelPage({
     () => completionOnly ? visibleMessages.map((message) => ({ type: "message" as const, message })) : groupTeamMessages(visibleMessages),
     [completionOnly, visibleMessages],
   );
+  const threadKeys = useMemo(() => {
+    const threads = visibleTimeline.filter((item): item is TeamMessageThread => item.type === "team_thread");
+    const identities = reconcileThreadIdentities(threads, threadIdentitiesRef.current);
+    threadIdentitiesRef.current = identities;
+    return new Map(threads.map((thread, index) => [thread, identities[index]!.key]));
+  }, [visibleTimeline]);
+  // Geometry-only, idempotent correction before paint. Receipt/font/stream growth
+  // follows only an already-bottom reader; an up-scrolled reader keeps their anchor.
+  // No delayed second RAF can override a gesture.
+  useLayoutEffect(() => {
+    const el = streamRef.current;
+    if (el === null || pendingAnchorRef.current !== null) return;
+    readingAnchorRef.current = stabilizeConversation(el, stickBottom.current, readingAnchorRef.current);
+  });
   const visibleSearchHits = useMemo(() => filterByAgent(searchHits, agentFilter), [agentFilter, searchHits]);
   // #339 触顶上翻只挂在 onScroll 上：开 agent 筛选/completionOnly 后内容可能撑不满视口，
   // 元素不可滚动 → scroll 永不触发 → 历史永远加载不出来。这里主动补拉，
@@ -4829,7 +4837,7 @@ export function ChannelPage({
           {activePanel === "collaboration" && (
             <Suspense fallback={<p role="status">{t("Collab.loading")}</p>}>
               <CollaborationHub key={`${slug}:${workspaceFiles?"files":"default"}`} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed}
-                initialTab={workspaceFiles?"files":cloudConnectTarget==="hermes"?"agents":cloudConnectTarget?"bridges":undefined}
+                initialTab={workspaceFiles?"files":cloudConnectTarget?"bridges":undefined}
                 initialProvider={cloudConnectTarget??undefined} />
             </Suspense>
           )}
@@ -5096,7 +5104,7 @@ export function ChannelPage({
                 />
               ) : (
                 <TeamThread
-                  key={item.key + `:${item.firstSeq}-${item.lastSeq}`}
+                  key={threadKeys.get(item)}
                   thread={item}
                   self={state.self}
                   identityDisplay={identityDisplay}

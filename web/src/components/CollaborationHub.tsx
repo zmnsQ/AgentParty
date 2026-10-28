@@ -5,6 +5,7 @@ import { AuthError, ForbiddenError } from "../lib/api";
 import { apiBase } from "../lib/base";
 import { collaborationApi, CollaborationApiError, collaborationError, type CollaborationClient } from "../lib/collaborationApi";
 import { useT } from "../i18n/useT";
+import { ConnectorGrants } from "./ConnectorGrants";
 import { CloudAgentConnections } from "./CloudAgentConnections";
 import { RepositoryConnections } from "./RepositoryConnections";
 import { ChannelFiles } from "./ChannelFiles";
@@ -14,7 +15,7 @@ import { OriginalProjectCredit } from "./OriginalProjectCredit";
 import "../i18n/strings/CollaborationHub";
 import "../styles/collaboration.css";
 
-const TABS = ["bridges", "agents", "files", "repositories"] as const;
+const TABS = ["bridges", "files", "repositories"] as const;
 type Tab = typeof TABS[number];
 
 interface CollaborationHubProps {
@@ -23,7 +24,7 @@ interface CollaborationHubProps {
   archived?: boolean;
   onAuthFailed?(message: string): void;
   client?: CollaborationClient;
-  initialTab?: Tab;
+  initialTab?: Tab | "agents";
   initialProvider?: CloudAgentChoice;
 }
 
@@ -38,7 +39,8 @@ export function CollaborationHub(props: CollaborationHubProps) {
 function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, client = collaborationApi, server, initialTab, initialProvider }: CollaborationHubProps & { server: string }) {
   const t = useT();
   const [apiProvider,setApiProvider] = useState<"hermes"|"manus"|undefined>();
-  const [tab, setTab] = useState<Tab>(initialTab??"bridges");
+  const [tab, setTab] = useState<Tab>(initialTab==="agents"?"bridges":initialTab??"bridges");
+  const [connectionView,setConnectionView]=useState<"setup"|"manage"|"configure">(initialTab==="agents"?"manage":"setup");
   // Keep the selected tab visible without scrolling the whole mobile dialog.
   useEffect(() => {
     const item = typeof document !== "undefined" ? document.getElementById?.(`commons-tab-${tab}`) : null;
@@ -85,16 +87,27 @@ function ScopedCollaborationHub({ token, slug, archived = false, onAuthFailed, c
   const current = summary === null ? null : { ...summary, permissions: { manage: !archived && summary.permissions.manage, run: !archived && summary.permissions.run, upload: !archived && summary.permissions.upload } };
   return <div className="commons-hub">
     <header className="commons-hero"><div><span className="commons-kicker">AGENT COMMONS</span><h2>{t("Studio.connectLead")}</h2><p>{t("Studio.connectSub")}</p></div><details className="studio-group-detail"><summary>{t("Studio.id")}</summary><code>#{slug}</code></details></header>
-    <div className="commons-nav"><div role="tablist" aria-label={t("Collab.title")}>{TABS.map((item) => <button className={`commons-tab ${tab === item ? "is-active" : ""}`} key={item} id={`commons-tab-${item}`} type="button" role="tab" aria-selected={tab === item} aria-controls={`commons-panel-${item}`} tabIndex={tab === item ? 0 : -1} onKeyDown={(event) => selectWithKeyboard(event, item)} onClick={() => setTab(item)}>{t(item==="bridges"?"Studio.setup":item==="agents"?"Studio.manage":item==="files"?"Studio.files":"Studio.code")}{summary !== null && ((item === "agents" && summary.connections.length > 0) || (item === "repositories" && summary.repositories.length > 0)) && <span>{item === "agents" ? summary.connections.length : summary.repositories.length}</span>}</button>)}</div><button className="d-btn" type="button" disabled={loading} onClick={() => void refresh()} aria-label={t("Collab.refresh")}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
+    <div className="commons-nav"><div role="tablist" aria-label={t("Collab.title")}>{TABS.map((item) => <button className={`commons-tab ${tab === item ? "is-active" : ""}`} key={item} id={`commons-tab-${item}`} type="button" role="tab" aria-selected={tab === item} aria-controls={`commons-panel-${item}`} tabIndex={tab === item ? 0 : -1} onKeyDown={(event) => selectWithKeyboard(event, item)} onClick={() => setTab(item)}>{t(item==="bridges"?"Studio.addAgent":item==="files"?"Studio.files":"Studio.code")}{summary !== null && ((item === "repositories" && summary.repositories.length > 0)) && <span>{summary.repositories.length}</span>}</button>)}</div><button className="d-btn" type="button" disabled={loading} onClick={() => void refresh()} aria-label={t("Collab.refresh")}>{t(loading ? "Collab.loading" : "Collab.refresh")}</button></div>
     {error !== null && <p className="commons-error" role="alert">{error}</p>}
     {summary === null && loading && <p className="commons-empty" role="status">{t("Collab.loading")}</p>}
     {current !== null && <>
       {!current.permissions.manage && <p className="commons-muted">{t("Collab.readOnly")}</p>}
       <div key={tab} className="commons-panel" id={`commons-panel-${tab}`} role="tabpanel" aria-labelledby={`commons-tab-${tab}`}>
-        {tab === "agents" && <><p className="studio-direct-hint">{t("Studio.directHint")}</p><CloudAgentConnections initialProvider={apiProvider} token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} /></>}
+
         {tab === "repositories" && <RepositoryConnections token={token} slug={slug} summary={current} client={client} onChanged={() => refresh()} />}
         {tab === "files" && <ChannelFiles token={token} slug={slug} canUpload={current.permissions.upload} client={client} />}
-        {tab === "bridges" && <CloudBridges token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} onConfigureApi={provider=>{setApiProvider(provider);setTab("agents");}} />}
+        {tab === "bridges" && <>
+          <nav className="commons-actions" aria-label={t("Studio.addAgent")}>
+            <button className="d-btn" type="button" aria-pressed={connectionView!=="manage"} onClick={()=>{setApiProvider(undefined);setConnectionView("setup");}}>{t("Studio.setup")}</button>
+            <button className="d-btn" type="button" aria-pressed={connectionView==="manage"} onClick={()=>{setApiProvider(undefined);setConnectionView("manage");}}>{t("Studio.manage")}</button>
+          </nav>
+          {connectionView==="setup" && <CloudBridges showAuthorizationManagement={false} token={token} slug={slug} canManage={current.permissions.manage} canRun={current.permissions.run} initialProvider={initialProvider} onConfigureApi={provider=>{setApiProvider(provider);setConnectionView("configure");}} />}
+          {connectionView!=="setup" && <>
+            {connectionView==="configure" && <button className="d-btn" type="button" onClick={()=>setConnectionView("setup")}>{t("Studio.backPlatforms")}</button>}
+            <CloudAgentConnections key={connectionView+":"+(apiProvider??"")} initialProvider={connectionView==="configure"?apiProvider:undefined} token={token} slug={slug} summary={current} client={client} onChanged={()=>refresh()} onConnect={()=>{setApiProvider(undefined);setConnectionView("setup");}} />
+            {connectionView==="manage" && current.permissions.manage && <section><h3>{t("Studio.authorizedConnections")}</h3><ConnectorGrants slug={slug}/></section>}
+          </>}
+        </>}
       </div>
     </>}
     <footer className="commons-attribution"><details className="commons-project-credit"><summary>{t("Attribution.label")}</summary><OriginalProjectCredit compact /></details></footer>

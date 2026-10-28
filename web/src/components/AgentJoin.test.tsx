@@ -1137,3 +1137,36 @@ describe("mixed cloud and coding team onboarding",()=>{
     expect(savedAgents[0]!.command).not.toContain("--harness "+(provider==="codex"?"claude":"codex"));
   });
 });
+
+describe('controlled header invitation',()=>{
+ function update(r:ReactTestRenderer,extra:Partial<React.ComponentProps<typeof AgentJoin>>){
+  act(()=>r.update(<LocaleProvider><AgentJoin slug="demo" token="owner-token" namePrefix="leo" inviterName="host" charter={null} accountKey="acct-1" presence={[]} messages={[]} {...extra}/></LocaleProvider>));
+ }
+ test('false to true opens compose without creating credentials; close and reopen work',()=>{
+  const r=render(undefined,null,{active:false,presence:[],messages:[]});
+  expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(0);
+  update(r,{active:true});expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(1);
+  expect(savedAgents).toHaveLength(0);
+  update(r,{active:false});expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(0);
+  update(r,{active:true});expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(1);
+  expect(savedAgents).toHaveLength(0);
+ });
+ test('active true on mount opens compose, but unchanged true does not reopen a dismissed dialog',()=>{
+  const r=render(undefined,null,{active:true,presence:[],messages:[]});
+  expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(1);
+  act(()=>windowEvents.emit('keydown',{key:'Escape'}));
+  update(r,{active:true});expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(0);
+ });
+ test('guide wins over compose and reopens the same recovery guide after a controlled close',()=>{
+  const guideSession={name:'existing-helper',command:'party recover demo',mode:'interactive' as const,harness:'codex' as const,runner:'codex' as const,recover:true};
+  const r=render(undefined,null,{active:false,guideSession,presence:[],messages:[]});
+  expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(0);
+  update(r,{active:true,guideSession});
+  const steps=()=>r.root.findAll(n=>n.props['data-step']===2);
+  expect(steps()).toHaveLength(1);
+  update(r,{active:true,guideSession});expect(steps()).toHaveLength(1);
+  update(r,{active:false,guideSession});expect(r.root.findAll(n=>n.props.role==='dialog')).toHaveLength(0);
+  update(r,{active:true,guideSession});expect(steps()).toHaveLength(1);
+  expect(savedAgents).toHaveLength(0);
+ });
+});

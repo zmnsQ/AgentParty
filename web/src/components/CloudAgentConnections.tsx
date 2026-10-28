@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { CloudAgentConnection, CloudAgentConnectionInput, CloudAgentRun, CollaborationSummary, DirectAgentProvider } from "@agentparty/shared/collaboration";
 import { collaborationError, isActiveCloudRun, type CollaborationClient } from "../lib/collaborationApi";
-import { apiOrigin } from "../lib/base";
 import { useT } from "../i18n/useT";
 import { useLocale } from "../i18n/locale";
 import "../i18n/strings/CollaborationHub";
@@ -18,6 +17,7 @@ interface AgentProps {
   client: CollaborationClient;
   onChanged(): Promise<void>;
   initialProvider?: DirectAgentProvider;
+  onConnect?():void;
 }
 
 function ConnectionForm({ token, slug, connection, client, onSaved, onClose, initialProvider }: {
@@ -185,7 +185,7 @@ export function CloudAgentRuns({ token, slug, connection, canRun, client }: {
   );
 }
 
-export function CloudAgentConnections({ token, slug, summary, client, onChanged, initialProvider }: AgentProps) {
+export function CloudAgentConnections({ token, slug, summary, client, onChanged, initialProvider, onConnect }: AgentProps) {
   const t = useT();
   const { locale } = useLocale();
   const [selectedId, setSelectedId] = useState<string | null>(summary.connections[0]?.id ?? null);
@@ -194,17 +194,7 @@ export function CloudAgentConnections({ token, slug, summary, client, onChanged,
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const selected = summary.connections.find((item) => item.id === selectedId) ?? summary.connections[0] ?? null;
-  const mcpUrl = new URL(summary.mcp_endpoint, apiOrigin()).toString();
-  const copyMcpUrl = async () => {
-    setCopied(false);
-    try {
-      if (!navigator.clipboard) throw new Error("Clipboard unavailable");
-      await navigator.clipboard.writeText(mcpUrl);
-      setCopied(true);
-    } catch { setError(t("Collab.copyFailed")); }
-  };
   const remove = async (id: string) => {
     if (deleting) return;
     setDeleting(true); setError(null);
@@ -214,7 +204,7 @@ export function CloudAgentConnections({ token, slug, summary, client, onChanged,
   };
   return (
     <div className="commons-agents">
-      <div className="commons-section-head"><h2>{t("Collab.agents")}</h2>{summary.permissions.manage && <button className="d-btn commons-primary" type="button" onClick={() => { setForm("new"); setNotice(null); }}>{t("Collab.addAgent")}</button>}</div>
+      <div className="commons-section-head"><h2>{t("Collab.agents")}</h2>{summary.permissions.manage && <button className="d-btn commons-primary" type="button" onClick={() => { if(onConnect){onConnect();return;} setForm("new"); setNotice(null); }}>{t("Collab.addAgent")}</button>}</div>
       {notice && <p className="commons-success" role="status">{notice}</p>}
       {error && <p className="commons-error" role="alert">{error}</p>}
       {form !== null && <ConnectionForm initialProvider={initialProvider} key={form === "new" ? "new" : form.id} token={token} slug={slug} connection={form === "new" ? null : form} client={client} onClose={() => setForm(null)} onSaved={async (id) => { setForm(null); setSelectedId(id); setNotice(t("Collab.saved")); await onChanged(); }} />}
@@ -231,13 +221,7 @@ export function CloudAgentConnections({ token, slug, summary, client, onChanged,
           <CloudAgentRuns key={selected.id} token={token} slug={slug} connection={selected} client={client} canRun={summary.permissions.run} />
         </div>}
       </div>}
-      <details className="commons-mcp"><summary>{t("Collab.mcpTitle")}</summary>
-        <p>{t("Collab.mcpHint")}</p>
-        <div className="commons-provider-grid">{summary.providers.filter((provider) => provider.integration === "mcp-tools").map((provider) => <article key={provider.id} className="commons-provider"><strong>{provider.name}</strong><span>{t("Collab.toolsBridge")}</span><a href={provider.docs_url} target="_blank" rel="noreferrer">{t("Collab.docs")} ↗</a></article>)}</div>
-        <label className="commons-endpoint">{t("Collab.mcpEndpoint")}<input value={mcpUrl} readOnly onFocus={(event) => event.currentTarget.select()} /></label>
-        <button className="d-btn" type="button" onClick={() => void copyMcpUrl()}>{t(copied ? "Collab.copied" : "Collab.copy")}</button>
-        <p className="commons-muted">{t("Collab.mcpSetup")}</p><p className="commons-note">{t("Collab.mcpDot")}</p><p className="commons-muted">{t("Collab.mcpOther")}</p>
-      </details>
+
     </div>
   );
 }

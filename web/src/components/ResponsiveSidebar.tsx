@@ -31,6 +31,6 @@ export function ResponsiveSidebar({children,activeSlug,title,requestOpen=0,mobil
  return <>{activeSlug?(triggerHost?createPortal(toggle,triggerHost):<div className="mobile-navigation-fallback">{toggle}</div>):<div className="mobile-groupbar">{toggle}</div>}
  {open&&<ModalPortal><div id={drawerId} ref={dialog} className="mobile-groups-overlay prototype-native-drawer" role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}>
  <button type="button" className="mobile-groups-scrim" tabIndex={-1} aria-label={close} onClick={()=>setOpen(false)}/>
- <aside className="app-side mobile-groups-drawer"><header><h2>{label}</h2><button className="d-btn" type="button" aria-label={close} onClick={()=>setOpen(false)}><StudioIcon name="close"/></button></header><div className="mobile-groups-content" onClick={e=>{if((e.target as HTMLElement).closest(".chan-pill"))setOpen(false);}}>{children}{mobileActions&&<div className="mobile-drawer-actions" onClick={()=>setOpen(false)}>{mobileActions}</div>}</div></aside>
+ <aside className="app-side mobile-groups-drawer"><header><h2>{label}</h2><button className="d-btn" type="button" aria-label={close} onClick={()=>setOpen(false)}><StudioIcon name="close"/></button></header><div className="mobile-groups-content" onClick={e=>{if((e.target as HTMLElement).closest(".chan-pill"))setOpen(false);}}>{children}{mobileActions&&<div className="mobile-drawer-actions" onClick={e=>{if((e.target as HTMLElement).closest("button,a"))setOpen(false);}}>{mobileActions}</div>}</div></aside>
  </div></ModalPortal>}</>;
 }

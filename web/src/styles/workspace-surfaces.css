@@ -1,0 +1,52 @@
+/* Application chrome, not a framed presentation. Root tokens also reach portals. */
+html:root #root:has(>.prototype-native-workspace){padding:0;height:var(--ac-viewport-height,100dvh);}
+html:root .app.prototype-native-workspace{display:block;border:0;border-radius:0;box-shadow:none;--prototype-rail-width:0px;}
+html:root .prototype-native-workspace>.workspace-frame{width:100%;height:100%;}
+html:root .prototype-native-workspace .workspace-shell{grid-template-columns:260px minmax(0,1fr);}
+html:root .prototype-native-workspace .workspace-shell.navigation-collapsed{grid-template-columns:44px minmax(0,1fr);}
+html:root .prototype-native-workspace .workspace-navigation{display:flex;flex-direction:column;border-right:1px solid var(--t-border);}
+html:root .prototype-native-workspace .workspace-nav-body{flex:1;min-height:0;height:auto;padding-bottom:0;}
+html:root .workspace-navigation-footer{flex:none;min-height:58px;padding:8px 40px 8px 12px;border-top:1px solid var(--t-border);}
+html:root .workspace-account-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;min-width:0;color:var(--t-text);}
+html:root .workspace-account-controls .app-logo{font:500 11px/1.4 var(--t-sans);min-width:0;white-space:nowrap;text-decoration:none;}
+html:root .workspace-account-controls .prototype-rail-footer{display:flex;flex-direction:row;gap:5px;align-items:center;}
+html:root .workspace-account-controls :is(.prototype-rail-button,.prototype-rail-account){display:grid;place-items:center;list-style:none;width:30px;height:32px;min-height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--t-muted);}
+html:root .workspace-account-controls .prototype-rail-account{background:var(--ac-accent-soft);color:var(--t-text);border-radius:50%;}
+html:root .workspace-account-controls .prototype-rail-popover{position:fixed;bottom:62px;left:12px;top:auto;z-index:95;display:flex;flex-direction:column;align-items:stretch;gap:12px;width:min(280px,calc(100vw - 24px));max-height:calc(100dvh - 100px);overflow:auto;padding:16px;border:1px solid var(--t-border);border-radius:14px;background:var(--t-panel);color:var(--t-text);box-shadow:var(--ac-shadow-popover);}
+html:root .workspace-account-controls .prototype-rail-popover .app-settings-btn{display:flex;align-items:center;gap:8px;width:auto;height:auto;padding:8px;}
+html:root .navigation-collapsed .workspace-navigation-footer{padding:8px 4px 44px;}
+html:root .navigation-collapsed .workspace-account-controls{justify-content:center;}
+html:root .navigation-collapsed .workspace-account-controls .app-logo{display:none;}
+html:root .navigation-collapsed .prototype-rail-footer{flex-direction:column;}
+/* All second-level hosts share the same prototype language, including body portals. */
+html:root :is(.conversation-details-panel,.channel-panel-card,.settings-panel,.agentjoin-dialog,.agentmanager-dialog,.sectioned-dialog,.sectioned-dialog-panel,.desktop-install-dialog,.handlesetup-panel){background:var(--t-panel);color:var(--t-text);border-color:var(--t-border);box-shadow:var(--ac-shadow-modal);font-family:var(--t-sans);}
+html:root :is(.settings-head,.channel-panel-head,.conversation-details-panel>header){min-height:60px;padding:14px 20px;border-bottom:1px solid var(--t-border);background:var(--t-panel);color:var(--t-text);}
+html:root :is(.settings-title,.channel-panel-head h2,.conversation-details-panel h2){font:550 15px/1.5 var(--t-sans);letter-spacing:0;margin:0;}
+html:root :is(.channel-panel-body,.conversation-details-content,.settings-content){padding:20px;}
+html:root :is(.settings-nav,.sectioned-dialog-nav){background:var(--t-panel2);}
+html:root :is(.settings-tab,.sectioned-dialog-tab,.commons-tab){border-radius:9px;color:var(--t-muted);font-size:12px;}
+html:root :is(.settings-tab.is-active,.sectioned-dialog-tab[aria-selected=true],.commons-tab.is-active){background:var(--ac-accent-soft);color:var(--t-text);box-shadow:none;}
+html:root :is(.msg-menu,.msg-agent-card,.presence-popover,.invite-paste-panel,.desktop-updater-panel){background:var(--t-panel);color:var(--t-text);border:1px solid var(--t-border);border-radius:12px;box-shadow:var(--ac-shadow-popover);}
+html:root :is(.d-card,.commons-agent-card,.commons-form,.commons-file,.commons-repo-card,.commons-review,.agentmanager-detail,.connector-usage){background:var(--t-panel2);border:1px solid var(--t-border);border-radius:12px;box-shadow:none;}
+html:root .d-btn--primary{background:var(--t-accent);color:var(--t-accent-ink);border-color:transparent;border-radius:10px;box-shadow:none;}
+html:root .conversation-tools-grid>.d-btn{background:var(--t-panel2);border-radius:10px;min-height:44px;}
+html:root .conversation-details-content .presence-bar{background:transparent;box-shadow:none;}
+html:root .commons-hero{padding-bottom:16px;}
+html:root .commons-hero h2{font:550 20px/1.5 var(--t-sans);letter-spacing:0;}
+html:root .commons-nav{margin-bottom:16px;}
+html:root :is(.commons-empty,.agent-connect-option,.connector-capabilities>div,.connector-step,.commons-form){border-radius:12px;border-color:var(--t-border);}
+html:root .stream article.msg-card[data-prototype-message]{animation:none;transition:none;}
+@media(max-width:760px),(max-height:760px) and (pointer:coarse){
+ html:root .prototype-native-workspace .workspace-shell,html:root .prototype-native-workspace .workspace-shell.navigation-collapsed{display:flex;}
+ html:root .prototype-native-drawer .mobile-groups-drawer{left:0;width:min(290px,calc(100vw - 40px));border-radius:0;}
+ html:root .prototype-native-drawer .mobile-groups-scrim{background:var(--ac-backdrop);}
+ html:root .mobile-drawer-actions{display:block;padding:12px 0;}
+ html:root .workspace-account-controls .prototype-rail-popover{left:12px;bottom:70px;}
+ html:root :is(.channel-panel-body,.conversation-details-content,.settings-content){padding:14px;}
+}
+/* Embedded invitation forms are content, never the legacy floating popover. */
+html:root .joinlink-panel--embedded{position:static;inset:auto;width:100%;max-width:none;max-height:none;margin:0;overflow:visible;box-sizing:border-box;background:var(--t-panel2);border-radius:12px;box-shadow:none;}
+html:root .joinlink-gen-row{flex-wrap:wrap;}
+html:root .joinlink-mode{flex-wrap:wrap;}
+html:root .joinlink-mode-opt.is-active{background:var(--ac-accent-soft);color:var(--t-text);}
+html:root .d-btn:disabled{color:var(--t-muted);background:var(--t-panel2);border-color:var(--t-border);opacity:.72;box-shadow:none;}

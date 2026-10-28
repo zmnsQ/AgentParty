@@ -1,10 +1,9 @@
-/* One palette per theme: rail, frame, drawer and main never mix skins. */
-:root {--pn-desktop:#101112;--pn-main:#191a1b;--pn-rail:#2c2f30;--pn-border:#383a3b;--pn-divider:#404243;--pn-text:#e8e8e3;--pn-accent:#c4a99b;--pn-muted:#aaaead;--pn-selected:#222526;--pn-avatar:#7b7067;--pn-avatar-text:#f2e8df;--pn-panel:#232525;--pn-hover:#ffffff0c;}
-:root[data-theme="doodle"] {--pn-desktop:#e8e5df;--pn-main:#f5f4ef;--pn-rail:#eceae3;--pn-border:#d7d4cb;--pn-divider:#d7d4cb;--pn-text:#393a35;--pn-accent:#876b5a;--pn-muted:#686d64;--pn-selected:#dfddd4;--pn-avatar:#86786b;--pn-avatar-text:#fffaf0;--pn-panel:#faf9f4;--pn-hover:#00000008;}
+/* One root palette shared by workspace and body-portaled secondary surfaces. */
+:root {--pn-desktop:var(--t-bg);--pn-main:var(--t-bg);--pn-rail:var(--ac-surface-1);--pn-border:var(--t-border);--pn-divider:var(--t-border);--pn-text:var(--t-text);--pn-accent:var(--t-accent);--pn-muted:var(--t-muted);--pn-selected:var(--ac-accent-soft);--pn-avatar:#7b7067;--pn-avatar-text:#f2e8df;--pn-panel:var(--t-panel);--pn-hover:var(--ac-hover);}
 /* Native frame transplanted from the supplied Muse workspace prototype.
    Actual account, route and command handlers remain owned by App. */
-:root #root:has(>.prototype-native-workspace) {box-sizing:border-box;padding:22px;background:var(--pn-desktop);height:var(--ac-viewport-height,100dvh);}
-:root .app.prototype-native-workspace {--prototype-rail-width:62px;--ac-navigation-width:225px;display:grid;grid-template-columns:62px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%;min-height:0;overflow:hidden;border:1px solid var(--pn-border);border-radius:15px;background:var(--pn-main);box-shadow:0 24px 90px #0003;}
+:root #root:has(>.prototype-native-workspace) {box-sizing:border-box;padding:0;background:var(--pn-desktop);height:var(--ac-viewport-height,100dvh);}
+:root .app.prototype-native-workspace {--prototype-rail-width:62px;--ac-navigation-width:225px;display:grid;grid-template-columns:62px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%;min-height:0;overflow:hidden;border:0;border-radius:0;background:var(--pn-main);box-shadow:none;}
 :root .prototype-native-workspace>.app-head.prototype-rail {display:flex;flex-direction:column;align-items:center;justify-content:flex-start;grid-column:1;grid-row:1;width:62px;height:100%;min-height:0;padding:20px 0 17px;gap:0;background:var(--pn-rail);border:0;border-right:1px solid var(--pn-divider);border-radius:0;overflow:visible;}
 .prototype-native-workspace .prototype-native-wordmark {display:block;padding-right:4px;font:bold italic 35px/1 Georgia,serif;letter-spacing:-3px;color:var(--pn-text);}
 .prototype-native-wordmark>span {color:var(--pn-accent);}
@@ -32,13 +31,13 @@
 :root .prototype-native-workspace .app-main {min-width:0;min-height:0;background:var(--pn-main);}
 .prototype-native-workspace :is(button,a,summary):focus-visible {outline:2px solid var(--pn-accent);outline-offset:2px;}
 @media(min-width:1450px) {
- :root #root:has(>.prototype-native-workspace) {padding:38px 54px;}
+ :root #root:has(>.prototype-native-workspace) {padding:0;}
  :root .app.prototype-native-workspace {--prototype-rail-width:74px;--ac-navigation-width:240px;grid-template-columns:74px minmax(0,1fr);}
  :root .prototype-native-workspace>.app-head.prototype-rail {width:74px;}
  :root .prototype-native-workspace .workspace-shell {grid-template-columns:240px minmax(0,1fr);}
 }
 @media(max-width:1000px) and (min-width:761px) {
- :root #root:has(>.prototype-native-workspace) {padding:12px;}
+ :root #root:has(>.prototype-native-workspace) {padding:0;}
  :root .prototype-native-workspace .workspace-shell {grid-template-columns:195px minmax(0,1fr);}
 }
 @media(max-width:760px), (max-height:760px) and (pointer:coarse), (max-device-width:760px) and (pointer:coarse), (max-device-height:760px) and (pointer:coarse) {

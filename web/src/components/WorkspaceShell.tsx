@@ -9,7 +9,7 @@ function storedCollapsed() {
   try { return localStorage.getItem(key) === "1"; } catch { return false; }
 }
 /** Navigation state is a device preference, never an account or permission decision. */
-export function WorkspaceShell({navigation, children, route, navigationError, requestOpen = 0, title, mobileActions}: {navigation: ReactNode; children: ReactNode; route: string | null; navigationError?: string | null; requestOpen?: number; title?: string | null; mobileActions?: ReactNode}) {
+export function WorkspaceShell({navigation, children, route, navigationError, requestOpen = 0, title, mobileActions, navigationFooter}: {navigation: ReactNode; children: ReactNode; route: string | null; navigationError?: string | null; requestOpen?: number; title?: string | null; mobileActions?: ReactNode; navigationFooter?:ReactNode}) {
   const {locale} = useLocale();
   const zh = locale === "zh";
   const [collapsed, setCollapsed] = useState(storedCollapsed);
@@ -26,6 +26,7 @@ export function WorkspaceShell({navigation, children, route, navigationError, re
           try { localStorage.setItem(key, next ? "1" : "0"); } catch { /* In-memory state still works. */ }
         }}><StudioIcon name={collapsed ? "chevron-right" : "arrow-left"}/></button>
       <div className="workspace-nav-body" id="workspace-navigation-content" hidden={collapsed}><div className="workspace-nav-inner">{navigation}</div></div>
+      {navigationFooter&&<div className="workspace-navigation-footer">{navigationFooter}</div>}
     </aside>}
     {children}
   </div></div>;

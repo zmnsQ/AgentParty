@@ -17,13 +17,13 @@ test("Hermes choice has a real next step and does not mutate configuration",asyn
  let next="";await act(async()=>{renderer=create(<LocaleProvider><CloudBridges token="fixture" slug="group" canManage canRun initialProvider="hermes" onConfigureApi={v=>{next=v;}}/></LocaleProvider>);});
  const root=renderer!.root;expect(text(root)).toContain("running Hermes API Server");
  expect(root.findAllByType("form")).toHaveLength(0);
- await act(async()=>root.findAllByType("button").find(n=>text(n)==="Configure Hermes API connection")!.props.onClick());
+ await act(async()=>root.findAllByType("button").find(n=>text(n)==="Continue with Hermes")!.props.onClick());
  expect(next).toBe("hermes");expect(calls.every(m=>m==="GET")).toBe(true);
  expect(text(root)).not.toContain("two-step verification");
 });
 test("Cue discovery is separate from binding and Grok does not promise personal login",async()=>{
  await act(async()=>{renderer=create(<LocaleProvider><CloudBridges token="fixture" slug="group" canManage canRun initialProvider="cue" onConfigureApi={()=>{}}/></LocaleProvider>);});
- const root=renderer!.root;expect(text(root)).toContain("Have an agent ID?");
+ const root=renderer!.root;expect(text(root)).toContain("Continue with Cue");
  await act(async()=>root.findAllByType("button").find(n=>text(n).includes("Grok Bot"))!.props.onClick());
  expect(text(root)).toContain("not a personal Grok Bot login");expect(text(root)).toContain("replies are not automatically imported");
  expect(root.findAllByProps({type:"password"})).toHaveLength(1);

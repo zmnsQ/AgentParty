@@ -2,21 +2,25 @@
 import {test,expect} from 'bun:test';
 import {readFileSync} from 'node:fs';
 const app=readFileSync(new URL('../App.tsx',import.meta.url),'utf8');
-const css=readFileSync(new URL('../styles/prototype-native-frame.css',import.meta.url),'utf8');
-test('prototype rail separates primary actions from existing account and advanced controls',()=>{
- const rail=app.slice(app.indexOf('<header className="app-head prototype-rail">'),app.indexOf('</header>',app.indexOf('<header className="app-head prototype-rail">')));
- const nav=rail.slice(rail.indexOf('<nav'),rail.indexOf('</nav>'));
- expect(nav).toContain('setWorkspaceAction');expect(nav).not.toContain('<details');
- const footer=rail.slice(rail.indexOf('prototype-rail-footer'));
- expect(footer).toContain('prototype-rail-more');expect(footer).toContain('ref={settingsButtonRef}');expect(footer).toContain('onClick={openSettings}');expect(footer).toContain('prototype-rail-account');
- expect(rail).toContain('Agent Commons');expect(rail).not.toContain('>J<');
+const css=readFileSync(new URL('../styles/workspace-surfaces.css',import.meta.url),'utf8');
+const frame=readFileSync(new URL('../styles/prototype-native-frame.css',import.meta.url),'utf8');
+const shell=readFileSync(new URL('./WorkspaceShell.tsx',import.meta.url),'utf8');
+test('account and advanced controls live in the sidebar footer, not a standalone rail',()=>{
+ expect(app).not.toContain('<header className="app-head prototype-rail">');
+ expect(app).toContain('const accountControls =');expect(app).toContain('className="workspace-account-controls"');
+ expect(app).toContain('mobileActions={accountControls} navigationFooter={accountControls}');
+ expect(app).toContain('ref={settingsButtonRef}');expect(app).toContain('onClick={openSettings}');expect(app).toContain('App.workspace.tools');
+ expect(shell).toContain('workspace-navigation-footer');expect(app).toContain('workspace-brand-label">Agent Commons');
 });
-test('prototype dimensions keep mobile rail visible and landscape actions reachable',()=>{
- expect(css).toContain('padding:22px');expect(css).toContain('border-radius:15px');expect(css).toContain('grid-template-columns:62px minmax(0,1fr)');expect(css).toContain('grid-template-columns:225px minmax(0,1fr)');
- expect(css).toContain('grid-template-columns:74px minmax(0,1fr)');expect(css).toContain('grid-template-columns:240px minmax(0,1fr)');
- expect(css).toContain('grid-template-columns:calc(49px + env(safe-area-inset-left)) minmax(0,1fr)');expect(css).toContain('overflow-y:auto');expect(css).toContain('max(15px,env(safe-area-inset-bottom))');
+test('current surface layer fills viewport and removes the framed rail layout',()=>{
+ expect(css).toMatch(/#root:has\(>\.prototype-native-workspace\)\s*\{padding:0;height:var\(--ac-viewport-height,100dvh\)/);
+ expect(css).toMatch(/\.app\.prototype-native-workspace\s*\{display:block;border:0;border-radius:0;box-shadow:none;--prototype-rail-width:0px/);
+ expect(css).toContain('.prototype-native-workspace>.workspace-frame{width:100%;height:100%;}');
+ expect(css).toContain('grid-template-columns:260px minmax(0,1fr)');expect(css).toContain('grid-template-columns:44px minmax(0,1fr)');
+ expect(css).toContain('.mobile-groups-drawer{left:0;');expect(css).toContain('max-height:calc(100dvh - 100px);overflow:auto');
 });
-test('light theme switches the entire frame palette and collapse no longer overlaps create',()=>{
- expect(css).toContain(':root[data-theme="doodle"]');expect(css).toContain('--pn-main:#f5f4ef');expect(css).toContain('--pn-rail:#eceae3');
- expect(css).toContain('background:var(--pn-main)');expect(css).toContain('background:var(--pn-rail)');expect(css).toContain('top:auto;bottom:8px');expect(css).toContain('padding-bottom:42px');
+test('frame derives palette from root theme and footer controls stay outside scroll area',()=>{
+ expect(frame).toContain('--pn-main:var(--t-bg)');expect(frame).toContain('--pn-rail:var(--ac-surface-1)');expect(frame).toContain('--pn-text:var(--t-text)');
+ expect(css).toContain('.workspace-nav-body{flex:1;min-height:0;height:auto;padding-bottom:0;}');
+ expect(css).toContain('.workspace-navigation-footer{flex:none;');expect(css).toContain('.navigation-collapsed .workspace-navigation-footer');
 });

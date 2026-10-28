@@ -20,3 +20,14 @@ describe("channel stream bottom pinning", () => {
     expect(readingHistory.scrollTop).toBe(300);
   });
 });
+
+test('strict conversation following does not treat a deliberate small upward scroll as bottom',()=>{
+ expect(isNearBottom({scrollTop:799,scrollHeight:1000,clientHeight:200},2)).toBe(true);
+ expect(isNearBottom({scrollTop:780,scrollHeight:1000,clientHeight:200},2)).toBe(false);
+});
+test('already at bottom performs no redundant scroll write',()=>{
+ let writes=0;
+ const viewport={get scrollTop(){return 800;},set scrollTop(_v:number){writes++;},scrollHeight:1000,clientHeight:200};
+ expect(pinToBottom(viewport,true)).toBe(false);
+ expect(writes).toBe(0);
+});

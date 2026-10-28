@@ -126,12 +126,11 @@ describe("cloud agent collaboration controls", () => {
     expect(text(renderer!.root)).not.toContain("Posted to group as message");
   });
 
-  test("requires a verified save, keeps existing credentials write-only, and marks connector setup unfinished", async () => {
+  test("requires a verified save and keeps existing credentials write-only without duplicating setup guides", async () => {
     let saves = 0;
     const api = client({ saveConnection: async () => { saves++; throw new Error("Provider rejected credential"); } });
     await mount(<CloudAgentConnections token="token" slug="demo" summary={summary} client={api} onChanged={async () => {}} />);
-    expect(text(renderer!.root)).toContain("MCP OAuth 2.1");
-    expect(text(renderer!.root)).toContain("MCP Events");
+    expect(renderer!.root.findAllByProps({className:"commons-mcp"})).toHaveLength(0);
     await click("Edit");
     expect(text(renderer!.root)).toContain("running Hermes API Server address");
     expect(text(renderer!.root)).toContain("does not send a task or start a paid run");
@@ -192,7 +191,7 @@ describe("collaboration hub and access", () => {
     await mount(<CollaborationHub initialTab="agents" token="token" slug="demo" client={client({ summary: async () => ({ ...summary, permissions: { manage: false, run: false, upload: false } }) })} />);
     expect(text(renderer!.root)).toContain("A human group owner manages");
     expect(renderer!.root.findAllByType("textarea")).toHaveLength(0);
-    expect(renderer!.root.findAll((node) => node.type === "button" && text(node) === "Connect an agent")).toHaveLength(0);
+    expect(renderer!.root.findAll((node) => node.type === "button" && node.props.role!=="tab" && text(node) === "Connect an agent")).toHaveLength(0);
     await act(async () => { renderer!.root.findByProps({ id: "commons-tab-files" }).props.onClick(); });
     expect(renderer!.root.findAllByProps({ type: "file" })).toHaveLength(0);
     expect(text(renderer!.root)).toContain("notes.txt");
@@ -213,7 +212,8 @@ describe("collaboration hub and access", () => {
     for (const locale of ["en", "zh"]) {
       Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: () => locale, setItem: () => {} } });
       const html = renderToStaticMarkup(<LocaleProvider><CloudAgentConnections token="token" slug="demo" summary={{ ...summary, connections: [] }} client={client()} onChanged={async () => {}} /></LocaleProvider>);
-      expect(html).toContain("OAuth"); expect(html).toContain("MCP Events");
+      expect(html).toContain(locale === "zh" ? "选择平台" : "Choose a platform");
+      expect(html).not.toContain("commons-mcp");
       expect(html).not.toContain("Collab.");
     }
   });
@@ -491,4 +491,28 @@ test("API guide handoff preselects the requested provider without saving or runn
 test("API guide handoff cannot open a configuration form for a read-only member",async()=>{
  const root=await mount(<CloudAgentConnections token="token" slug="demo" initialProvider="hermes" summary={{...summary,connections:[],permissions:{manage:false,run:false,upload:false}}} client={client()} onChanged={async()=>{}}/>);
  expect(root.findAllByType("form")).toHaveLength(0);
+});
+
+
+test("one connection entry leads from platform choice to configuration; existing service and authorization management stay together", async () => {
+ const previousFetch=globalThis.fetch;
+ globalThis.fetch=(async()=>new Response(JSON.stringify({connections:[],agents:[],enabled:false}),{status:200,headers:{"content-type":"application/json"}})) as typeof fetch;
+ try {
+  await mount(<CollaborationHub token="token" slug="demo" client={client()} />);
+  expect(renderer!.root.findAllByProps({role:"tab"})).toHaveLength(3);
+  expect(renderer!.root.findAllByProps({id:"commons-tab-agents"})).toHaveLength(0);
+  expect(renderer!.root.findAllByType("form")).toHaveLength(0);
+  expect(renderer!.root.findAllByType("article")).toHaveLength(0);
+  await click("Hermes Agent");
+  await click("Continue with Hermes");
+  expect(renderer!.root.findAllByType("form").length).toBeGreaterThan(0);
+  expect(text(renderer!.root)).toContain("running Hermes API Server address");
+  await click("Existing connections");
+  expect(text(renderer!.root)).toContain("Research helper");
+  expect(text(renderer!.root)).toContain("Platform authorizations");
+  expect(renderer!.root.findAllByProps({className:"commons-mcp"})).toHaveLength(0);
+  await act(async()=>{renderer!.root.find(node=>node.type==="button"&&node.props.className==="d-btn commons-primary"&&text(node)==="Connect an agent").props.onClick();});
+  expect(text(renderer!.root)).toContain("Choose a platform, then follow its steps");
+  expect(renderer!.root.findAllByType("form")).toHaveLength(0);
+ } finally {globalThis.fetch=previousFetch;}
 });
