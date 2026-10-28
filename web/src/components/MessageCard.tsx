@@ -693,7 +693,7 @@ function MessageCardImpl({
     <article
       id={`msg-${msg.seq}`}
       data-prototype-message={msg.sender.kind}
-      className={"d-card msg-card" + (mine ? " msg-card--own" : "")}
+      className={"msg-card" + (mine ? " msg-card--own user-turn" : " agent-turn")}
       style={hueStyle}
       tabIndex={-1}
       onContextMenu={

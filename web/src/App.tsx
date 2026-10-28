@@ -1,3 +1,4 @@
+import "./styles/prototype-native-frame.css";
 import {Brand} from "./components/Brand";
 import {WorkspaceShell} from "./components/WorkspaceShell";
 import {isCompactViewport} from "./lib/mobileViewport";
@@ -201,6 +202,14 @@ export function App() {
   const [me, setMe] = useState<MeInfo | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [createGroupRequest,setCreateGroupRequest] = useState(0);
+  const [workspaceAction,setWorkspaceAction]=useState<{id:number;slug:string;agent?:string;panel:'search'|'files'|'charter'|'team'|'connect'}|undefined>();
+  useEffect(()=>setWorkspaceAction(undefined),[path,activeOrigin]);
+  const [rosterSnapshot,setRosterSnapshot]=useState<{scope:string;slug:string;agents:readonly {name:string;display?:string;role?:string}[]}|null>(null);
+  const receiveAgentRoster=useCallback((channel:string,agents:readonly {name:string;display?:string;role?:string}[])=>{
+    if(channel!==matchChannel(path))return;
+    setRosterSnapshot({scope:activeOrigin,slug:channel,agents});
+  },[activeOrigin,path]);
+
   const [notifyOptin, setNotifyOptin] = useState<boolean>(() => readNotifyOptin());
   const [oidc, setOidc] = useState<OidcConfig | null>(null);
   const [authProviders, setAuthProviders] = useState<AuthProviderConfig[]>([]);
@@ -878,8 +887,9 @@ export function App() {
     };
   }, [desktop, oidc, token, doRefresh, hardLogout, t]);
 
+  const channelListPaused = !desktop && matchPair(path);
   const reloadChannels = useCallback((): Promise<void> => {
-    if (token === null || (!desktop && matchPair(path))) return Promise.resolve();
+    if (token === null || channelListPaused) return Promise.resolve();
     const key = `${activeOrigin}\n${token}`;
     if (channelReloadInFlight.current?.key === key) return channelReloadInFlight.current.promise;
 
@@ -903,10 +913,10 @@ export function App() {
       });
     channelReloadInFlight.current = { key, promise };
     return promise;
-  }, [activeOrigin, desktop, path, token, onAuthFailed, t]);
+  }, [activeOrigin, channelListPaused, token, onAuthFailed, t]);
 
   useEffect(() => {
-    if (token === null || (!desktop && matchPair(path))) return;
+    if (token === null || channelListPaused) return;
     void reloadChannels();
     const refresh = () => {
       if (document.visibilityState !== "hidden") void reloadChannels();
@@ -924,7 +934,7 @@ export function App() {
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(timer);
     };
-  }, [desktop, path, reloadChannels, token]);
+  }, [channelListPaused, reloadChannels, token]);
 
   const signOut = async () => {
     if (desktop) {
@@ -953,6 +963,14 @@ export function App() {
     setHandleBannerDismissed(false);
     setToken(null);
   };
+
+  // The prototype opens a conversation, not a second dashboard. Only use the
+  // already authorized channel list; never invent a route or fetch extra groups.
+  useEffect(()=>{
+    if(path!=="/" || token===null || me===null || channels===null || listError!==null)return;
+    const first=channels.find(channel=>channel.archived_at===null);
+    if(first)replace(`/c/${first.slug}`);
+  },[path,token,me,channels,listError,replace]);
 
   if (!desktop && path === "/auth/setup") return <GithubAuthSetup />;
   if (!desktop && browserAuth.status === "mfa_required") {
@@ -1240,7 +1258,7 @@ export function App() {
   const currentChannel = channels?.find(channel => channel.slug === slug);
 
   return (
-    <div className={"app"+(slug!==null?" app--channel":"")}>
+    <div className={"app prototype-native-workspace"+(slug!==null?" app--channel":"")}>
       <header className="app-head prototype-rail">
 
         <a
@@ -1251,10 +1269,13 @@ export function App() {
             navigate("/");
           }}
         >
-          <Brand/>
+          <span className="prototype-native-wordmark" aria-hidden="true">a<span>·</span></span><span className="prototype-native-sr">Agent Commons</span>
         </a>
         <nav className="prototype-rail-nav" aria-label={t("Studio.workspace")}>
           <button type="button" className="prototype-rail-button" title={t("Studio.workspace")} aria-label={t("Studio.workspace")} onClick={()=>navigate("/")}><StudioIcon name="message"/></button>
+          {([['search','search'],['files','files'],['charter','announcement'],['team','group']] as const).map(([panel,icon])=><button key={panel} type="button" className="prototype-rail-button" disabled={slug===null} title={t(`App.workspace.${panel}`)} aria-label={t(`App.workspace.${panel}`)} onClick={()=>{if(slug)setWorkspaceAction(previous=>({id:(previous?.id??0)+1,slug,panel}));}}><StudioIcon name={icon}/></button>)}
+        </nav>
+        <div className="prototype-rail-footer">
           <details className="prototype-rail-more" onKeyDown={event=>{if(event.key==="Escape"){event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}><summary className="prototype-rail-button" aria-label={t("App.workspace.tools")} title={t("App.workspace.tools")}><StudioIcon name="tools"/></summary><div className="prototype-rail-popover">
         <span className="d-hand app-tag">{t("App.tagline")}</span>
         <a className="app-docs t-mono" href="/docs">
@@ -1343,9 +1364,6 @@ export function App() {
             <NotifyToggle optin={notifyOptin} onChange={setNotifyOptin} />
           </div>
         )}
-          </div></details>
-        </nav>
-        <button type="button" className="prototype-rail-account" title={t("App.settings.section.account")} aria-label={t("App.settings.section.account")} onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/></button>
         <button
           ref={settingsButtonRef}
           type="button"
@@ -1354,8 +1372,11 @@ export function App() {
           title={t("App.settings.title")}
           onClick={openSettings}
         >
-          <StudioIcon name="settings" />
+          <StudioIcon name="settings" /><span>{t("App.settings.title")}</span>
         </button>
+          </div></details>
+        <button type="button" className="prototype-rail-account" title={t("App.settings.section.account")} aria-label={t("App.settings.section.account")} onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/></button>
+        </div>
       </header>
       <DesktopInstallPrompt desktop={desktop} />
       {settingsOpen && (
@@ -1416,7 +1437,7 @@ export function App() {
         mobileActions={<><a className="d-btn" href="/" onClick={event=>{event.preventDefault();navigate("/");}}><Brand/></a><button className="d-btn mobile-account-entry" type="button" onClick={event=>openSettings(event,"account")}><StudioIcon name="human"/><span><strong>{me?.display_name??me?.handle??me?.name??t("App.settings.section.account")}</strong><small>{t("App.settings.section.account")}</small></span></button><button className="d-btn" type="button" onClick={openSettings}><StudioIcon name="settings"/>{t("App.settings.title")}</button><a className="d-btn" href="/docs">{t("App.docs")}</a><DesktopDownloadLink desktop={desktop}/><div className="mobile-drawer-notify"><NotifyToggle optin={notifyOptin} onChange={setNotifyOptin}/></div></>}
         navigation={<>
           {canCreate && token !== null && (
-            <CreateChannel token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
+            <CreateChannel showTrigger={false} token={token} onCreated={onChannelCreated} requestOpen={createGroupRequest} />
           )}
           {/* 桌面版：贴网页邀请链接进入频道（#297）。桌面壳没地址栏，粘贴框把 /join 或 /c 链接
               解析后走网页同款兑换——participate 走 /join/<code> 兑换 effect，watch 落分享态。 */}
@@ -1430,6 +1451,10 @@ export function App() {
           )}
           <ChannelList
             scopeKey={activeOrigin}
+            onCreate={canCreate&&token!==null?()=>setCreateGroupRequest(v=>v+1):undefined}
+            onConnect={slug&&!isShareMode()&&me?.role==="human"&&currentChannel?.archived_at===null?()=>setWorkspaceAction(previous=>({id:(previous?.id??0)+1,slug,panel:"connect"})):undefined}
+            onAgentSelect={slug?(agent)=>setWorkspaceAction(previous=>({id:(previous?.id??0)+1,slug,panel:"team",agent})):undefined}
+            agents={rosterSnapshot?.scope===activeOrigin && rosterSnapshot.slug===slug ? rosterSnapshot.agents : []}
             channels={channels}
             active={slug}
             error={listError}
@@ -1438,12 +1463,6 @@ export function App() {
           />
         </>}>
         <main className="app-main">
-          {currentChannel && (
-            <header className="workspace-context">
-              <span>{t("Studio.workspace")}</span>
-              <h1 title={currentChannel.title || currentChannel.slug}>{currentChannel.title || currentChannel.slug}</h1>
-            </header>
-          )}
           {routeNotFound ? (
             <p className="banner banner--red" role="alert">
               {t("App.route.notFound")}
@@ -1467,6 +1486,9 @@ export function App() {
             <ChannelPage
               key={`${activeOrigin}:${slug}`}
               slug={slug}
+              title={currentChannel?.title ?? slug}
+              onAgentRoster={receiveAgentRoster}
+              workspaceAction={workspaceAction?.slug===slug?workspaceAction:undefined}
               token={token}
               mode={channels?.find((c) => c.slug === slug)?.mode ?? "normal"}
               visibility={channels?.find((c) => c.slug === slug)?.visibility ?? "private"}

@@ -191,7 +191,7 @@ describe("Channel i18n source guard (#350)", () => {
 
   test("keeps content tools before channel management and consolidates admin controls in one panel", () => {
     const toolbar = source.slice(
-      source.indexOf("<ChannelToolstrip"),
+      source.indexOf("<ConversationTools"),
       source.indexOf("{activePanel !== null"),
     );
     const controls = [

@@ -20,15 +20,12 @@ export function WorkspaceShell({navigation, children, route, navigationError, re
     {navigationError && <p className="banner banner--red workspace-navigation-error" role="alert">{navigationError}</p>}
     <div className={`app-shell workspace-shell${collapsed ? " navigation-collapsed" : ""}`}>
     {compact ? <ResponsiveSidebar activeSlug={route} title={title} requestOpen={requestOpen} mobileActions={mobileActions}>{navigation}</ResponsiveSidebar> : <aside className="app-side workspace-navigation" aria-label={label}>
-      <div className="workspace-nav-heading">
-        <button type="button" className="workspace-nav-toggle workspace-nav-desktop" aria-expanded={!collapsed} aria-controls="workspace-navigation-content" title={zh ? (collapsed ? "展开工作区" : "收起工作区") : (collapsed ? "Expand workspace" : "Collapse workspace")} aria-label={label} onClick={() => {
+        <button type="button" className="workspace-nav-toggle workspace-nav-desktop workspace-nav-compact-toggle" aria-expanded={!collapsed} aria-controls="workspace-navigation-content" title={zh ? (collapsed ? "展开工作区" : "收起工作区") : (collapsed ? "Expand workspace" : "Collapse workspace")} aria-label={label} onClick={() => {
           const next = !collapsed;
           setCollapsed(next);
           try { localStorage.setItem(key, next ? "1" : "0"); } catch { /* In-memory state still works. */ }
         }}><StudioIcon name={collapsed ? "chevron-right" : "arrow-left"}/></button>
-        <span className="workspace-nav-label">{zh ? "工作区" : "WORKSPACE"}</span>
-      </div>
-      <div className="workspace-nav-body" id="workspace-navigation-content"><div className="workspace-nav-inner">{navigation}</div></div>
+      <div className="workspace-nav-body" id="workspace-navigation-content" hidden={collapsed}><div className="workspace-nav-inner">{navigation}</div></div>
     </aside>}
     {children}
   </div></div>;

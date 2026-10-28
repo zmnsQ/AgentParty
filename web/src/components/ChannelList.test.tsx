@@ -218,7 +218,7 @@ describe('prototype conversation sidebar', () => {
     act(()=>r.update(<LocaleProvider><ChannelList scopeKey="server" channels={[channel('live')]} active="live" error={null} onOpen={()=>{}} agents={[{name:'agent-id',display:'Real nickname'},{name:'agent-id',display:'Real nickname'}]}/></LocaleProvider>));
     const roster=r.root.findByProps({className:'prototype-sidebar-agents'});
     expect(roster.findAllByType('li')).toHaveLength(1);
-    expect(roster.findByProps({title:'agent-id'}).children).toEqual(['Real nickname']);
+    expect(roster.findByProps({title:'agent-id'}).findAllByType('span').at(-1)!.children).toEqual(['Real nickname']);
     expect(roster.findAll(n=>String(n.props.className??'').includes('d-dot'))).toHaveLength(0);
     expect(r.root.findByProps({'aria-current':'page'}).props.title).toBe('live');
   });
@@ -228,4 +228,18 @@ describe('prototype conversation sidebar', () => {
     const r=renderer!;act(()=>r.root.findByProps({type:'search'}).props.onChange({currentTarget:{value:'DESIGN'}}));
     act(()=>r.root.findByProps({title:'stable-id'}).props.onClick());expect(opened).toEqual(['stable-id']);
   });
+});
+
+
+test('prototype workspace actions use real callbacks and stable agent identity',()=>{
+ let created=0;const selected:string[]=[];
+ act(()=>{renderer=create(<LocaleProvider><ChannelList scopeKey="actions" channels={[channel('live')]} active="live" error={null} onOpen={()=>{}} onCreate={()=>created++} onAgentSelect={name=>selected.push(name)} agents={[{name:'stable-agent',display:'Friendly name'}]}/></LocaleProvider>);});
+ const r=renderer!;
+ expect(r.root.findByProps({className:'sidebar-top'})).toBeTruthy();
+ expect(r.root.findByProps({className:'sidebar-category-filter'}).type).toBe('details');
+ expect(r.root.findByProps({className:'sidebar-category-filter'}).props.open).toBeUndefined();
+ act(()=>r.root.findAllByProps({className:'sidebar-icon-button'})[0]!.props.onClick());
+ expect(created).toBe(1);
+ act(()=>r.root.findByProps({title:'stable-agent'}).props.onClick());
+ expect(selected).toEqual(['stable-agent']);
 });

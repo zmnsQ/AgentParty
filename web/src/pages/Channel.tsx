@@ -137,7 +137,8 @@ import type { RoleDraft } from "../lib/channelRoles";
 import { ChannelSocket } from "../lib/ws";
 import { channelReducer, initialChannelState } from "../state";
 import { useT } from "../i18n/useT";
-import { ChannelToolstrip } from "../components/ChannelToolstrip";
+import {ConversationHeader} from "../components/ConversationHeader";
+import {ConversationDetails,ConversationTools} from "../components/ConversationDetails";
 import "../i18n/strings/CollaborationHub";
 const CollaborationHub = lazy(() => import("../components/CollaborationHub"));
 import "../i18n/strings/Channel";
@@ -158,6 +159,9 @@ const SCREEN_READER_ONLY_STYLE: CSSProperties = {
 };
 
 interface Props {
+  title?: string;
+  workspaceAction?:{id:number;panel:"search"|"files"|"charter"|"team"|"connect";agent?:string};
+  onAgentRoster?(slug:string,agents:readonly {name:string;display?:string;role?:string}[]):void;
   slug: string;
   token: string;
   mode: "normal" | "party";
@@ -2018,6 +2022,9 @@ function TeamThread({
 }
 
 export function ChannelPage({
+  title,
+  workspaceAction,
+  onAgentRoster,
   slug,
   token,
   mode,
@@ -2049,6 +2056,10 @@ export function ChannelPage({
   const t = useT();
   const [state, dispatch] = useReducer(channelReducer, initialChannelState);
   const [channelIdentities, setChannelIdentities] = useState<ChannelIdentity[]>([]);
+  const [detailsOpen,setDetailsOpen]=useState(false);
+  const [detailsRosterOpen,setDetailsRosterOpen]=useState(false);
+  const [workspaceFiles,setWorkspaceFiles]=useState(false);
+  const lastWorkspaceAction=useRef(0);
   const [draft, setDraft] = useState("");
   // 附件（#176）：已上传待随下一条消息发出的引用（attachments）+ 在途/失败的每文件上传态（uploads）。
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -2098,6 +2109,9 @@ export function ChannelPage({
   } = useCharterRequestGeneration(slug);
   const [charterError, setCharterError] = useState<string | null>(null);
   const [channelRoles, setChannelRoles] = useState<ChannelRoleInfo[]>([]);
+  const agentRoster=useMemo(()=>channelIdentities.filter(identity=>identity.kind==='agent').map(({name,display})=>({name,display,role:channelRoles.find(role=>role.name===name)?.responsibility??undefined})),[channelIdentities,channelRoles]);
+  useEffect(()=>{onAgentRoster?.(slug,agentRoster);},[onAgentRoster,slug,agentRoster]);
+  useEffect(()=>()=>{onAgentRoster?.(slug,[]);},[onAgentRoster,slug]);
   // 跨 WS/REST 链路共享的成员删除墓碑：participant_removed 可能先于/晚于
   // identities / roles 请求，旧响应不得把已经权威删除的成员重新塞回 roster。
   const removedChannelMembersRef = useRef(new Map<string, number>());
@@ -2122,6 +2136,7 @@ export function ChannelPage({
   const [activePanel, setActivePanel] = useState<ChannelPanel | null>(null);
   const [cloudConnectTarget,setCloudConnectTarget]=useState<CloudAgentChoice|null>(null);
   const [activeAdminSurface, setActiveAdminSurface] = useState<AdminSurface | null>(null);
+  useEffect(()=>{if(activePanel!==null||activeAdminSurface!==null)setDetailsOpen(false);},[activePanel,activeAdminSurface]);
   // #1009：「接入凭证」面板点「接入引导 / 重新接上」交过来的一次引导会话——转给 AgentJoin 打开四步 stepper。
   const [joinGuideSession, setJoinGuideSession] = useState<JoinGuideSession | null>(null);
   const [agentManagerTarget, setAgentManagerTarget] = useState<string | null>(null);
@@ -2384,6 +2399,7 @@ export function ChannelPage({
       })
       .catch((err: unknown) => {
         if (requestId !== channelIdentitiesRequestRef.current) return;
+        setChannelIdentities([]);
         if (err instanceof AuthError) authFailedRef.current(tRef.current("Channel.error.tokenRevoked"));
       });
   }, [slug, token]);
@@ -3363,6 +3379,8 @@ export function ChannelPage({
     setActivePanel(panel);
   }, [charter, loadTaskLedger, slug]);
 
+
+
   const openFocusedTask = useCallback((taskId: number) => {
     skipPanelFocusRestoreRef.current = false;
     setActiveAdminSurface(null);
@@ -3417,6 +3435,15 @@ export function ChannelPage({
     setActivePanel("team");
     void loadTaskLedger();
   }, [loadTaskLedger]);
+  useEffect(()=>{
+    if(!workspaceAction||workspaceAction.id===lastWorkspaceAction.current)return;
+    lastWorkspaceAction.current=workspaceAction.id;
+    setWorkspaceFiles(workspaceAction.panel==='files');
+    if(workspaceAction.panel==='files')setCloudConnectTarget(null);
+    if(workspaceAction.panel==='connect'){if(canMintAgent&&accountKey!==null&&!state.archived)setAdminSurface('agentJoin',true);return;}
+    if(workspaceAction.agent){openTeamMember(workspaceAction.agent);return;}
+    openPanel(workspaceAction.panel==='files'?'collaboration':workspaceAction.panel);
+  },[workspaceAction,openPanel,openTeamMember,canMintAgent,accountKey,state.archived,setAdminSurface]);
   const canOpenTeamMember = useCallback(
     (name: string) => authoritativeMemberNamesRef.current.has(name),
     [],
@@ -4538,23 +4565,13 @@ export function ChannelPage({
 
   return (
     <div className="chan">
-      <span
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        style={SCREEN_READER_ONLY_STYLE}
-      >
-        {messageNavigationAnnouncement}
-      </span>
-      {liveSessionTarget !== null && (
-        <LiveSessionModal
-          name={liveSessionTarget}
-          display={state.presence[liveSessionTarget]?.display_name ?? liveSessionTarget}
-          session={state.liveSessions[liveSessionTarget] ?? null}
-          onClose={closeLiveSession}
-        />
-      )}
+      <ConversationHeader title={title?.trim()||slug} members={channelIdentities}
+        onDetails={()=>setDetailsOpen(true)} connectionStatus={state.status}
+        attentionCount={toasts.length} onAttention={()=>{const latest=toasts[toasts.length-1];if(latest)jumpToMention(latest.seq);}}
+        onAddAgent={canMintAgent&&accountKey!==null&&!state.archived?()=>setAdminSurface("agentJoin",true):undefined}/>
+      <ConversationDetails suspended={detailsRosterOpen} open={detailsOpen} onClose={()=>setDetailsOpen(false)} restoreFocus={activePanel===null&&activeAdminSurface===null}>
       <PresenceBar
+        onRosterOpenChange={setDetailsRosterOpen}
         attentionCount={hostBoardAttentionCount}
         identities={identityDisplay}
         rosterIdentities={channelIdentities}
@@ -4610,34 +4627,7 @@ export function ChannelPage({
           />
         }
       />
-      {kickError !== null && <p className="banner banner--red">{kickError}</p>}
-      {pauseError !== null && <p className="banner banner--red">{pauseError}</p>}
-      {archiveError !== null && <p className="banner banner--red">{archiveError}</p>}
-      {activePanel !== "search" && messageNavigationError !== null && (
-        <p className="banner banner--yellow" role="alert">{messageNavigationError}</p>
-      )}
-      {messageViewRestore !== null && (
-        <aside className="banner banner--yellow" aria-live="polite">
-          {t("Channel.navigation.filtersRevealed")}{" "}
-          <button type="button" className="d-btn" onClick={restoreMessageView}>
-            {t("Channel.navigation.restoreFilters")}
-          </button>
-        </aside>
-      )}
-      {/* #662：owner 进入/刷新页面时，主动提醒名下跑着过时 CLI 的 agent，引导用接入包升级。
-          CTA 打开 AgentJoin 接入面板（复用 join-pack 生成）；只有能铸 agent 的 owner 才挂该面板，
-          故 onUpgrade 仅在 canMintAgent && accountKey!=null 时接线，否则退化为纯提醒（无升级按钮）。 */}
-      {!state.archived && (
-        <OutdatedAgentsNotice
-          presence={state.presence}
-          accountKey={accountKey}
-          onUpgrade={canMintAgent && accountKey !== null ? (agentName) => {
-            setAgentManagerTarget(agentName);
-            setAdminSurface("agentTokens", true);
-          } : undefined}
-        />
-      )}
-      <ChannelToolstrip
+      <ConversationTools
         buttons={
           <>
           <button
@@ -4709,7 +4699,7 @@ export function ChannelPage({
                     active={activeAdminSurface === "agentJoin"}
                     onActiveChange={(open) => setAdminSurface("agentJoin", open)}
                     guideSession={joinGuideSession}
-                    onCloudConnect={provider=>{setCloudConnectTarget(provider);openPanel("collaboration");}}
+                    onCloudConnect={provider=>{setWorkspaceFiles(false);setCloudConnectTarget(provider);openPanel("collaboration");}}
                   />
                   <AgentTokens
                     slug={slug}
@@ -4722,7 +4712,7 @@ export function ChannelPage({
                     onActiveChange={(open) => setAdminSurface("agentTokens", open)}
                     focusAgentName={agentManagerTarget}
                     onGuide={openJoinGuide}
-                    onOpenConnections={()=>{setCloudConnectTarget("dot");openPanel("collaboration");}}
+                    onOpenConnections={()=>{setWorkspaceFiles(false);setCloudConnectTarget("dot");openPanel("collaboration");}}
                     onlineNames={memberOnlineNames}
                   />
                 </div>
@@ -4743,6 +4733,52 @@ export function ChannelPage({
           </>
         }
       />
+      </ConversationDetails>
+      <span
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={SCREEN_READER_ONLY_STYLE}
+      >
+        {messageNavigationAnnouncement}
+      </span>
+      {liveSessionTarget !== null && (
+        <LiveSessionModal
+          name={liveSessionTarget}
+          display={state.presence[liveSessionTarget]?.display_name ?? liveSessionTarget}
+          session={state.liveSessions[liveSessionTarget] ?? null}
+          onClose={closeLiveSession}
+        />
+      )}
+
+      {kickError !== null && <p className="banner banner--red">{kickError}</p>}
+      {pauseError !== null && <p className="banner banner--red">{pauseError}</p>}
+      {archiveError !== null && <p className="banner banner--red">{archiveError}</p>}
+      {activePanel !== "search" && messageNavigationError !== null && (
+        <p className="banner banner--yellow" role="alert">{messageNavigationError}</p>
+      )}
+      {messageViewRestore !== null && (
+        <aside className="banner banner--yellow" aria-live="polite">
+          {t("Channel.navigation.filtersRevealed")}{" "}
+          <button type="button" className="d-btn" onClick={restoreMessageView}>
+            {t("Channel.navigation.restoreFilters")}
+          </button>
+        </aside>
+      )}
+      {/* #662：owner 进入/刷新页面时，主动提醒名下跑着过时 CLI 的 agent，引导用接入包升级。
+          CTA 打开 AgentJoin 接入面板（复用 join-pack 生成）；只有能铸 agent 的 owner 才挂该面板，
+          故 onUpgrade 仅在 canMintAgent && accountKey!=null 时接线，否则退化为纯提醒（无升级按钮）。 */}
+      {!state.archived && (
+        <OutdatedAgentsNotice
+          presence={state.presence}
+          accountKey={accountKey}
+          onUpgrade={canMintAgent && accountKey !== null ? (agentName) => {
+            setAgentManagerTarget(agentName);
+            setAdminSurface("agentTokens", true);
+          } : undefined}
+        />
+      )}
+
       {shouldShowCatchup(catchupDigest) && seenSeq !== null && (
         <CatchupPanel
           digest={catchupDigest}
@@ -4792,8 +4828,8 @@ export function ChannelPage({
         >
           {activePanel === "collaboration" && (
             <Suspense fallback={<p role="status">{t("Collab.loading")}</p>}>
-              <CollaborationHub key={slug} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed}
-                initialTab={cloudConnectTarget==="hermes"?"agents":cloudConnectTarget?"bridges":undefined}
+              <CollaborationHub key={`${slug}:${workspaceFiles?"files":"default"}`} token={token} slug={slug} archived={state.archived} onAuthFailed={onAuthFailed}
+                initialTab={workspaceFiles?"files":cloudConnectTarget==="hermes"?"agents":cloudConnectTarget?"bridges":undefined}
                 initialProvider={cloudConnectTarget??undefined} />
             </Suspense>
           )}
@@ -4984,7 +5020,8 @@ export function ChannelPage({
         </ChannelPanelModal>
       )}
       {/* overflow-anchor:none —— 浏览器原生滚动锚定会和我们手动的 prepend 锚定打架 */}
-      <div className="stream" ref={streamRef} onScroll={onScroll} style={{ overflowAnchor: "none" }}>
+      <div className="stream transcript" ref={streamRef} onScroll={onScroll} style={{ overflowAnchor: "none" }}>
+        <div className="conversation-inner">
         {q === "" && olderStatus === "loading" && (
           <p className="stream-top-note" role="status">{t("Channel.older.loading")}</p>
         )}
@@ -5100,6 +5137,7 @@ export function ChannelPage({
             {completionOnly ? t("Channel.empty.completionsFiltered") : t("Channel.empty.messagesFiltered")}
           </p>
         )}
+        </div>
       </div>
       {state.archived && (
         <p className="banner banner--gray" role="status" aria-live="polite">

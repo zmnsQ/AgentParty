@@ -1,6 +1,6 @@
 // @ts-expect-error Bun executes this test; the web tsconfig only loads Vite globals.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { applyStoredTheme, applyTheme, DEFAULT_THEME, readStoredTheme, SUPPORTED_THEMES } from "./theme";
+import { applyStoredTheme, applyTheme, DEFAULT_THEME, readStoredTheme, SUPPORTED_THEMES, THEME_UI_VERSION, THEME_UI_VERSION_KEY, PREVIOUS_THEME_KEY, readPreviousTheme, restorePreviousTheme } from "./theme";
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -40,9 +40,29 @@ describe("theme persistence + application", () => {
     expect(readStoredTheme()).toBe("midnight");
   });
 
-  test("preserves an explicitly stored light theme", () => {
+  test("migrates legacy light once while preserving it for explicit restoration", () => {
     localStorage.setItem("ap_theme", "doodle");
+    expect(readStoredTheme()).toBe("midnight");
+    expect(readPreviousTheme()).toBe("doodle");
+    expect(localStorage.getItem(THEME_UI_VERSION_KEY)).toBe(THEME_UI_VERSION);
+    applyTheme("doodle");
     expect(readStoredTheme()).toBe("doodle");
+    expect(readPreviousTheme()).toBe("doodle");
+  });
+  test("explicit later light theme is not reset, and legacy preference remains restorable", () => {
+    localStorage.setItem("ap_theme", "doodle");
+    applyStoredTheme();expect(attribute).toBe("midnight");
+    expect(restorePreviousTheme()).toBe(true);expect(attribute).toBe("doodle");
+    applyStoredTheme();expect(attribute).toBe("doodle");
+    expect(localStorage.getItem(PREVIOUS_THEME_KEY)).toBe("doodle");
+  });
+  test("restoration without an old preference is a no-op", () => {
+    expect(restorePreviousTheme()).toBe(false);
+    expect(localStorage.getItem("ap_theme")).toBeNull();
+  });
+  test("explicit choice before startup migration is respected", () => {
+    localStorage.setItem("ap_theme", "midnight");applyTheme("doodle");
+    expect(readStoredTheme()).toBe("doodle");expect(readPreviousTheme()).toBe("midnight");
   });
 
   test("reads a stored midnight theme", () => {
@@ -73,4 +93,16 @@ describe("theme persistence + application", () => {
   test("exposes exactly the two shipped themes", () => {
     expect(SUPPORTED_THEMES.map((theme) => theme.code)).toEqual(["doodle", "midnight"]);
   });
+});
+
+test('existing migration backup is never overwritten by later theme choices', () => {
+  localStorage.setItem(PREVIOUS_THEME_KEY, 'doodle');
+  localStorage.setItem('ap_theme', 'midnight');
+  readStoredTheme();applyTheme('midnight');applyTheme('doodle');
+  expect(localStorage.getItem(PREVIOUS_THEME_KEY)).toBe('doodle');
+  expect(readStoredTheme()).toBe('doodle');
+});
+test('unavailable preference storage still applies safe default without throwing', () => {
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem(){throw Error('unavailable');},setItem(){throw Error('unavailable');}}});
+  expect(readStoredTheme()).toBe('midnight');applyTheme('doodle');expect(attribute).toBe('doodle');expect(readPreviousTheme()).toBeNull();
 });

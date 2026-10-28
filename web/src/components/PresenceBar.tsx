@@ -61,6 +61,7 @@ interface Props {
   onReconnect?: (name: string) => void;
   /** 初始就展开名单（静态预览 / 测试用；生产不传）。 */
   initialRosterOpen?: boolean;
+  onRosterOpenChange?(open:boolean):void;
 }
 
 // 暂停时长预设（#180）：值 → 相对 now 的恢复时刻（epoch ms），"indefinite" 返回 null（手动恢复）。
@@ -450,6 +451,7 @@ export function PresenceBar({
   authoritativeNames,
   onReconnect,
   initialRosterOpen = false,
+  onRosterOpenChange,
 }: Props) {
   const t = useT(), compact = useCompactViewport(), {locale} = useLocale();
   // 相对时间 30s 刷一次
@@ -462,6 +464,7 @@ export function PresenceBar({
 
   // #484：姓名 roster 不再挤占频道顶部；点 live 计数后在独立弹框里查看和操作。
   const [rosterOpen, setRosterOpen] = useState<boolean>(initialRosterOpen);
+  useEffect(()=>{onRosterOpenChange?.(rosterOpen);},[onRosterOpenChange,rosterOpen]);
   const rosterToggleRef = useRef<HTMLButtonElement | null>(null);
   const rosterCloseRef = useRef<HTMLButtonElement | null>(null);
   const rosterDialogRef = useRef<HTMLDivElement | null>(null);

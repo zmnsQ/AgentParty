@@ -1,0 +1,27 @@
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/jetbrains-mono/600.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "highlight.js/styles/github.css";
+import "../src/styles/tokens.css";
+import "../src/styles/foundation.css";
+import "../src/styles/app.css";
+import "../src/styles/studio.css";
+import "../src/styles/management.css";
+import "../src/styles/workspace.css";
+import "../src/styles/mobile-shell.css";
+import "../src/styles/chat-first.css";
+import "../src/styles/progressive-blur.css";
+import "../src/styles/prototype-shell.css";
+import "../src/styles/prototype-sidebar.css";
+import "../src/styles/prototype-chat.css";
+import {createRoot} from 'react-dom/client';
+import {installMobileViewport} from '../src/lib/mobileViewport';
+import {installWorkspaceFixture} from './app-workspace-fixture';
+// Install isolation BEFORE importing App: no real storage or network can be read.
+const params=new URLSearchParams(location.search);
+installWorkspaceFixture(params.get('theme')==='doodle'?'doodle':'midnight');
+history.replaceState(null,'','/');
+installMobileViewport();
+const [{App},{LocaleProvider}]=await Promise.all([import('../src/App'),import('../src/i18n/locale')]);
+createRoot(document.getElementById('root')!).render(<LocaleProvider><App/></LocaleProvider>);

@@ -20,6 +20,7 @@ test('desktop capsule keeps tools available behind an explicit accessible toggle
   act(()=>more.props.onClick());
   expect(root.findByProps({className:'composer-secondary-actions'}).props.hidden).toBe(false);
   expect(root.findByType('textarea').props.value).toBe('Keep my draft');
+  expect(root.findByType('textarea').props.rows).toBe(1);
   expect(root.findByProps({className:'d-btn d-btn--primary composer-send'}).props['aria-label']).toBeTruthy();
  } finally {
   act(()=>renderer?.unmount());renderer=null;
@@ -29,12 +30,22 @@ test('desktop capsule keeps tools available behind an explicit accessible toggle
 test('prototype chat styles retain mobile sizing, low-height budgets and scoped selectors',()=>{
  const css=readFileSync(new URL('../styles/prototype-chat.css',import.meta.url),'utf8');
  expect(css).toContain('background:#66534d');
- expect(css).toContain('font:16px/24px');
- expect(css).toContain('width:44px;height:44px');
+ expect(css).toContain('font:16px/23px');
+ expect(css).toContain('font:11px/23px');
+ expect(css).toContain('max-width:690px');
+ expect(css).toContain('width:33px;height:33px');
  expect(css).toContain('(max-height:500px)');
  expect(css).toContain('env(safe-area-inset-bottom)');
  expect(css).toContain('.composer-secondary-actions[hidden]');
  expect(css).toContain(':root[data-theme="doodle"]');
- expect(css).toContain('background:#bca293');
+ expect(css).toContain('background:#bba396');
  expect(css).not.toContain('zoom:');
+});
+
+test('visual QA fixes retain compact status details and legible suggestion selection',()=>{
+ const css=readFileSync(new URL('../styles/prototype-chat.css',import.meta.url),'utf8');
+ expect(css).toContain('width:20px;height:33px;min-height:33px');
+ expect(css).toContain('.mention-item.is-active {background:#41493f;color:#f0f2e9;}');
+ expect(css).toContain('> .msg-status-bar {order:1');
+ expect(css).toContain('.msg-avatar {left:-35px;}');
 });

@@ -1,0 +1,72 @@
+/* One palette per theme: rail, frame, drawer and main never mix skins. */
+:root {--pn-desktop:#101112;--pn-main:#191a1b;--pn-rail:#2c2f30;--pn-border:#383a3b;--pn-divider:#404243;--pn-text:#e8e8e3;--pn-accent:#c4a99b;--pn-muted:#aaaead;--pn-selected:#222526;--pn-avatar:#7b7067;--pn-avatar-text:#f2e8df;--pn-panel:#232525;--pn-hover:#ffffff0c;}
+:root[data-theme="doodle"] {--pn-desktop:#e8e5df;--pn-main:#f5f4ef;--pn-rail:#eceae3;--pn-border:#d7d4cb;--pn-divider:#d7d4cb;--pn-text:#393a35;--pn-accent:#876b5a;--pn-muted:#686d64;--pn-selected:#dfddd4;--pn-avatar:#86786b;--pn-avatar-text:#fffaf0;--pn-panel:#faf9f4;--pn-hover:#00000008;}
+/* Native frame transplanted from the supplied Muse workspace prototype.
+   Actual account, route and command handlers remain owned by App. */
+:root #root:has(>.prototype-native-workspace) {box-sizing:border-box;padding:22px;background:var(--pn-desktop);height:var(--ac-viewport-height,100dvh);}
+:root .app.prototype-native-workspace {--prototype-rail-width:62px;--ac-navigation-width:225px;display:grid;grid-template-columns:62px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%;min-height:0;overflow:hidden;border:1px solid var(--pn-border);border-radius:15px;background:var(--pn-main);box-shadow:0 24px 90px #0003;}
+:root .prototype-native-workspace>.app-head.prototype-rail {display:flex;flex-direction:column;align-items:center;justify-content:flex-start;grid-column:1;grid-row:1;width:62px;height:100%;min-height:0;padding:20px 0 17px;gap:0;background:var(--pn-rail);border:0;border-right:1px solid var(--pn-divider);border-radius:0;overflow:visible;}
+.prototype-native-workspace .prototype-native-wordmark {display:block;padding-right:4px;font:bold italic 35px/1 Georgia,serif;letter-spacing:-3px;color:var(--pn-text);}
+.prototype-native-wordmark>span {color:var(--pn-accent);}
+.prototype-native-sr {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;}
+:root .prototype-native-workspace .prototype-rail .app-logo {margin:0;padding:0;min-width:0;flex:none;text-decoration:none;}
+:root .prototype-native-workspace .prototype-rail-nav {display:flex;flex-direction:column;align-items:center;gap:16px;min-height:0;margin:auto 0;padding:16px 0;}
+:root .prototype-native-workspace .prototype-rail-button {width:34px;height:34px;min-height:34px;border:0;border-radius:10px;background:transparent;color:var(--pn-muted);padding:0;}
+.prototype-native-workspace .prototype-rail-button .studio-icon {--icon-size:19px;stroke-width:1.6;}
+:root .prototype-native-workspace .prototype-rail-nav>button:first-child {background:var(--pn-selected);color:var(--pn-text);border-radius:50%;}
+:root .prototype-native-workspace .prototype-rail-button:hover {background:var(--pn-hover);color:var(--pn-text);}
+:root .prototype-native-workspace .prototype-rail-button:disabled {opacity:.35;cursor:default;}
+:root .prototype-native-workspace .prototype-rail-footer {display:flex;flex-direction:column;align-items:center;gap:19px;flex:none;}
+:root .prototype-native-workspace .prototype-rail-account {width:27px;height:27px;min-height:27px;border-radius:50%;background:var(--pn-avatar);color:var(--pn-avatar-text);}
+.prototype-native-workspace .prototype-rail-account .studio-icon {--icon-size:16px;}
+:root .prototype-native-workspace .prototype-rail-popover {top:auto;bottom:0;left:calc(100% + 14px);width:min(280px,calc(100vw - 90px));max-height:min(65dvh,500px);background:var(--pn-panel);color:var(--pn-text);border-color:var(--pn-divider);}
+:root .prototype-native-workspace .prototype-rail-popover>.app-settings-btn {width:100%;min-height:40px;justify-content:flex-start;padding:8px 12px;border-radius:8px;}
+:root .prototype-native-workspace>.workspace-frame {grid-column:2;grid-row:1;min-width:0;min-height:0;overflow:hidden;}
+:root .prototype-native-workspace .workspace-shell {display:grid;grid-template-columns:225px minmax(0,1fr);height:100%;gap:0;padding:0;border:0;border-radius:0;}
+:root .prototype-native-workspace .workspace-shell.navigation-collapsed {grid-template-columns:44px minmax(0,1fr);}
+:root .prototype-native-workspace .workspace-navigation {width:auto;min-width:0;padding:0;background:var(--pn-rail);border:0;border-radius:0;}
+:root .prototype-native-workspace .workspace-nav-compact-toggle {right:8px;top:auto;bottom:8px;width:28px;height:28px;min-height:28px;border-radius:8px;color:var(--pn-muted);}
+:root .prototype-native-workspace .workspace-nav-body[hidden] {display:none;}
+:root .prototype-native-workspace .workspace-nav-body {height:100%;overflow:hidden;padding-bottom:42px;box-sizing:border-box;}
+:root .prototype-native-workspace .workspace-nav-inner {height:100%;min-height:0;}
+:root .prototype-native-workspace .app-main {min-width:0;min-height:0;background:var(--pn-main);}
+.prototype-native-workspace :is(button,a,summary):focus-visible {outline:2px solid var(--pn-accent);outline-offset:2px;}
+@media(min-width:1450px) {
+ :root #root:has(>.prototype-native-workspace) {padding:38px 54px;}
+ :root .app.prototype-native-workspace {--prototype-rail-width:74px;--ac-navigation-width:240px;grid-template-columns:74px minmax(0,1fr);}
+ :root .prototype-native-workspace>.app-head.prototype-rail {width:74px;}
+ :root .prototype-native-workspace .workspace-shell {grid-template-columns:240px minmax(0,1fr);}
+}
+@media(max-width:1000px) and (min-width:761px) {
+ :root #root:has(>.prototype-native-workspace) {padding:12px;}
+ :root .prototype-native-workspace .workspace-shell {grid-template-columns:195px minmax(0,1fr);}
+}
+@media(max-width:760px), (max-height:760px) and (pointer:coarse), (max-device-width:760px) and (pointer:coarse), (max-device-height:760px) and (pointer:coarse) {
+ :root #root:has(>.prototype-native-workspace) {padding:0;}
+ :root .app.prototype-native-workspace {--prototype-rail-width:49px;display:grid;grid-template-columns:calc(49px + env(safe-area-inset-left)) minmax(0,1fr);border:0;border-radius:0;box-shadow:none;}
+ :root .prototype-native-workspace>.app-head.prototype-rail {display:flex;width:auto;min-height:0;padding: max(24px,env(safe-area-inset-top)) 0 max(15px,env(safe-area-inset-bottom)) env(safe-area-inset-left);}
+ .prototype-native-workspace .prototype-native-wordmark {font-size:29px;}
+ :root .prototype-native-workspace .prototype-rail-nav {gap:8px;}
+ :root .prototype-native-workspace .prototype-rail-button {width:44px;height:44px;min-height:44px;}
+ :root .prototype-native-workspace .prototype-rail-account {width:44px;height:44px;min-height:44px;background:radial-gradient(circle,var(--pn-avatar) 0 14px,transparent 15px);}
+ :root .prototype-native-workspace .prototype-rail-footer {gap:10px;}
+ :root .prototype-native-workspace>.workspace-frame {width:100%;min-height:0;position:relative;}
+ :root .prototype-native-workspace .workspace-shell,:root .prototype-native-workspace .workspace-shell.navigation-collapsed {display:flex;flex-direction:column;min-height:0;width:100%;}
+ :root .prototype-native-workspace .mobile-groupbar {background:var(--pn-main);}
+ :root .prototype-native-drawer .mobile-groups-scrim {background:linear-gradient(to right,transparent 0 279px,#0005 279px);}
+ :root .prototype-native-drawer .mobile-groups-drawer {position:absolute;left:calc(49px + env(safe-area-inset-left));top:0;bottom:0;width:min(230px,calc(100vw - 49px - env(safe-area-inset-left)));max-width:none;height:100%;background:var(--pn-rail);box-shadow:15px 0 40px #0006;border-right:1px solid var(--pn-divider);}
+ :root .prototype-native-drawer .mobile-groups-drawer>header {padding: max(12px,env(safe-area-inset-top)) 12px 8px;background:var(--pn-rail);color:var(--pn-text);}
+ :root .prototype-native-drawer .mobile-groups-drawer h2 {font-size:12px;font-weight:500;}
+ :root .prototype-native-drawer .mobile-groups-content {padding:0 12px max(12px,env(safe-area-inset-bottom));}
+}
+/* A landscape phone must keep every real navigation action reachable. */
+@media(max-height:570px) {
+ :root .prototype-native-workspace>.app-head.prototype-rail {overflow-y:auto;overflow-x:visible;scrollbar-width:thin;}
+ :root .prototype-native-workspace .prototype-rail-nav {margin:8px 0;gap:2px;padding:0;flex:none;}
+ :root .prototype-native-workspace .prototype-rail-footer {margin-top:auto;gap:6px;}
+ :root .prototype-native-workspace .prototype-rail-popover {position:fixed;left:calc(var(--prototype-rail-width) + 12px);bottom:12px;max-height:calc(100dvh - 24px);}
+}
+
+/* Collapse belongs to the footer, leaving the prototype's heading/create control clear. */
+:root .prototype-native-workspace .workspace-nav-inner .side-label {padding-right:0;}
+:root .prototype-native-workspace .navigation-collapsed .workspace-nav-compact-toggle {right:8px;bottom:8px;}

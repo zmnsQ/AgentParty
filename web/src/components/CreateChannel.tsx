@@ -6,9 +6,9 @@ import {StudioIcon} from "./StudioIcon";
 import {useT} from "../i18n/useT";
 import "../i18n/strings/CreateChannel";
 import "../i18n/strings/Studio";
-interface Props {token:string;onCreated(slug:string):void;requestOpen?:number;}
+interface Props {token:string;onCreated(slug:string):void;requestOpen?:number;showTrigger?:boolean;}
 const VIS_OPTIONS:readonly Visibility[]=["private","public_watch","public"];
-export function CreateChannel({token,onCreated,requestOpen=0}:Props){
+export function CreateChannel({token,onCreated,requestOpen=0,showTrigger=true}:Props){
  const t=useT(),[open,setOpen]=useState(false),[title,setTitle]=useState(""),[visibility,setVisibility]=useState<Visibility>("private"),[party,setParty]=useState(false),[busy,setBusy]=useState(false),[err,setErr]=useState<string|null>(null);
  const dialogRef=useRef<HTMLDialogElement|null>(null),triggerRef=useRef<HTMLButtonElement|null>(null),nameRef=useRef<HTMLInputElement|null>(null),sending=useRef(false);
  const reset=useCallback(()=>{setTitle("");setVisibility("private");setParty(false);setErr(null);},[]);
@@ -36,7 +36,7 @@ export function CreateChannel({token,onCreated,requestOpen=0}:Props){
   finally{sending.current=false;setBusy(false);}
  },[title,visibility,party,token,onCreated,reset,t]);
  return <>
-  <button ref={triggerRef} type="button" className="d-pill chan-pill newchan-open" onClick={show}><span className="chan-head"><StudioIcon name="plus"/><span className="chan-name">{t("CreateChannel.new")}</span></span></button>
+  {showTrigger&&<button ref={triggerRef} type="button" className="d-pill chan-pill newchan-open" onClick={show}><span className="chan-head"><StudioIcon name="plus"/><span className="chan-name">{t("CreateChannel.new")}</span></span></button>}
   {open&&<dialog ref={dialogRef} className="studio-create-modal" aria-labelledby="newchan-dialog-title" aria-describedby="newchan-dialog-help" aria-modal="true"
     onCancel={e=>{e.preventDefault();close();}} onKeyDown={e=>{if(e.key==="Escape"&&isCompositionKey(e)){e.preventDefault();e.stopPropagation();}}}>
    <div className="d-card newchan-card">

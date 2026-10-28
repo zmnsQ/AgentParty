@@ -1,6 +1,7 @@
 // 左侧频道列表：频道名 + 最近一条消息 + 参与者状态点（spec §9 第 1 块）
 import { useEffect, useRef, useState } from "react";
 import type { ChannelInfo } from "../lib/api";
+import { StudioIcon } from "./StudioIcon";
 import { useLocale } from "../i18n/locale";
 import "../styles/prototype-sidebar.css";
 import { useT } from "../i18n/useT";
@@ -15,8 +16,11 @@ interface Props {
   error: string | null;
   onOpen(slug: string): void;
   onRetry?: () => void;
+  onCreate?: () => void;
+  onConnect?:()=>void;
+  onAgentSelect?: (name: string) => void;
   /** Authoritative agent roster only; presence alone does not identify an agent. */
-  agents?: readonly { name: string; display?: string }[];
+  agents?: readonly { name: string; display?: string; role?:string }[];
 }
 
 // 分类筛选：全部 / 我创建的（owned）/ 我加入的（member）。只筛 live 段，archived 段独立不受影响。
@@ -103,7 +107,7 @@ function ChannelPill({
 
 type ScopedProps = Omit<Props, "scopeKey">;
 
-function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents }: ScopedProps) {
+function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents, onCreate, onConnect, onAgentSelect }: ScopedProps) {
   const { locale } = useLocale();
   const [query, setQuery] = useState("");
   const searchLabel = locale === "zh" ? "搜索会话" : "Search conversations";
@@ -151,9 +155,10 @@ function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents }:
         });
   return (
     <nav className="side prototype-sidebar" aria-label={t("Home.channelsLabel")}>
-      <p className="side-label t-mono">{t("Home.channelsLabel")}</p>
+      <div className="sidebar-top"><span>{locale === "zh" ? "我的空间" : "My workspace"}</span><button type="button" className="sidebar-icon-button" aria-label={locale === "zh" ? "创建群组" : "Create group"} title={locale === "zh" ? "创建群组" : "Create group"} disabled={!onCreate} onClick={onCreate}><StudioIcon name="plus"/></button></div>
       <label className="prototype-sidebar-search"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="5"/><path d="m12 12 5 5"/></svg><input type="search" aria-label={searchLabel} placeholder={searchLabel} value={query} onChange={e=>setQuery(e.currentTarget.value)}/></label>
       <div className="prototype-sidebar-scroll">
+      <div className="side-section-title"><span>{locale === "zh" ? "对话" : "Conversations"}</span><button type="button" className="sidebar-icon-button" aria-label={locale === "zh" ? "新对话" : "New conversation"} disabled={!onCreate} onClick={onCreate}><StudioIcon name="plus"/></button></div>
       {channels === null && error === null && <p className="side-note t-mono">{t("Home.loading")}</p>}
       {error !== null && (
         <p className="side-note side-note--err t-mono">
@@ -166,6 +171,7 @@ function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents }:
         </p>
       )}
       {channels !== null && (
+        <details className="sidebar-category-filter"><summary>{locale === "zh" ? "筛选" : "Filter"}<span>{t(CATEGORY_LABEL_KEY[category], { count: categoryCount[category] })}</span></summary>
         <div className="chan-cat-switch" role="group" aria-label="channel categories">
           {(Object.keys(CATEGORY_LABEL_KEY) as ChannelCategory[]).map((cat) => (
             <button
@@ -178,9 +184,9 @@ function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents }:
               {t(CATEGORY_LABEL_KEY[cat], { count: categoryCount[cat] })}
             </button>
           ))}
-        </div>
+        </div></details>
       )}
-      <div className="studio-channel-items">
+      <div className="studio-channel-items group-list">
         {filteredLive?.map((c) => (
           <ChannelPill key={c.slug} c={c} active={active} onOpen={onOpen} />
         ))}
@@ -209,10 +215,12 @@ function ScopedChannelList({ channels, active, error, onOpen, onRetry, agents }:
         </>
       )}
       {uniqueAgents.length > 0 && <section className="prototype-sidebar-agents" aria-label={locale === "zh" ? "你的 Agent" : "Your agents"}>
-        <h3>{locale === "zh" ? "你的 Agent" : "Your agents"}<span>{uniqueAgents.length}</span></h3>
-        <ul>{uniqueAgents.map(agent=><li key={agent.name}><span className="prototype-agent-avatar" aria-hidden="true">{(agent.display?.trim()||agent.name).slice(0,1).toLocaleUpperCase()}</span><span title={agent.name}>{agent.display?.trim()||agent.name}</span></li>)}</ul>
+        <h3 className="side-section-title agent-label">{locale === "zh" ? "你的 Agent" : "Your agents"}<span>{uniqueAgents.length}</span></h3>
+        <ul className="agent-list">{uniqueAgents.map(agent=><li key={agent.name}><button type="button" disabled={!onAgentSelect} onClick={()=>onAgentSelect?.(agent.name)} title={agent.name}><span className="prototype-agent-avatar" aria-hidden="true">{Array.from(agent.display?.trim()||agent.name)[0]?.toLocaleUpperCase()}</span><span>{agent.display?.trim()||agent.name}</span>{agent.role&&<small>{agent.role}</small>}</button></li>)}</ul>
       </section>}
+      {onConnect&&<button type="button" className="discover-link" onClick={onConnect}><span aria-hidden="true">＋</span>{locale==="zh"?"连接更多 Agent":"Connect more agents"}</button>}
       </div>
+      <div className="sidebar-foot"><span className="sidebar-foot-dot" aria-hidden="true"/>{locale === "zh" ? "一起想，比一个人想更好。" : "Better ideas, together."}</div>
     </nav>
   );
 }

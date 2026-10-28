@@ -441,6 +441,7 @@ export function Composer({
   };
 
   return (
+    <div className="composer-wrap">
     <div
       data-prototype-composer="true"
       className={"composer" + (dragging ? " composer--dragging" : "")}
@@ -517,7 +518,7 @@ export function Composer({
       <textarea
         ref={taRef}
         className="composer-input t-mono"
-        rows={compact ? 1 : 2}
+        rows={1}
         aria-label={t("Composer.placeholder")}
         placeholder={compact ? (locale==="zh"?"发送消息…":"Message…") : t("Composer.placeholder")}
         value={draft}
@@ -648,9 +649,11 @@ export function Composer({
           disabled={sendDisabled}
           title={ready ? t("Composer.send.readyTitle") : t("Composer.send.connectingTitle")}
         >
-          <StudioIcon name="send"/><span className="composer-send-label">{t("Composer.send.label")}</span>
+          <StudioIcon name="arrow-up"/><span className="composer-send-label">{t("Composer.send.label")}</span>
         </button>
       </div>
+    </div>
+    <div className="composer-caption"><span>{t("Composer.keyboardHint")}</span></div>
     </div>
   );
 }
