@@ -1,3 +1,4 @@
+import {McpReadiness} from './McpReadiness';
 import {useEffect,useRef,useState} from 'react';
 import {useLocale} from '../i18n/locale';
 import {apiBase} from '../lib/base';
@@ -41,6 +42,7 @@ export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAt
   <h4>{zh?'为本群创建专用 Agent 凭据':'Create a dedicated agent credential for this group'}</h4>
   <p>{zh?'适用于支持远程 HTTP MCP 和自定义 Authorization 请求头、但不支持 OAuth 的客户端；无需安装本地 CLI。':'For clients supporting remote HTTP MCP and custom Authorization headers but not OAuth. No local CLI is required.'}</p>
   <p>{zh?'这是普通群组范围 Agent Token，不是仅限 MCP 的密钥：也可能调用该身份获准的本群 REST 接口。不会展示或复制你的人类登录凭据。':'This is a normal group-scoped Agent Token, not an MCP-only key: it may also access this identity’s permitted group REST APIs. Your human login credential is never shown or copied.'}</p>
+  {secure&&<McpReadiness token={token} slug={slug}/>}
   {!secure&&<p role="alert">{zh?'请在可信 HTTPS 群页面操作。':'Use a trusted HTTPS group page.'}</p>}
   {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
   {secure&&block(endpoint,zh?'MCP 服务地址':'MCP server URL')}

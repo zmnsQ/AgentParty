@@ -8,6 +8,7 @@ import { clearApiBase, setApiBase } from "../lib/base";
 import { MIN_CLI_UNATTENDED } from "../lib/joinPack";
 import type { MsgFrame, PresenceEntry } from "@agentparty/shared";
 
+mock.module("../lib/cloudBridgesApi",()=>({cloudBridgesApi:{security:async()=>({policy:{enabled:false,owner_mfa_enabled:false},can_manage:false})}}));
 const savedAgents: Array<{ name: string; token: string; command: string }> = [];
 const VAULT_KEY = "ap_agent_token_vault:v1";
 // @ts-expect-error Bun supports query-suffixed imports that bypass process-wide module mocks.
