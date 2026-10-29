@@ -57,6 +57,25 @@ async function exchange(c:Awaited<ReturnType<typeof setup>>,code:string,verifier
       redirect_uri:CALLBACK,code_verifier:verifier,resource:c.resource}).toString()});
 }
 describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
+  it("keeps OAuth tool scopes while manual Bearer omits OAuth-only metadata without mutating the catalog",async()=>{
+    const c=await setup(),{code}=await consent(c);
+    const issued=await exchange(c,code);expect(issued.status).toBe(200);
+    const {access_token}=await issued.json() as {access_token:string};
+    const manual=await seedToken("agent",uniq("manual-bearer"),{owner:c.account,channelScope:c.slug});
+    const list=async(token:string)=>{
+      const response=await req(`/api/channels/${c.slug}/mcp`,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${token}`},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/list"})});
+      expect(response.status).toBe(200);
+      return (await response.json() as {result:{tools:Array<{name:string;annotations:{readOnlyHint:boolean};securitySchemes?:unknown}>}}).result.tools;
+    };
+    for(const token of [access_token,manual.token,access_token]){
+      const tools=await list(token);expect(tools.length).toBeGreaterThan(0);
+      for(const tool of tools){
+        expect(tool.name).toMatch(/^commons_/);
+        if(token===manual.token)expect(tool).not.toHaveProperty("securitySchemes");
+        else expect(tool.securitySchemes).toEqual([{type:"oauth2",scopes:tool.annotations.readOnlyHint?["group.read"]:["group.read","group.write"]}]);
+      }
+    }
+  });
   it("routes OAuth well-known and consent paths to the Worker even when SPA assets return HTTP 200",async()=>{
     const assets={
       fetch:async()=>new Response("<html>SPA fallback</html>",{

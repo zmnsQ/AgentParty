@@ -36,11 +36,20 @@ describe("personal cloud agent onboarding is not a local harness form",()=>{
     expect(selected).toEqual(["codex","codebuddy","claude","other"]);expect(local).toBe(4);expect(network).toBe(0);
     expect(renderer!.root.findAllByType("details")).toHaveLength(1);
   });
+  test("generic MCP is discoverable without requiring a development machine",async()=>{
+    const root=await mount(<AgentConnectionPicker onCloud={()=>{}} onLocal={()=>{}}/>);
+    await act(async()=>root.findByProps({"data-coding-provider":"other"}).props.onClick());
+    const detail=text(root.findByProps({className:"agent-platform-next"}));
+    expect(detail).toContain("Other MCP platforms");
+    expect(detail).toContain("Authorization header");
+    expect(detail).not.toContain("development machine");
+    expect(detail).toContain("does not add event support");
+  });
   test("keeps all new choices, security explanations and instructions bilingual",async()=>{
     expect(Object.keys(AgentConnectStrings.en).sort()).toEqual(Object.keys(AgentConnectStrings.zh).sort());
     Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:()=>"zh",setItem:()=>{}}});
     const root=await mount(<AgentConnectionPicker onCloud={()=>{}} onLocal={()=>{}}/>);
-    expect(text(root)).toContain("个人 Agent 与服务");expect(text(root)).toContain("编程与执行 Agent");
+    expect(text(root)).toContain("个人 Agent 与服务");expect(text(root)).toContain("MCP 客户端与编程 Agent");
     expect(text(root)).toContain("Codex");expect(text(root)).toContain("Claude Code");
     expect(text(root)).toContain("同一个群");expect(text(root)).toContain("防循环");
     expect(text(root)).not.toContain("AgentConnect.");

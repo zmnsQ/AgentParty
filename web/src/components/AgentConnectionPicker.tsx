@@ -39,7 +39,7 @@ export function AgentConnectionPicker({onCloud,onLocal}:{
     </div>
     {selection&&key&&<section className="agent-platform-next" aria-live="polite" aria-label={t("AgentConnect.nextStep")}>
       <h4>{t(key)}</h4><p>{t(`${key}Hint`)}</p>
-      <p>{t(selection.kind==="coding"?"AgentConnect.codingNeeds":`AgentConnect.${selection.provider}Needs`)}</p>
+      <p>{t(selection.kind==="coding"?(selection.provider==="other"?"AgentConnect.manualNeeds":"AgentConnect.codingNeeds"):`AgentConnect.${selection.provider}Needs`)}</p>
       <div><small>{t(selection.provider==="muse"?"AgentConnect.museChoice":"AgentConnect.unverified")}</small><button className="d-btn" type="button" data-picker-continue onClick={()=>selection.kind==="cloud"?onCloud(selection.provider):onLocal(selection.provider)}>{t("AgentConnect.nextStep")}<StudioIcon name="arrow"/></button></div>
     </section>}
     <p className="agent-platform-boundary">{t("AgentConnect.guideOnly")}</p>

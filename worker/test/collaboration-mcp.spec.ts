@@ -27,6 +27,17 @@ describe("group-scoped remote MCP", () => {
     expect(notification.status).toBe(202);
   });
 
+  it("returns a finite JSON initialize response even when the client accepts event streams", async () => {
+    for (const accept of ["application/json, text/event-stream", "text/event-stream"]) {
+      const response = await handleChannelMcp(request({jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:COLLABORATION_MCP_VERSION,capabilities:{},clientInfo:{name:"manual-fixture",version:"1"}}},{accept}), "dev", identity, unused);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      const body=await response.json() as any;
+      expect(body.result.serverInfo.name).toBe("agent-commons");
+      expect(body.result.capabilities.events).toBeUndefined();
+    }
+  });
+
   it("rejects human credentials, broad agent credentials, and tokens for another group", async () => {
     for (const candidate of [
       { ...identity, kind: "human" as const, role: "human" as const },

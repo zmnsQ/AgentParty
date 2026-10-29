@@ -274,7 +274,15 @@ export async function handleChannelMcp(request: Request, slug: string, identity:
   if (message.method === "tools/list") {
     const writable=!eventEnv || await mcpPermission(eventEnv.DB,slug,"group.write") &&
       await oauthPermission(identity,eventEnv,slug,"group.write");
-    return jsonRpc(id, { tools: COLLABORATION_MCP_TOOLS.filter(tool=>writable||tool.annotations.readOnlyHint).map(tool=>({...tool,name:tool.name.replace(/^party_/,"commons_")})) });
+    // securitySchemes is the OAuth client extension, not core MCP transport
+    // authentication. Manual Bearer clients already passed the same auth/policy
+    // gates above; omit the extension rather than falsely advertising noauth or
+    // requiring an OAuth flow they did not use. Never mutate the shared catalog.
+    const oauth = identity.name.startsWith("ac-oauth-");
+    return jsonRpc(id, { tools: COLLABORATION_MCP_TOOLS.filter(tool=>writable||tool.annotations.readOnlyHint).map(tool=>{
+      const { securitySchemes, ...definition } = tool;
+      return {...definition, ...(oauth ? { securitySchemes } : {}), name:tool.name.replace(/^party_/,"commons_")};
+    }) });
   }
   if (message.method !== "tools/call") return rpcError(id, -32601, "Method not found");
   if (!record(message.params) || typeof message.params.name !== "string" || (message.params.arguments !== undefined && !record(message.params.arguments))) return rpcError(id, -32602, "Invalid tools/call parameters");
