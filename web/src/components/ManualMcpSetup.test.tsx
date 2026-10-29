@@ -110,7 +110,7 @@ test('verified same-account refresh preserves revealed token and complete parsea
 });
 test('same verified owner renews during pending creation without dropping response or creating twice',async()=>{
  pending=deferred();await act(async()=>{renderer=create(manual({accountKey:'owner'}));});await act(async()=>createButton().props.onClick());
- await act(async()=>renderer.update(manual({accountKey:'owner',token:'renewed'})));const busyButton=renderer.root.findAllByType('button').find(b=>text(b)==='Creating…');expect(busyButton.props.disabled).toBe(true);
+ await act(async()=>renderer.update(manual({accountKey:'owner',token:'renewed'})));const busyButton=renderer.root.findAllByType('button').find(b=>text(b).startsWith('Creating, please wait'));expect(busyButton.props.disabled).toBe(true);
  await act(async()=>busyButton.props.onClick());expect(calls).toHaveLength(1);
  await act(async()=>pending.resolve(Response.json({name:'test-mcp',token:secret})));expect(text(renderer.root)).toContain(secret);
 });
@@ -130,4 +130,32 @@ test('complete JSON safely escapes credential bytes; leaving and returning never
  const json=text(renderer.root.findByProps({'aria-label':'Complete MCP JSON configuration'}));expect(JSON.parse(json).mcpServers['agentcommons-group'].headers.Authorization).toBe(`Bearer ${fixture}`);
  await act(async()=>renderer.update(view('https://another.test')));expect(renderer.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
  await act(async()=>renderer.update(view()));expect(renderer.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
+});
+test('removed identity is not presented as an authorization or token expiry problem',async()=>{
+ pending={promise:Promise.resolve(Response.json({error:{code:'participant_removed',message:'participant was removed from this channel'}},{status:403}))};
+ await mount();await act(async()=>createButton().props.onClick());
+ expect(text(renderer.root)).toContain('Creating or rotating tokens cannot restore membership');
+ expect(renderer.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
+ expect(copies).toHaveLength(0);expect(calls).toHaveLength(1);
+});
+
+test('known name conflict unlocks edit and permits exactly one explicit renamed attempt',async()=>{
+ pending={promise:Promise.resolve(Response.json({error:{code:'conflict',message:'token name already exists'}},{status:409}))};
+ await mount();await act(async()=>renderer.root.findByType('input').props.onChange({target:{value:'  renamed-agent  '}}));
+ await act(async()=>{createButton().props.onClick();createButton().props.onClick();});
+ expect(calls).toHaveLength(1);expect(JSON.parse(calls[0].init.body).name).toBe('renamed-agent');
+ expect(text(renderer.root)).toContain('This name already exists');
+ expect(renderer.root.findByType('input').props.disabled).toBe(false);expect(createButton().props.disabled).toBe(false);
+ pending=null;await act(async()=>renderer.root.findByType('input').props.onChange({target:{value:'different-agent'}}));
+ await act(async()=>createButton().props.onClick());expect(calls).toHaveLength(2);expect(JSON.parse(calls[1].init.body).name).toBe('different-agent');expect(text(renderer.root)).toContain(secret);
+});
+test('invalid edited name stays editable with an explicit error and never sends',async()=>{
+ await mount();await act(async()=>renderer.root.findByType('input').props.onChange({target:{value:'bad/name'}}));
+ await act(async()=>createButton().props.onClick());expect(calls).toHaveLength(0);expect(text(renderer.root)).toContain('Use 1–64');expect(createButton().props.disabled).toBe(false);
+});
+test('request deadline exits pending into explicit unknown state without resubmitting',async()=>{
+ let expire;const nativeTimer=globalThis.setTimeout;stub('setTimeout',(cb,ms,...args)=>ms===30000?(expire=cb,999):nativeTimer(cb,ms,...args));
+ globalThis.fetch=async(url,init)=>{if(String(url).endsWith('/mcp-security'))return Response.json({policy:{enabled:true,owner_mfa_enabled:true},can_manage:false});calls.push({url:String(url),init});return new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('deadline','AbortError'))));};
+ await mount();await act(async()=>createButton().props.onClick());expect(text(renderer.root)).toContain('up to 30 seconds');
+ await act(async()=>expire());expect(text(renderer.root)).toContain('Creation outcome unknown');expect(text(renderer.root)).not.toContain('up to 30 seconds');expect(createButton().props.disabled).toBe(true);expect(calls).toHaveLength(1);expect(copies).toHaveLength(0);
 });

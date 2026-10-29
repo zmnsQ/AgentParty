@@ -1498,6 +1498,7 @@ async function persistToken(
     owner: string;
     channelScope: string | null;
     lineage?: AgentLineage;
+    requireActiveParticipant?: boolean;
   },
 ): Promise<{ token: string } | { conflict: true }> {
   const existing = await db
@@ -1515,14 +1516,19 @@ async function persistToken(
   const token = randomToken();
   const hash = await sha256Hex(token);
   const now = Date.now();
+  const activeGuard = opts.requireActiveParticipant ? ` AND NOT EXISTS (
+    SELECT 1 FROM channel_participant_removals WHERE channel_slug = ? AND
+      ((principal_type = 'name' AND principal = ?) OR (principal_type = 'account' AND principal = ?))
+  ) AND NOT EXISTS (SELECT 1 FROM channel_account_bans WHERE channel_slug = ? AND account = ?)` : "";
+  const activeArgs = opts.requireActiveParticipant ? [opts.channelScope, opts.name, opts.owner, opts.channelScope, opts.owner] : [];
   if (existing) {
-    await db
+    const written = await db
       .prepare(
         `UPDATE tokens
             SET hash = ?, role = ?, owner = ?, channel_scope = ?,
                 parent_agent = ?, root_agent = ?, team_id = ?, spawn_depth = ?, child_expires_at = ?,
                 created_at = ?, revoked_at = NULL
-          WHERE id = ?`,
+          WHERE id = ? AND revoked_at IS NOT NULL${activeGuard}`,
       )
       .bind(
         hash,
@@ -1536,16 +1542,18 @@ async function persistToken(
         opts.lineage?.expires_at ?? null,
         now,
         existing.id,
+        ...activeArgs,
       )
       .run();
+    if (Number(written.meta.changes ?? 0) === 0) return { conflict: true };
   } else {
-    await db
+    const written = await db
       .prepare(
         `INSERT INTO tokens (
            hash, name, role, owner, channel_scope,
            parent_agent, root_agent, team_id, spawn_depth, child_expires_at,
            created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE 1=1${activeGuard}`,
       )
       .bind(
         hash,
@@ -1559,8 +1567,10 @@ async function persistToken(
         opts.lineage?.depth ?? null,
         opts.lineage?.expires_at ?? null,
         now,
+        ...activeArgs,
       )
       .run();
+    if (Number(written.meta.changes ?? 0) === 0) return { conflict: true };
     // 预分配认领（#101）：该 name 从无 token（existing 为 null）→ 这是它的【首次】铸造。
     // 把此前预分配、尚未绑定的角色锚定到铸造账号。仅在首次铸造时绑定：重铸（existing 非 null，
     // 见上面的 UPDATE 分支）绝不重绑，于是残留角色不会被易主的新账号继承。
@@ -3466,8 +3476,18 @@ app.post("/api/agents", requireBearer, async (c) => {
   // owner = 铸造者账号（不取客户端值）。铸出的 agent token account 因此 = 铸造者账号，
   // 与铸造者共享同一账号 → 天然能进铸造者的私有频道（canAccessChannel 账号规则）。
   const owner = identity.account;
-  const result = await persistToken(c.env.DB, { name, role: "agent", owner, channelScope: effectiveScope });
+  if (effectiveScope !== null && (
+    await isChannelParticipantRemoved(c.env.DB, effectiveScope, { name, account: owner }) ||
+    await isChannelAccountBanned(c.env.DB, effectiveScope, owner)
+  )) {
+    return c.json(errorBody("participant_removed", "a channel moderator must explicitly re-add this participant before issuing credentials"), 403);
+  }
+  const result = await persistToken(c.env.DB, { name, role: "agent", owner, channelScope: effectiveScope, requireActiveParticipant: effectiveScope !== null });
   if ("conflict" in result) {
+    if (effectiveScope !== null && (await isChannelParticipantRemoved(c.env.DB, effectiveScope, { name, account: owner }) ||
+        await isChannelAccountBanned(c.env.DB, effectiveScope, owner))) {
+      return c.json(errorBody("participant_removed", "a channel moderator must explicitly re-add this participant before issuing credentials"), 403);
+    }
     return c.json(errorBody("conflict", "token name already exists, revoke it first"), 409);
   }
   const { token } = result;
@@ -3818,7 +3838,7 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
     return c.json(errorBody("forbidden", "not allowed in this channel"), 403);
   }
   const rows = await c.env.DB.prepare(
-    `SELECT t.name, t.owner, t.channel_scope, t.created_at, n.nickname,
+    `SELECT t.name, t.owner, t.channel_scope, t.created_at, t.revoked_at, n.nickname,
             g.id AS oauth_grant_id, g.revoked_at AS oauth_revoked_at,
             g.refresh_expires_at AS oauth_refresh_expires_at, g.access_expires_at AS oauth_access_expires_at,
             g.scopes_json AS oauth_scopes, c.name AS oauth_client_name,
@@ -3833,19 +3853,35 @@ app.get("/api/channels/:slug/agents", requireBearer, async (c) => {
       WHERE t.owner = ?
         AND t.role = 'agent'
         AND t.channel_scope = ?
-        AND t.revoked_at IS NULL
+        AND (t.revoked_at IS NULL OR (g.id IS NULL AND EXISTS (
+          SELECT 1 FROM channel_participant_removals r WHERE r.channel_slug=t.channel_scope
+            AND r.principal_type='name' AND r.principal=t.name)))
         AND t.parent_agent IS NULL
       ORDER BY t.created_at DESC, t.name`,
   )
     .bind(identity.account, slug)
-    .all<{ name: string; owner: string; channel_scope: string; created_at: number; nickname: string | null;
+    .all<{ name: string; owner: string; channel_scope: string; created_at: number; revoked_at: number | null; nickname: string | null;
       oauth_grant_id: string | null; oauth_revoked_at: number | null; oauth_refresh_expires_at: number | null;
       oauth_access_expires_at: number | null; oauth_scopes: string | null; oauth_client_name: string | null;
       oauth_redirects: string | null; oauth_provider:string|null; oauth_client_disabled: number | null; oauth_token_matches: number }>();
   const now=Date.now();
+  const removed = new Set<string>();
+  const removalEpochs = new Map<string, string>();
+  const accountRemoved = await loadChannelParticipantRemoval(c.env.DB, slug, "account", identity.account);
+  const ownerBanned = await isChannelAccountBanned(c.env.DB, slug, identity.account);
+  for (const row of rows.results) {
+    const nameRemoval = await loadChannelParticipantRemoval(c.env.DB, slug, "name", row.name);
+    if (ownerBanned || accountRemoved || nameRemoval) removed.add(row.name);
+    if (nameRemoval) removalEpochs.set(row.name, nameRemoval.removal_epoch);
+  }
+  const canRestore = isChannelModerator(identity, channel);
   return c.json({ agents: rows.results.map(row=>{
     // Explicit allowlist: never expose access/refresh hashes, credentials or cookies.
-    const basic={name:row.name,owner:row.owner,channel_scope:row.channel_scope,created_at:row.created_at,nickname:row.nickname};
+    const basic={name:row.name,owner:row.owner,channel_scope:row.channel_scope,created_at:row.created_at,nickname:row.nickname,
+      credential_revoked: row.revoked_at !== null,
+      access_status: removed.has(row.name) ? "removed" : "active",
+      ...(removalEpochs.has(row.name) ? { removal_epoch: removalEpochs.get(row.name) } : {}),
+      can_restore: removalEpochs.has(row.name) && canRestore && !ownerBanned && !accountRemoved && !row.oauth_grant_id};
     if(!row.oauth_grant_id)return {...basic,credential_kind:"token"};
     let redirects:unknown=[],scopes:unknown=[];
     try{redirects=JSON.parse(row.oauth_redirects??"[]");scopes=JSON.parse(row.oauth_scopes??"[]");}catch{/* fail closed */}
@@ -4052,6 +4088,39 @@ app.put("/api/channels/:slug/agents/:name/nickname", requireBearer, async (c) =>
   return c.json({ name, nickname });
 });
 
+// Explicitly restore only one ordinary agent name; never restore its owner account.
+app.post("/api/channels/:slug/agents/:name/restore", requireBearer, async (c) => {
+  const identity = c.get("identity"), slug = c.req.param("slug"), name = c.req.param("name");
+  const channel = await loadChannel(c.env.DB, slug);
+  if (!channel) return c.json(errorBody("not_found", "channel not found"), 404);
+  if (identity.role !== "human" || !identity.account || !isChannelModerator(identity, channel) ||
+      !(await canAccessLoadedChannel(c.env.DB, identity, channel))) {
+    return c.json(errorBody("forbidden", "only a channel moderator can restore an agent"), 403);
+  }
+  const body = await c.req.json().catch(() => null) as { removal_epoch?: unknown } | null;
+  if (!NAME_RE.test(name) || typeof body?.removal_epoch !== "string" || !body.removal_epoch || body.removal_epoch.length > 128) {
+    return c.json(errorBody("bad_request", "name and current removal_epoch required"), 400);
+  }
+  const token = await c.env.DB.prepare(`SELECT id, owner FROM tokens WHERE name=? AND channel_scope=?
+    AND role='agent' AND parent_agent IS NULL`).bind(name, slug).first<{id:number;owner:string}>();
+  if (!token) return c.json(errorBody("not_found", "ordinary channel agent not found"), 404);
+  const oauth = await c.env.DB.prepare("SELECT 1 FROM connector_oauth_grants WHERE agent_name=?").bind(name).first();
+  if (oauth) return c.json(errorBody("conflict", "OAuth agents require their connection-specific recovery flow"), 409);
+  if (await isChannelAccountBanned(c.env.DB, slug, token.owner) || await loadChannelParticipantRemoval(c.env.DB, slug, "account", token.owner)) {
+    return c.json(errorBody("participant_removed", "the owner account is removed; single-agent restoration cannot restore account access"), 403);
+  }
+  const result = await c.env.DB.prepare(`DELETE FROM channel_participant_removals
+    WHERE channel_slug=? AND principal_type='name' AND principal=? AND removal_epoch=?
+      AND NOT EXISTS (SELECT 1 FROM channel_account_bans WHERE channel_slug=? AND account=?)
+      AND NOT EXISTS (SELECT 1 FROM channel_participant_removals WHERE channel_slug=? AND principal_type='account' AND principal=?)
+      AND EXISTS (SELECT 1 FROM tokens WHERE id=? AND name=? AND owner=? AND channel_scope=? AND role='agent' AND parent_agent IS NULL)
+      AND NOT EXISTS (SELECT 1 FROM connector_oauth_grants WHERE agent_name=?)`)
+    .bind(slug, name, body.removal_epoch, slug, token.owner, slug, token.owner, token.id, name, token.owner, slug, name).run();
+  if (Number(result.meta.changes ?? 0) !== 1) return c.json(errorBody("conflict", "removal state changed; reload before restoring"), 409);
+  await bestEffortRecordManagementAudit(c.env.DB, { actor: managementAuditActor(identity), action: "channel.agent.restore", resource: `channel/${slug}/agents/${name}`, channel: slug });
+  return c.json({ restored: true, name });
+});
+
 app.post("/api/channels/:slug/agents/:name/rotate", requireBearer, async (c) => {
   const identity = c.get("identity");
   const slug = c.req.param("slug");
@@ -4080,18 +4149,28 @@ app.post("/api/channels/:slug/agents/:name/rotate", requireBearer, async (c) => 
     .bind(name, identity.account, slug)
     .first<{ id: number }>();
   if (!row) return c.json(errorBody("not_found", "agent token not found"), 404);
+  if (await isChannelParticipantRemoved(c.env.DB, slug, { name, account: identity.account }) ||
+      await isChannelAccountBanned(c.env.DB, slug, identity.account)) {
+    return c.json(errorBody("participant_removed", "a channel moderator must explicitly re-add this participant before rotating credentials"), 403);
+  }
   const oauthManaged=await c.env.DB.prepare("SELECT id FROM connector_oauth_grants WHERE agent_name=? AND account=? AND channel_slug=?")
     .bind(name,identity.account,slug).first();
   if(oauthManaged)return c.json(errorBody("conflict", "OAuth credentials are managed by the connected client. Reauthorize or revoke the connection instead."),409);
   const nextToken = randomToken();
   const now = Date.now();
-  await c.env.DB.prepare(
+  const rotated = await c.env.DB.prepare(
     `UPDATE tokens
         SET hash = ?, created_at = ?
-      WHERE id = ?`,
+      WHERE id = ? AND revoked_at IS NULL
+        AND NOT EXISTS (SELECT 1 FROM channel_participant_removals WHERE channel_slug=? AND
+          ((principal_type='name' AND principal=?) OR (principal_type='account' AND principal=?)))
+        AND NOT EXISTS (SELECT 1 FROM channel_account_bans WHERE channel_slug=? AND account=?)`,
   )
-    .bind(await sha256Hex(nextToken), now, row.id)
+    .bind(await sha256Hex(nextToken), now, row.id, slug, name, identity.account, slug, identity.account)
     .run();
+  if (Number(rotated.meta.changes ?? 0) === 0) {
+    return c.json(errorBody("participant_removed", "credentials were revoked or the participant was removed; ask a channel moderator to review access"), 403);
+  }
   await bestEffortRecordManagementAudit(c.env.DB, {
     actor: managementAuditActor(identity),
     action: "token.issue",

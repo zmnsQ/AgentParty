@@ -13,6 +13,7 @@ export type ManagementAuditAction =
   | "channel.create"
   | "channel.permissions.update"
   | "channel.visibility.update"
+  | "channel.agent.restore"
   | "channel.member.add"
   | "channel.member.remove"
   | "channel.role.assign"

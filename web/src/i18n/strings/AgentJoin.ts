@@ -12,6 +12,7 @@ export const AgentJoinStrings: LocaleDict = {
     "AgentJoin.errForbidden": "You don't have permission to mint agents in this channel",
     "AgentJoin.errValidation": "Invalid name, please try again",
     "AgentJoin.errGeneric": "Couldn't mint the token, try again shortly",
+    "AgentJoin.errUnknown": "Creation outcome unknown; it may have succeeded. Check My Agents before creating again. Reopen only after reviewing the existing identity.",
     "AgentJoin.dialogNameLabel": "name an agent",
     "AgentJoin.close": "close",
     "AgentJoin.titlePrefix": "add an agent to",
@@ -161,6 +162,7 @@ export const AgentJoinStrings: LocaleDict = {
     "AgentJoin.errRotate": "Couldn't generate a new token — try again shortly.",
   },
   zh: {
+    "AgentJoin.errUnknown": "创建结果不明，可能已成功。请先到“我的 Agent”核对，检查已有身份后再重新打开页面。",
     "AgentJoin.minting": "正在创建群内身份…",
     "AgentJoin.open": "添加 Agent",
     "AgentJoin.nameError": "名字只能用字母/数字/._- ，1–64 位，且不能是 system",

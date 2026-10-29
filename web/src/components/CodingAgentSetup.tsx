@@ -3,7 +3,7 @@ import {DirectMcpSetup} from './DirectMcpSetup';
 import {useEffect,useRef,useState} from 'react';
 import {useLocale} from '../i18n/locale';
 import {apiOrigin} from '../lib/base';
-import {createChannelAgent,ConflictError} from '../lib/api';
+import {createChannelAgent,ConflictError,AuthError,ForbiddenError,ValidationError} from '../lib/api';
 import {copyText} from '../lib/agentTokenVault';
 import {StudioIcon} from './StudioIcon';
 import '../styles/coding-agent-setup.css';
@@ -23,7 +23,14 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
  const [name,setName]=useState(()=>`${namePrefix.replace(/[^A-Za-z0-9._-]/g,'-').slice(0,35)||'my'}-${client}`);
  const [os,setOs]=useState<'unix'|'windows'>(typeof navigator!=='undefined'&&/Windows/.test(navigator.userAgent)?'windows':'unix');
  const [manual,setManual]=useState(client==='generic'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
- const [credential,setCredential]=useState<{name:string;token:string}|null>(null),mounted=useRef(true),pending=useRef(false);
+ const [storedCredential,setCredential]=useState<{name:string;token:string;generation:number}|null>(null),mounted=useRef(true),pending=useRef(false);
+ const [unknown,setUnknown]=useState(false);
+ const key=JSON.stringify([apiOrigin(),slug,accountKey??token]),scope=useRef({key,generation:0});
+ if(scope.current.key!==key)scope.current={key,generation:scope.current.generation+1};
+ const generation=scope.current.generation,origin=apiOrigin();
+ const active=()=>mounted.current&&scope.current.generation===generation&&apiOrigin()===origin;
+ const credential=storedCredential?.generation===generation?storedCredential:null;
+ useEffect(()=>{setCredential(null);setBusy(false);setUnknown(false);setError('');setNotice('');pending.current=false;},[key]);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
  const server=apiOrigin(),source=server+'/cli';
  const secureServer=(()=>{try{const url=new URL(server);return url.protocol==='https:'&&url.origin===server;}catch{return false;}})();
@@ -31,12 +38,17 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
  const copy=async(value:string)=>{const ok=await copyText(value);if(mounted.current)setNotice(ok?(zh?'已复制':'Copied'):(zh?'复制失败，请手动选择内容':'Copy failed; select the text manually'));};
  const create=async()=>{
   if(!secureServer){setError(secureWarning);return;}
-  if(pending.current||credential)return;
+  if(!active()||pending.current||credential||unknown)return;
   if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name.trim())){setError(zh?'名称须为 1–64 位字母、数字、点、下划线或短横线，首位为字母或数字。':'Use 1–64 letters, numbers, dots, underscores or hyphens; start with a letter or number.');return;}
   pending.current=true;setBusy(true);setError('');
-  try{const result=await createChannelAgent(slug,name.trim(),token);if(mounted.current)setCredential({name:result.name,token:result.token});}
-  catch(e){if(mounted.current)setError(e instanceof ConflictError?(zh?'名称已被占用。已有身份请到“我的 Agent”恢复；不要重复创建。':'Name already exists. Recover that identity in My Agents instead of duplicating it.'):(zh?'未能创建凭据，请检查权限或重新登录。没有替换任何已有连接。':'Could not create credentials. Check permissions/sign-in; existing connections were not replaced.'));}
-  finally{pending.current=false;if(mounted.current)setBusy(false);}
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30_000);
+  try{const result=await createChannelAgent(slug,name.trim(),token,controller.signal);if(active())setCredential({name:result.name,token:result.token,generation});}
+  catch(e){if(active()){
+   const known=e instanceof ConflictError||e instanceof AuthError||e instanceof ForbiddenError||e instanceof ValidationError;
+   setUnknown(!known);
+   setError(!known?(zh?'创建结果不明，可能已成功。请先到“我的 Agent”核对，不要重复创建。':'Creation outcome unknown; it may have succeeded. Check My Agents before creating again.'):e instanceof ForbiddenError&&e.code==='participant_removed'?(zh?'此身份已被移出群，请让群管理员明确重新加入。轮换或创建 Token 不会恢复资格。':'This identity was removed. Ask a moderator to re-add it; creating or rotating tokens cannot restore access.'):e instanceof ConflictError?(zh?'名称已被占用，可修改名称重试；已有身份请到“我的 Agent”管理。':'Name already exists. Edit it and retry, or manage the existing identity in My Agents.'):(zh?'未创建凭据，请检查权限、登录和名称后重试。':'Credentials were not created. Check permissions, sign-in and the name before retrying.'));
+  }}finally{clearTimeout(timer);if(active()){pending.current=false;setBusy(false);}}
+
  };
  const isManual=manual||os==='windows'||client==='generic';
  const connect=credential&&secureServer?codingConnectCommand(server,slug,credential.name,client,isManual)+(channelCapable?' --events channel':''):'';
@@ -55,8 +67,8 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
   </section>
   <section className="coding-step"><h4>{zh?'2 · 创建本群身份':'2 · Create this group identity'}</h4>
    <p>{zh?'创建只生成限本群的凭据，不会登录编程客户端或使 Agent 在线。已有身份请优先检查原配置，不要重复创建。':'Creation only issues group-scoped credentials; it does not sign in to your coding client or bring an agent online. For an existing identity, check its configuration before creating another.'}</p>
-   <label>{zh?'Agent 名称':'Agent name'}<input className="coding-agent-name" value={name} maxLength={64} onChange={e=>setName(e.target.value)} disabled={busy||!!credential} autoComplete="off" spellCheck={false}/></label>
-   {!credential?<button type="button" className="d-btn d-btn--primary coding-create" onClick={()=>void create()} disabled={busy||!secureServer}><StudioIcon name="key"/>{busy?(zh?'正在创建…':'Creating…'):(zh?'创建本群接入凭据':'Create group credentials')}</button>:<>
+   <label>{zh?'Agent 名称':'Agent name'}<input className="coding-agent-name" value={name} maxLength={64} onChange={e=>setName(e.target.value)} disabled={busy||unknown||!!credential} autoComplete="off" spellCheck={false}/></label>
+   {!credential?<button type="button" className="d-btn d-btn--primary coding-create" onClick={()=>void create()} disabled={busy||unknown||!secureServer}><StudioIcon name="key"/>{busy?(zh?'正在创建…':'Creating…'):(zh?'创建本群接入凭据':'Create group credentials')}</button>:<>
     <label>{zh?'Agent Token（明文仅显示本次；只粘贴到终端隐藏输入）':'Agent token (plaintext shown this time only; paste into the terminal’s hidden prompt)'}<input className="coding-agent-token" type="password" readOnly value={credential.token} autoComplete="off"/></label>
     <button type="button" className="d-btn" onClick={()=>void copy(credential.token)}><StudioIcon name="copy"/>{zh?'复制 Token':'Copy token'}</button>
     <p>{zh?'关闭后不再显示明文。不要发到群聊、提交代码或写进命令参数；丢失后先检查本机已保存的配置；确需更换时到“我的 Agent”明确操作，避免让正在使用的连接失效。':'Plaintext is not retained after closing. Never post it to chat, commit it, or add it to command arguments. If lost, first check the saved local configuration. Rotate explicitly in My Agents only if necessary, as existing connections may depend on it.'}</p>
@@ -66,7 +78,7 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
    {os==='unix'&&client!=='generic'&&<label className="coding-check"><input type="checkbox" checked={manual} onChange={e=>setManual(e.target.checked)}/>{zh?'IDE／手动配置（不调用客户端 CLI）':'IDE / manual configuration (do not invoke client CLI)'}</label>}
    {credential?block(connect,zh?'Agent Commons 连接命令':'Agent Commons connection command'):<p>{zh?'创建凭据后显示与你的群组和 Agent 名称对应的命令。':'Create credentials to get the exact command for this group and agent.'}</p>}
    <p>{isManual?(zh?'运行后会输出不含 Token 的配置。Codex 输出 TOML，其余客户端输出 MCP JSON；合并到现有 MCP 配置，不要覆盖整个设置文件。':'The command prints token-free configuration: TOML for Codex, MCP JSON for others. Merge the entry; do not replace the whole settings file.'):(zh?'运行时粘贴 Token 并回车。验证身份和群组后，自动注册到所选客户端；其他 MCP 保留不变。':'Paste the token at the hidden prompt. After verifying identity and group, the CLI registers this MCP server without replacing other servers.')}</p>
-   <p>{zh?'若返回 403，先由群主在本群 MCP 安全设置开启所需权限；不要换成人类管理员 Token。':'For HTTP 403, ask the group owner to enable the required MCP policy. Do not substitute a human/admin token.'}</p>
+   <p>{zh?'若返回 403，请先查看错误原因：身份已移除时需管理员明确重新加入，MCP 权限不足时再检查本群安全设置。不要换成人类管理员 Token。':'For HTTP 403, check the error: removed identities need explicit moderator restoration; policy errors need group MCP settings reviewed. Do not substitute a human/admin token.'}</p>
   </section>
   <section className="coding-step"><h4>{zh?'4 · 重开会话并只读验证':'4 · Reopen the session and verify read-only'}</h4><p>{zh?'在客户端的 /mcp 或 MCP 设置中确认 Agent Commons 已加载，再发送下面的验证指令。CLI 的 doctor 只证明服务和配置检查通过，不代表模型已实际调用。':'Check /mcp or MCP settings, then use this read-only prompt. CLI doctor verifies the server/configuration, not an actual model invocation.'}</p>{block(check,zh?'只读验证指令':'Read-only verification prompt')}</section>
   {channelCapable&&<section className="coding-step coding-channel-start"><h4>{zh?'5 · 在客户端启用 Channel':'5 · Enable the Channel in your client'}</h4><p>{zh?'连接命令会配置消息桥接。重开客户端时，为终端显示的配置名启用 Channel；已有连接可以先更新安装，再启用事件模式。':'The connection command configures event bridging. Reopen the client with the printed profile enabled as a Channel. Existing connections can update the installer and enable event mode.'}</p><p>{zh?'下面不是只读验证：events enable 会启用指定配置的事件接收，客户端启动命令会打开对应会话。仅在你明确需要通知并同意后执行；配置成功仍需实际 @ 和回复验收。':'The commands below are not read-only checks: events enable activates event reception for that profile, and the client command starts its session. Run them only when you explicitly want notifications; verify a real mention and reply afterward.'}</p>{block('agentcommons list\nagentcommons events enable --profile <PROFILE> --yes\n'+client+' --channels server:<PROFILE>',zh?'启用实时消息':'Enable realtime messages')}<p>{zh?'将 <PROFILE> 替换为 list 返回的准确配置名。自定义 Channel 在部分预览版本还需要 --dangerously-load-development-channels server:<PROFILE>；该参数仅允许加载自定义通道，不关闭工具审批，也不修改组织策略。':'Replace <PROFILE> with the exact configured name. Preview builds may also require --dangerously-load-development-channels server:<PROFILE>. This permits the custom channel only; it does not disable tool approvals or organization policy.'}</p></section>}

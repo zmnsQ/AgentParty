@@ -1,3 +1,4 @@
+import {RemovedAgentAccess} from "./RemovedAgentAccess";
 import { StudioIcon } from "./StudioIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -78,7 +79,7 @@ interface Props {
 }
 
 const isOAuthIdentity=(agent:ChannelAgentInfo)=>agent.credential_kind==="oauth"||agent.name.startsWith("ac-oauth-");
-const oauthReady=(agent:ChannelAgentInfo)=>agent.oauth?.status==="authorized";
+const oauthReady=(agent:ChannelAgentInfo)=>agent.access_status!=="removed"&&agent.oauth?.status==="authorized";
 const agentLabel=(agent:ChannelAgentInfo)=>agent.nickname??agent.oauth?.client_name??agent.name;
 
 type CopyTarget = `${string}:token` | `${string}:command`;
@@ -440,6 +441,7 @@ export function AgentTokens({
   // #612：换 token 不换接入方式——沿用旧记录的 mode，让「复制接入包」仍是同款脚本。
   // #530：桌面版 location.origin 是 tauri://localhost，接入包会报错；优先真实后端 apiBase，同源 web 回退 origin。
   async function regenerateAndSaveToken(name: string): Promise<string> {
+    if(agents?.some(a=>a.name===name&&a.access_status==="removed"))throw new Error("Participant must be explicitly re-added");
     if(name.startsWith("ac-oauth-")||agents?.some(a=>a.name===name&&isOAuthIdentity(a)))throw new Error("OAuth credentials are client managed");
     const next = await rotateChannelAgent(token, slug, name);
     const prior = findSavedAgentToken(accountKey, slug, name);
@@ -483,7 +485,7 @@ export function AgentTokens({
       if (saved) guideFromSaved(saved, { forceJoin: true });
     } catch (err) {
       if (err instanceof AuthError) onAuthFailed(err.message);
-      else if (err instanceof ForbiddenError) setAgentError(t("AgentTokens.errRotateForbidden"));
+      else if (err instanceof ForbiddenError) setAgentError(forbiddenText(err,t,"AgentTokens.errRotateForbidden"));
       else setAgentError(t("AgentTokens.errRotate"));
     } finally {
       setBusyName(null);
@@ -493,6 +495,7 @@ export function AgentTokens({
   // 拿到该 agent 可用的明文 token：本地 vault 有就用（不动线上）；没有则征得同意后 rotate
   // 生成新 token（旧 token 立即失效——若在别处正跑会掉线），并存回 vault 供复制/后续复用。
   async function tokenForResidency(name: string): Promise<string | null> {
+    if(agents?.some(a=>a.name===name&&a.access_status==="removed"))return null;
     const saved = findSavedAgentToken(accountKey, slug, name);
     if (saved) return saved.token;
     if (!window.confirm(t("AgentTokens.residentRegenConfirm", { name }))) return null;
@@ -503,7 +506,7 @@ export function AgentTokens({
   // #721 评审：用 ref 同步上锁——residentBusy 是 state，要等 await pickDirectory 后才生效，
   // 连点会绕过 state 守卫并发触发 rotate/dutyAdopt（第二次 rotate 作废第一次的 token）。
   async function makeResident(name: string) {
-    if (!canMakeResident || residentBusyRef.current !== null) return;
+    if (!canMakeResident || residentBusyRef.current !== null || agents?.some(a=>a.name===name&&a.access_status==="removed")) return;
     residentBusyRef.current = name;
     setResidentBusy(name);
     setResidentError(null);
@@ -677,7 +680,7 @@ export function AgentTokens({
     }
   }
 
-  const plaintextCount = (agents ?? []).filter((agent) => !isOAuthIdentity(agent)&&savedTokensByName.has(agent.name)).length;
+  const plaintextCount = (agents ?? []).filter((agent) => agent.access_status!=="removed"&&!isOAuthIdentity(agent)&&savedTokensByName.has(agent.name)).length;
   const oauthCount=(agents??[]).filter(a=>isOAuthIdentity(a)&&oauthReady(a)).length;
   const worktreeLabel = (strategy: ProjectAgentWorktreeStrategy) => {
     if (strategy === "shared") return t("AgentTokens.worktreeShared");
@@ -756,8 +759,8 @@ export function AgentTokens({
                     {agentLabel(agent)}
                     {(agent.nickname||isOAuthIdentity(agent)) && <small>{agent.name}</small>}
                   </span>
-                  <span className={`agentmanager-status${isOAuthIdentity(agent)?oauthReady(agent)?" is-ready":" is-warning":saved?" is-ready":" is-warning"}`}>
-                    {isOAuthIdentity(agent)?t(oauthReady(agent)?"AgentTokens.oauthReady":"AgentTokens.oauthReconnect"):
+                  <span className={`agentmanager-status${agent.access_status==="removed"?" is-warning":isOAuthIdentity(agent)?oauthReady(agent)?" is-ready":" is-warning":saved?" is-ready":" is-warning"}`}>
+                    {agent.access_status==="removed"?t("AgentTokens.removed"):isOAuthIdentity(agent)?t(oauthReady(agent)?"AgentTokens.oauthReady":"AgentTokens.oauthReconnect"):
                       saved?t("AgentTokens.plaintextReady"):t("AgentTokens.plaintextMissing")}
                   </span>
                 </button>
@@ -801,13 +804,13 @@ export function AgentTokens({
                     <h4>{agentLabel(selectedAgent)}</h4>
                     {(selectedAgent.nickname||selectedAgentOAuth) && <p className="t-mono">{selectedAgent.name}</p>}
                   </div>
-                  <span className={`agentmanager-status${selectedAgentOAuth?oauthReady(selectedAgent)?" is-ready":" is-warning":selectedAgentSaved?" is-ready":" is-warning"}`}>
-                    {selectedAgentOAuth?t(oauthReady(selectedAgent)?"AgentTokens.oauthReady":"AgentTokens.oauthReconnect"):
+                  <span className={`agentmanager-status${selectedAgent.access_status==="removed"?" is-warning":selectedAgentOAuth?oauthReady(selectedAgent)?" is-ready":" is-warning":selectedAgentSaved?" is-ready":" is-warning"}`}>
+                    {selectedAgent.access_status==="removed"?t("AgentTokens.removed"):selectedAgentOAuth?t(oauthReady(selectedAgent)?"AgentTokens.oauthReady":"AgentTokens.oauthReconnect"):
                       selectedAgentSaved?t("AgentTokens.plaintextReady"):t("AgentTokens.plaintextMissing")}
                   </span>
                 </header>
 
-                {selectedAgentOAuth ? (
+                {selectedAgent.access_status==="removed" ? <RemovedAgentAccess agent={selectedAgent} token={token} slug={slug} onRestored={refreshAgents}/> : selectedAgentOAuth ? (
                   <section className="agentmanager-detail-section agentmanager-callout agentmanager-oauth">
                     <strong>{t("AgentTokens.oauthManaged")}</strong>
                     <p>{t("AgentTokens.oauthHint")}</p>
@@ -955,7 +958,7 @@ export function AgentTokens({
                   )}
                 </section>
 
-                {canMakeResident && !selectedAgentOAuth && (
+                {canMakeResident && !selectedAgentOAuth && selectedAgent.access_status!=="removed" && (
                   <section className="agentmanager-detail-section">
                     <div className="agentmanager-section-head">
                       <strong>{t("AgentTokens.runtimeTitle")}</strong>
@@ -999,7 +1002,7 @@ export function AgentTokens({
                     <span>{t("AgentTokens.dangerHint")}</span>
                   </div>
                   <div className="agenttokens-actions">
-                    {selectedAgentSaved && (
+                    {selectedAgentSaved && selectedAgent.access_status!=="removed" && (
                       <button
                         type="button"
                         className="d-btn agenttokens-rotate"

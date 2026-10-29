@@ -19,7 +19,7 @@ type ProfileFixture = {
   created_at: number;
   updated_at: number;
 };
-type AgentFixture = { name: string; owner: string; channel_scope: string; created_at: number; nickname?: string | null };
+type AgentFixture = { access_status?: "active"|"removed"; can_restore?: boolean; removal_epoch?: string; name: string; owner: string; channel_scope: string; created_at: number; nickname?: string | null };
 
 let profilesFixture: ProfileFixture[] = [];
 let agentsFixture: AgentFixture[] = [];
@@ -697,4 +697,14 @@ test("same-turn rules submission is bounded to one write", async () => {
   expect(createCalls).toHaveLength(1);
   await act(async () => { gate.resolve(); await gate.promise; });
   expect(createCalls).toHaveLength(1);
+});
+
+test("removed active credential uses explicit membership recovery instead of token recovery",async()=>{
+ agentsFixture=[{name:"removed-fixture",owner:"acct-1",channel_scope:"demo",created_at:1,access_status:"removed",can_restore:true,removal_epoch:"fixture-epoch"}];
+ await act(async()=>{renderer=create(<LocaleProvider><AgentTokens {...baseProps()} active={true}/></LocaleProvider>);});
+ const content=allText(renderer!);
+ expect(content).toContain("Removed from group");
+ expect(content).toContain("Re-add this Agent");
+ expect(content).not.toContain("This browser does not have this token");
+ expect(renderer!.root.findAll(n=>n.type==="button"&&String(n.props.className).includes("agenttokens-rotate"))).toHaveLength(0);
 });

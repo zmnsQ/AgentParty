@@ -2,6 +2,7 @@ import { registerDict, type LocaleDict } from "../dict";
 
 export const AgentTokensStrings: LocaleDict = {
   en: {
+    "AgentTokens.removed": "Removed from group",
     "AgentTokens.oauthReady": "Authorization recorded",
     "AgentTokens.oauthReconnect": "OAuth: reauthorization needed",
     "AgentTokens.oauthManaged": "Credentials are managed by the connected client",
@@ -140,6 +141,7 @@ export const AgentTokensStrings: LocaleDict = {
     "AgentTokens.errInvite": "Project agent invite failed",
   },
   zh: {
+    "AgentTokens.removed": "已移出群",
     "AgentTokens.oauthReady": "已有授权记录",
     "AgentTokens.oauthReconnect": "OAuth 需重新授权",
     "AgentTokens.oauthManaged": "凭据由连接客户端管理，无需保存到浏览器",

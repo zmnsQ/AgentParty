@@ -465,6 +465,10 @@ export interface ChannelAgent {
 }
 
 export interface ChannelAgentInfo {
+  access_status?: "active" | "removed";
+  can_restore?: boolean;
+  removal_epoch?: string | null;
+  credential_revoked?: boolean;
   name: string;
   owner: string;
   channel_scope: string;
@@ -508,8 +512,10 @@ export async function createChannelAgent(
   slug: string,
   name: string,
   token: string,
+  signal?: AbortSignal,
 ): Promise<ChannelAgent> {
   const res = await fetchApi("/api/agents", {
+    signal,
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify({ name, channel_scope: slug }),
@@ -979,7 +985,7 @@ export async function rotateChannelAgent(token: string, slug: string, name: stri
     headers: { authorization: `Bearer ${token}` },
   });
   if (res.status === 401) throw new AuthError("invalid or revoked token");
-  if (res.status === 403) throw new ForbiddenError("forbidden");
+  if (res.status === 403) throw await forbiddenFrom(res, "forbidden");
   if (res.status === 404) throw new Error("agent token not found");
   if (!res.ok) throw new Error(`POST /api/channels/${slug}/agents/${name}/rotate failed (${res.status})`);
   return (await res.json()) as ChannelAgent;
@@ -1649,4 +1655,15 @@ export async function setLoopGuard(token: string, slug: string, enabled: boolean
 
 export async function setWorkflowGuard(token: string, slug: string, enabled: boolean, limit?: number): Promise<GuardResult> {
   return putGuard(token, slug, "workflow-guard", enabled, limit);
+}
+
+/** Restore one ordinary agent membership only; never mint or revive a credential. */
+export async function restoreChannelAgent(token: string, slug: string, name: string, removalEpoch: string, signal?: AbortSignal): Promise<void> {
+  const res = await fetchApi(`/api/channels/${encodeURIComponent(slug)}/agents/${encodeURIComponent(name)}/restore`, {
+    method: "POST", headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
+    body: JSON.stringify({removal_epoch: removalEpoch}), signal,
+  });
+  if (res.status === 401) throw new AuthError("invalid or revoked token");
+  if (res.status === 403) throw await forbiddenFrom(res, "Only a moderator can restore this identity");
+  if (!res.ok) throw new Error("Agent membership restoration was not confirmed");
 }

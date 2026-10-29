@@ -351,8 +351,8 @@ describe("ChatGPT MCP OAuth 2.1 and scoped group consent",()=>{
     expect(content).not.toContain(await sha256Hex(secret.access_token));
     const data=JSON.parse(content) as {agents:any[]};
     expect(data.agents).toHaveLength(1);
-    expect(data.agents[0]).toMatchObject({credential_kind:"oauth",oauth:{client_name:"ChatGPT dot",provider:"chatgpt",status:"authorized",scopes:["group.events","group.read","group.write"]}});
-    expect(Object.keys(data.agents[0]).sort()).toEqual(["channel_scope","created_at","credential_kind","name","nickname","oauth","owner"].sort());
+    expect(data.agents[0]).toMatchObject({credential_kind:"oauth",credential_revoked:false,access_status:"active",can_restore:false,oauth:{client_name:"ChatGPT dot",provider:"chatgpt",status:"authorized",scopes:["group.events","group.read","group.write"]}});
+    expect(Object.keys(data.agents[0]).sort()).toEqual(["channel_scope","created_at","credential_kind","credential_revoked","access_status","can_restore","name","nickname","oauth","owner"].sort());
     const outsider=await seedToken("human",uniq("outside"),{owner:uniq("outside-account")});
     const rejected=await api(`/api/channels/${c.slug}/agents`,outsider.token);
     if(rejected.status===200)expect((await rejected.json() as {agents:unknown[]}).agents).toHaveLength(0);

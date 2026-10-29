@@ -9,6 +9,7 @@ import "../i18n/strings/Forbidden";
 
 // 有专属文案的 code。其余 code 走「透出服务端原文」这条通用路径。
 const CODE_KEYS: Record<string, string> = {
+  participant_removed: "Forbidden.participantRemoved",
   quota_exceeded: "Forbidden.quotaExceeded",
   unauthorized: "Forbidden.readonly",
 };

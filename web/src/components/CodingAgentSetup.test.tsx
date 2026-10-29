@@ -51,3 +51,26 @@ test('local credential issuance is distinct from client login and a running agen
  expect(text(root)).toContain('commands below are not read-only checks');
  expect(calls).toHaveLength(0);
 });
+
+test('local conflict permits renamed retry; unknown network outcome locks reissue',async()=>{
+ const root=await mount();status=409;
+ await act(async()=>root.findByProps({className:'coding-agent-name'}).props.onChange({target:{value:'renamed'}}));
+ await act(async()=>root.findByProps({className:'d-btn d-btn--primary coding-create'}).props.onClick());
+ expect(root.findByProps({className:'coding-agent-name'}).props.disabled).toBe(false);
+ expect(JSON.parse(String(calls[0]!.init?.body)).name).toBe('renamed');
+ stub('fetch',async()=>{throw Error('network lost');});
+ await act(async()=>root.findByProps({className:'d-btn d-btn--primary coding-create'}).props.onClick());
+ expect(root.findByProps({className:'d-btn d-btn--primary coding-create'}).props.disabled).toBe(true);
+ expect(root.findByProps({className:'coding-agent-name'}).props.disabled).toBe(true);
+});
+test('local pending response never reveals an old account credential after ABA switch',async()=>{
+ const view=(accountKey:string,auth='human')=><LocaleProvider><CodingAgentSetup accountKey={accountKey} client="codebuddy" slug="test-group" token={auth} namePrefix="test" onBack={()=>{}}/></LocaleProvider>;
+ let resolve!:(r:Response)=>void;
+ stub('fetch',()=>new Promise<Response>(r=>{resolve=r;}));
+ await act(async()=>{renderer=create(view('owner'));});
+ await act(async()=>renderer!.root.findByProps({className:'d-btn coding-local-mode'}).props.onClick());
+ await act(async()=>renderer!.root.findByProps({className:'d-btn d-btn--primary coding-create'}).props.onClick());
+ await act(async()=>renderer!.update(view('other')));await act(async()=>renderer!.update(view('owner')));
+ await act(async()=>resolve(Response.json({name:'fixture',token})));
+ expect(renderer!.root.findAllByProps({className:'coding-agent-token'})).toHaveLength(0);
+});

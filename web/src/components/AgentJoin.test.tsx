@@ -1200,3 +1200,24 @@ test('open manual guide retains one-time credential through polling prop snapsho
  expect(r.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
  expect(storedVault).toBe(null);
 });
+
+test('legacy issuance locks same-turn duplicate and ignores a late result after unmount',async()=>{
+ const api=await import('../lib/api');let release!:(value:{name:string;token:string})=>void;
+ (api.createChannelAgent as ReturnType<typeof mock>).mockImplementationOnce(()=>new Promise(r=>{release=r;}));
+ const r=render();open(r);const click=r.root.find(node=>node.props.className==='d-btn d-btn--primary'&&node.props.onClick).props.onClick;
+ const before=(api.createChannelAgent as ReturnType<typeof mock>).mock.calls.length;
+ let result:Promise<void>;
+ act(()=>{result=click();void click();});
+ expect((api.createChannelAgent as ReturnType<typeof mock>).mock.calls.length-before).toBe(1);
+ act(()=>r.unmount());renderer=null;
+ await act(async()=>{release({name:'late-fixture',token:'ap_late_fixture'});await result;});
+ expect(savedAgents).toHaveLength(0);
+});
+test('legacy unknown issuance reports uncertain result and locks another create',async()=>{
+ const api=await import('../lib/api');
+ (api.createChannelAgent as ReturnType<typeof mock>).mockImplementationOnce(async()=>{throw Error('lost response');});
+ const r=render();open(r);
+ await act(async()=>{await r.root.find(node=>node.props.className==='d-btn d-btn--primary'&&node.props.onClick).props.onClick();});
+ expect(r.root.findByProps({role:'alert'}).props.children).toContain('Creation outcome unknown');
+ expect(r.root.findByProps({className:'d-btn d-btn--primary agent-join-btn'}).props.disabled).toBe(true);
+});

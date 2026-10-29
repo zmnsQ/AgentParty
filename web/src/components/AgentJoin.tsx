@@ -340,6 +340,13 @@ export function AgentJoin({
   const [localChosen,setLocalChosen]=useState(false);
   const [nativeClient,setNativeClient]=useState<NativeCodingClient|null>(null);
   const [name, setName] = useState("");
+  const [mintUnknown,setMintUnknown]=useState(false);
+  const mintPending=useRef(false),mintAlive=useRef(true);
+  const mintKey=JSON.stringify([accountKey,slug,apiOrigin()]);
+  const mintScope=useRef({key:mintKey,epoch:0});
+  if(mintScope.current.key!==mintKey)mintScope.current={key:mintKey,epoch:mintScope.current.epoch+1};
+  useEffect(()=>{mintAlive.current=true;return()=>{mintAlive.current=false;};},[]);
+  useEffect(()=>{setMintUnknown(false);mintPending.current=false;},[mintKey]);
   // #612：无人值守值守预设——unattended 生成「装 CLI → init → party serve --runner <选中的>」的
   // 运维脚本（runner 见下方 state，缺省 codex），interactive 仍是贴给 agent harness 的完整接入包。
   const [mode, setMode] = useState<JoinPackMode>("interactive");
@@ -397,6 +404,8 @@ export function AgentJoin({
   }, [namePrefix, onActiveChange, slug]);
 
   const reset = useCallback(() => {
+    mintScope.current.epoch++;
+    if(mintPending.current)setMintUnknown(true);
     setPhase((prev) => {
       // 关掉未完成的 stepper：留下可续上的形态（不含 token / 含 token 的命令）。
       if (prev.kind === "stepper") setLastSession({ ...prev.session, token: null, command: prev.session.recover ? prev.session.command : null });
@@ -578,19 +587,24 @@ export function AgentJoin({
   const messages = messagesProp ?? polled.messages;
 
   const mint = useCallback(async () => {
+    if(mintPending.current||mintUnknown||!mintAlive.current)return;
+    const scope=mintScope.current.epoch,server=apiOrigin();
+    const current=()=>mintAlive.current&&scope===mintScope.current.epoch&&server===apiOrigin();
     const wanted = name.trim();
     if (!NAME_RE.test(wanted) || RESERVED.has(wanted)) {
       setNameErr(t("AgentJoin.nameError"));
       return;
     }
+    mintPending.current=true;
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30_000);
     setNameErr(null);
     setPhase({ kind: "loading" });
     try {
-      const agent = await createChannelAgent(slug, wanted, token);
+      const agent = await createChannelAgent(slug, wanted, token,controller.signal);
+      if(!current())return;
       // #530：接入包的 server 必须是真实后端。桌面版(Tauri)里 location.origin 是 tauri://localhost /
       // http://tauri.localhost / dev 的 127.0.0.1:5173，agent 拿去 `party init --server` 会因非 http(s)
       // 报错或连不上。优先用打包注入的 apiBase(VITE_API_BASE=真后端)，仅同源 web 部署(apiBase 为空)回退 location.origin。
-      const server = apiOrigin();
       const packInput = {
         slug,
         agentName: agent.name,
@@ -632,6 +646,9 @@ export function AgentJoin({
         baseline: joinBaseline(messages, presence, agent.name, false),
       });
     } catch (err) {
+      if(!current())return;
+      const known=err instanceof ConflictError||err instanceof AuthError||err instanceof ForbiddenError||err instanceof ValidationError;
+      if(!known)setMintUnknown(true);
       // 同名占用 → 停在起名步，让用户换个有意义的名字（不静默塞随机后缀）
       if (err instanceof ConflictError) {
         setNameErr(t("AgentJoin.nameConflict"));
@@ -645,10 +662,11 @@ export function AgentJoin({
             ? forbiddenText(err, t, "AgentJoin.errForbidden")
             : err instanceof ValidationError
               ? t("AgentJoin.errValidation")
-              : t("AgentJoin.errGeneric");
+              : t("AgentJoin.errUnknown");
       setPhase({ kind: "error", message });
     }
-  }, [accountKey, charter, harness, inviterName, mode, name, nowFn, openStepper, runner, slug, token, t]);
+    finally{clearTimeout(timer);if(current())mintPending.current=false;}
+  }, [accountKey, charter, harness, inviterName, mode, name, nowFn, openStepper, runner, slug, token, t,mintUnknown]);
 
   // 「重新生成」：关掉再打开后明文 token 已丢（只出现一次），要再贴命令就 rotate 一枚新的（旧的立即作废）。
   const regenerate = useCallback(async () => {
@@ -834,7 +852,7 @@ export function AgentJoin({
         type="button"
         className="d-btn d-btn--primary agent-join-btn"
         onClick={open}
-        disabled={phase.kind === "loading"}
+        disabled={phase.kind === "loading"||mintUnknown}
       >
         <StudioIcon name="plus"/><span>{phase.kind === "loading" ? t("AgentJoin.minting") : t("AgentJoin.open").replace(/^＋\s*|^\+\s*/, "")}</span>
       </button>
@@ -844,6 +862,7 @@ export function AgentJoin({
         </button>
       )}
 
+      {mintUnknown&&phase.kind!=="error"&&<p role="alert" className="banner banner--red agent-join-err">{t("AgentJoin.errUnknown")}</p>}
       {phase.kind === "error" && (
         <p className="banner banner--red agent-join-err" role="alert">
           {phase.message}
