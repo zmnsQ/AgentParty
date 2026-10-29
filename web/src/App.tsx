@@ -30,6 +30,7 @@ import { ServerProfileAddGate, ServerSwitcher } from "./components/ServerProfile
 import {
   applyShareToken,
   AuthError,
+  ForbiddenError,
   type ChannelInfo,
   type ChannelJoinRequest,
   type ChannelJoinRequestState,
@@ -181,12 +182,20 @@ export function App() {
   }, []);
   // 本标签当前身份（access token 的 sub）。共享 localStorage 里的 session 是否可用，
   // 必须与它比对——只比 token 字符串没用：同身份续期后 access token 本来就会变。
+  // A verified /me may survive transport errors only for the same credential,
+  // or a credential explicitly rotated by an authenticated renewal path.
+  const verifiedMeCredential = useRef<{ token: string; origin: string } | null>(null);
+  const currentCredential = useRef({ token, origin: activeOrigin });
+  currentCredential.current = { token, origin: activeOrigin };
   const identityRef = useRef<string | null>(null);
   identityRef.current = jwtSub(token);
   const [authError, setAuthError] = useState<string | null>(null);
   const browserAccount = useRef<string | null>(null);
   const browserAuth = useBrowserAuth(!desktop && !isShareMode(), (next, account) => {
-    if (browserAccount.current !== account) { setChannels(null); setMe(null); setListError(null); }
+    if (browserAccount.current !== account) { verifiedMeCredential.current = null; setChannels(null); setMe(null); setListError(null); }
+    else if (account && next && verifiedMeCredential.current?.token === currentCredential.current.token && verifiedMeCredential.current?.origin === currentCredential.current.origin) {
+      verifiedMeCredential.current = { token: next, origin: currentCredential.current.origin };
+    }
     browserAccount.current = account;
     setToken(next);
     setAuthError(null);
@@ -667,6 +676,7 @@ export function App() {
     if (gate === "foreign") {
       return Promise.reject(new Error("session identity switched"));
     }
+    const previousCredential = currentCredential.current;
     const p = withRefreshLock<WebSession>({
       readFresh: () => {
         const sess = readSession();
@@ -684,6 +694,10 @@ export function App() {
     })
       .then((next) => {
         setAuthError(null);
+        if (currentCredential.current.token === previousCredential.token && currentCredential.current.origin === previousCredential.origin &&
+            verifiedMeCredential.current?.token === previousCredential.token && verifiedMeCredential.current?.origin === previousCredential.origin) {
+          verifiedMeCredential.current = { token: next.accessToken, origin: previousCredential.origin };
+        }
         setToken(next.accessToken);
         return next.accessToken;
       })
@@ -852,23 +866,37 @@ export function App() {
   useEffect(() => {
     if (!desktop && matchPair(path)) return;
     if (token === null) {
+      verifiedMeCredential.current = null;
       setMe(null);
       setSettingsOpen(false);
       setHandleBannerDismissed(false);
       return;
     }
+    // Unknown credentials must not keep the previous owner visible while /me
+    // is pending. Authenticated rotation moves the marker before setToken.
+    if (verifiedMeCredential.current?.token !== token || verifiedMeCredential.current?.origin !== activeOrigin) {
+      verifiedMeCredential.current = null;
+      setMe(null);
+    }
     let alive = true;
     fetchMe(token)
       .then((info) => {
-        if (alive) setMe(info);
+        if (!alive) return;
+        verifiedMeCredential.current = { token, origin: activeOrigin };
+        setMe(info);
       })
-      .catch(() => {
-        if (alive) setMe(null);
+      .catch((error: unknown) => {
+        if (!alive) return;
+        const sameVerifiedCredential = verifiedMeCredential.current?.token === token && verifiedMeCredential.current?.origin === activeOrigin;
+        if (error instanceof AuthError || error instanceof ForbiddenError || !sameVerifiedCredential) {
+          verifiedMeCredential.current = null;
+          setMe(null);
+        }
       });
     return () => {
       alive = false;
     };
-  }, [desktop, path, token]);
+  }, [desktop, path, token, activeOrigin]);
 
   // OIDC access_token 仅 ~10min：到期前 60s 主动续期，标签页长开也不掉登录（"humans watch" 常态）。
   // 每次 token 变化重排下一次；非 OIDC 会话（粘贴的机器 token）无 refresh，跳过。

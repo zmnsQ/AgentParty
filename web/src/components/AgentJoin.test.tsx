@@ -1181,3 +1181,21 @@ test('controlled invitation Back delegates without creating credentials or repor
  act(()=>button.props.onClick());
  expect(back).toBe(1);expect(changes).not.toContain(false);expect(savedAgents).toHaveLength(0);
 });
+
+test('open manual guide retains one-time credential through polling prop snapshots and same-owner auth refresh, not close',async()=>{
+ const props={active:true,onCloudConnect:()=>{},presence:[],messages:[]};
+ const r=render(undefined,null,props);
+ await act(async()=>r.root.findByProps({'data-coding-provider':'other'}).props.onClick());
+ await act(async()=>r.root.findByProps({'data-picker-continue':true}).props.onClick());
+ const button=(label:string)=>r.root.findAllByType('button').find(b=>b.children.includes(label))!;
+ await act(async()=>button('Manual Token / header').props.onClick());
+ await act(async()=>button('Create group Agent Token').props.onClick());
+ expect(r.root.findByProps({'aria-label':'Agent Token'}).children).toEqual(['ap_created']);
+ for(const token of ['owner-token','owner-renewed']){
+  act(()=>r.update(<LocaleProvider><AgentJoin slug="demo" token={token} namePrefix="leo" inviterName="host" charter={{charter:'fresh snapshot'} as any} accountKey="acct-1" {...props} presence={[]} messages={[]}/></LocaleProvider>));
+  expect(r.root.findByProps({'aria-label':'Agent Token'}).children).toEqual(['ap_created']);
+ }
+ act(()=>windowEvents.emit('keydown',{key:'Escape'}));
+ expect(r.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
+ expect(storedVault).toBe(null);
+});

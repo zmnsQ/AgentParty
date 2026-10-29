@@ -93,3 +93,41 @@ test('token refresh clears reveal scope but retains unknown creation lock for th
  await act(async()=>renderer.update(view('human-renewed')));expect(createButton().props.disabled).toBe(true);
  await act(async()=>createButton().props.onClick());expect(calls).toHaveLength(1);expect(text(renderer.root)).not.toContain(secret);
 });
+
+test('verified same-account refresh preserves revealed token and complete parseable JSON; copy failure keeps it',async()=>{
+ const view=(token='human-a',accountKey='verified-owner',slug='group')=><LocaleProvider><DirectMcpSetup server="https://commons.test" slug={slug} accountKey={accountKey} token={token} client="generic" os="unix" onOsChange={()=>{}} onBack={()=>{}} onLocal={()=>{}}/></LocaleProvider>;
+ await act(async()=>{renderer=create(view());});
+ await act(async()=>renderer.root.findAllByType('button').find(b=>text(b)==='Manual Token / header').props.onClick());
+ await act(async()=>createButton().props.onClick());
+ for(const token of ['human-a','renewed-1','renewed-2'])await act(async()=>renderer.update(view(token)));
+ expect(text(renderer.root)).toContain(secret);expect(calls).toHaveLength(1);
+ const config=JSON.parse(text(renderer.root.findByProps({'aria-label':'Complete MCP JSON configuration'})));
+ expect(config).toEqual({mcpServers:{'agentcommons-group':{type:'http',url:'https://commons.test/api/channels/group/mcp',headers:{Authorization:`Bearer ${secret}`}}}});
+ await act(async()=>renderer.root.findByProps({'aria-label':'Copy Complete MCP JSON configuration'}).props.onClick());expect(JSON.parse(copies[0])).toEqual(config);
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{clipboard:{writeText:async()=>{throw Error('denied');}}}});
+ await act(async()=>renderer.root.findByProps({'aria-label':'Copy Complete MCP JSON configuration'}).props.onClick());expect(text(renderer.root)).toContain('Copy failed');expect(text(renderer.root)).toContain(secret);
+ await act(async()=>renderer.update(view('other-auth','other-owner')));expect(text(renderer.root)).not.toContain(secret);
+});
+test('same verified owner renews during pending creation without dropping response or creating twice',async()=>{
+ pending=deferred();await act(async()=>{renderer=create(manual({accountKey:'owner'}));});await act(async()=>createButton().props.onClick());
+ await act(async()=>renderer.update(manual({accountKey:'owner',token:'renewed'})));const busyButton=renderer.root.findAllByType('button').find(b=>text(b)==='Creating…');expect(busyButton.props.disabled).toBe(true);
+ await act(async()=>busyButton.props.onClick());expect(calls).toHaveLength(1);
+ await act(async()=>pending.resolve(Response.json({name:'test-mcp',token:secret})));expect(text(renderer.root)).toContain(secret);
+});
+test('verified owner or actual group change clears reveal and rejects stale ABA response',async()=>{
+ pending=deferred();await act(async()=>{renderer=create(manual({accountKey:'owner'}));});await act(async()=>createButton().props.onClick());
+ await act(async()=>renderer.update(manual({accountKey:'other'})));await act(async()=>renderer.update(manual({accountKey:'owner'})));
+ await act(async()=>pending.resolve(Response.json({name:'test-mcp',token:secret})));expect(text(renderer.root)).not.toContain(secret);
+ pending=null;await act(async()=>createButton().props.onClick());expect(text(renderer.root)).toContain(secret);
+ await act(async()=>renderer.update(manual({accountKey:'owner',slug:'elsewhere',endpoint:'https://commons.test/api/channels/elsewhere/mcp'})));expect(text(renderer.root)).not.toContain(secret);
+});
+
+test('complete JSON safely escapes credential bytes; leaving and returning never restores a prior secret',async()=>{
+ const fixture='ap_fixture_"quoted\\value';globalThis.fetch=async()=>Response.json({name:'test-mcp',token:fixture});
+ const view=(server='https://commons.test')=><LocaleProvider><DirectMcpSetup server={server} slug="group" accountKey="owner" token="human" client="generic" os="unix" onOsChange={()=>{}} onBack={()=>{}} onLocal={()=>{}}/></LocaleProvider>;
+ await act(async()=>{renderer=create(view());});const select=()=>renderer.root.findAllByType('button').find(b=>text(b)==='Manual Token / header').props.onClick();
+ await act(async()=>select());await act(async()=>createButton().props.onClick());
+ const json=text(renderer.root.findByProps({'aria-label':'Complete MCP JSON configuration'}));expect(JSON.parse(json).mcpServers['agentcommons-group'].headers.Authorization).toBe(`Bearer ${fixture}`);
+ await act(async()=>renderer.update(view('https://another.test')));expect(renderer.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
+ await act(async()=>renderer.update(view()));expect(renderer.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
+});

@@ -383,6 +383,7 @@ export async function fetchMe(token: string): Promise<MeInfo> {
     headers: { authorization: `Bearer ${token}` },
   });
   if (res.status === 401) throw new AuthError("invalid or revoked token");
+  if (res.status === 403) throw await forbiddenFrom(res, "identity access denied");
   if (!res.ok) throw new Error(`GET /api/me failed (${res.status})`);
   return (await res.json()) as MeInfo;
 }

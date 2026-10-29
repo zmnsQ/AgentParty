@@ -63,8 +63,10 @@ and no OAuth TTL or refresh mechanism is changed. MCP enabled/read/write/event
 policy and existing approvals still apply. Successful setup does not establish
 a live subscription, resident agent or automatic response capability.
 
-Secrets are view-local. Leaving the method, changing credentials/group/server or
-closing the guide removes the displayed secret, but does not revoke the server
+Secrets are view-local. Leaving the method, changing verified account/group/server or
+closing the guide removes the displayed secret. A same-account access-token renewal
+while this guide remains open preserves the current secret in memory; unknown
+authentication identity changes are still treated conservatively. This does not revoke the server
 credential or clear an already copied clipboard. My Agents provides management,
 revocation and regeneration (which invalidates the old token without recreating
 the identity). Unknown creation results stay locked for this guide and across
@@ -136,3 +138,49 @@ not verify this new manual credential panel.
 - Independent read-only review passed backend auth preservation and UI lifecycle
   boundaries; focused tests independently executed. No actual third-party
   authorization or real-account tests were performed.
+
+## Follow-up: same-account refresh and complete JSON (2026-10-29)
+
+A reported production defect was traced to the manual wizard key and credential
+scope including the human access-token string. Browser session refresh and OIDC
+renewal legitimately change that string while the human remains the same. The
+wizard consequently unmounted/cleared the one-time Agent credential even though
+the user had not left setup. The creation-attempt safety lock correctly remained,
+which made the lost reveal particularly confusing.
+
+The production AgentJoin → CodingAgentSetup → DirectMcpSetup → ManualMcpSetup
+chain now carries the verified account key. Secret lifetime is bound to server,
+group and verified account, not the human token's rotating bytes. If no verified
+account key is available, token changes still invalidate the view conservatively.
+Explicit Back/Close, real group/server/account changes, and stale ABA requests
+remain invalidating boundaries. Secrets remain only in mounted React memory:
+no storage, URL, logs or restore endpoint is added. A full browser reload still
+cannot recover a lost one-time secret; this fixes background refresh, not reload.
+
+Generation now also offers a complete JSON configuration using JSON.stringify:
+`mcpServers` → group-specific key → HTTP URL and Authorization header. The real
+fixture token is included only in that private view and in the clipboard on an
+explicit click. Copy rejection preserves the view and reports failure, without
+any late DOM fallback. Users must merge the server entry in a client that supports
+this JSON schema; not every client uses identical configuration fields.
+
+The upstream `/me` refresh also no longer converts a transient network/server
+failure into a logout-like unmount of AgentJoin. A token+origin verification
+marker is explicitly carried only by authenticated renewal. Unknown new
+credentials clear the old identity before the new `/me` request finishes; 401
+and 403 clear it as well. `fetchMe` now classifies 403 as ForbiddenError. This is
+UI continuity, not authorization caching: API calls still send the current
+credential and the server remains the permission authority.
+
+Follow-up regression covers the actual AgentJoin component chain, changed
+presence/charter snapshots, same-owner token renewal including pending creation,
+unknown-account and real group/server/ABA changes, explicit close, JSON parsing
+and escaping, clipboard rejection, and App identity-refresh failures. No real
+production token was read, recovered, generated, revoked or copied. The previously
+reported browser sandbox startup limitation remains; component regressions and
+builds are not a new visual or third-party client end-to-end acceptance.
+
+Final follow-up validation: Web 204 isolated test files, 1745 tests passed, zero
+failed files; Web TypeScript and production build passed. No Worker source or
+database schema changed in this follow-up; previous Worker coverage is not
+presented as a new backend test run.

@@ -879,7 +879,7 @@ export function AgentJoin({
                 setNativeClient(provider==="other"?"generic":provider);
                 setMode("interactive");
                 setLocalChosen(true);
-              }} /> : nativeClient!==null ? <CodingAgentSetup key={`${slug}:${nativeClient}`} client={nativeClient} slug={slug} token={token} namePrefix={namePrefix}
+              }} /> : nativeClient!==null ? <CodingAgentSetup key={`${slug}:${accountKey}:${nativeClient}`} accountKey={accountKey} client={nativeClient} slug={slug} token={token} namePrefix={namePrefix}
                 onBack={()=>{setNativeClient(null);setLocalChosen(false);}}
                 onLegacy={nativeClient==="codebuddy"||nativeClient==="generic"?undefined:()=>setNativeClient(null)}/> : <>
             {onCloudConnect && <button className="d-btn" type="button" onClick={()=>setLocalChosen(false)}>{t("AgentConnect.back")}</button>}

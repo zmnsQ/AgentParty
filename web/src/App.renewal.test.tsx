@@ -416,3 +416,74 @@ describe("App silent renewal keeps channels (#123)", () => {
     await waitFor(() => channelPillTitles(renderer!)[0] === "general room");
   });
 });
+
+describe('verified identity survives only safe transient renewal failures', () => {
+  for (const status of [503, 401, 403]) test(`renewed /me ${status} ${status === 503 ? 'preserves' : 'clears'} the existing group onboarding owner`, async () => {
+    const tokenA=jwt('user-a'), next=jwt('user-a',2), refresh=deferredResponse();
+    localStorage.setItem('ap_token',tokenA);
+    localStorage.setItem('ap_oidc_session',storedSession(tokenA,'refresh-a'));
+    location.pathname='/c/general';location.href='https://party.example/c/general';
+    let renewedMe=false;
+    Object.defineProperty(globalThis,'fetch',{configurable:true,value:async(input:string|URL|Request,init?:RequestInit)=>{
+      const url=String(input);
+      if(url.endsWith('/api/config'))return Response.json({oidc:{issuer:'https://idp.example',client_id:'web'}});
+      if(url.endsWith('/api/channels'))return new Response(channelsPayload('general','general room'));
+      if(url.endsWith('/api/me')){
+        if(authHeader(init)===tokenA)return meResponse();
+        renewedMe=true;return Response.json({error:{code:'denied'}},{status});
+      }
+      if(url==='https://idp.example/token')return refresh.promise;
+      throw Error('fixture unrelated request');
+    }});
+    await act(async()=>{renderer=create(<LocaleProvider><App/></LocaleProvider>);});
+    const channel=()=>renderer!.root.findAll(n=>typeof n.props.canMintAgent==='boolean'&&'accountKey' in n.props)[0];
+    await waitFor(()=>channel()?.props.accountKey==='a@example.com');
+    await act(async()=>refresh.resolve(Response.json({access_token:next,refresh_token:'next-refresh',expires_in:600})));
+    await waitFor(()=>renewedMe);await settle();
+    expect(channel()?.props.accountKey).toBe(status===503?'a@example.com':null);
+    expect(channel()?.props.canMintAgent).toBe(status===503);
+  });
+});
+
+test('an unverified credential with failing /me never receives cached mint permission',async()=>{
+  localStorage.setItem('ap_token','unverified-fixture-token');
+  location.pathname='/c/general';location.href='https://party.example/c/general';
+  Object.defineProperty(globalThis,'fetch',{configurable:true,value:async(input:string|URL|Request)=>{
+    const url=String(input);
+    if(url.endsWith('/api/config'))return Response.json({oidc:null});
+    if(url.endsWith('/api/channels'))return new Response(channelsPayload('general','general room'));
+    if(url.endsWith('/api/me'))return new Response('offline',{status:503});
+    throw Error('fixture unrelated request');
+  }});
+  await act(async()=>{renderer=create(<LocaleProvider><App/></LocaleProvider>);});await settle();
+  const channel=renderer!.root.findAll(n=>typeof n.props.canMintAgent==='boolean'&&'accountKey' in n.props)[0];
+  expect(channel?.props.accountKey).toBe(null);expect(channel?.props.canMintAgent).toBe(false);
+});
+
+test('a new credential not verified by the renewal path clears old owner while /me is pending',async()=>{
+  const old=jwt('user-a'), fresh=jwt('user-a',2), pendingMe=deferredResponse();
+  localStorage.setItem('ap_token',old);
+  location.pathname='/c/general';location.href='https://party.example/c/general';
+  let rejectOld=false,newMeStarted=false;
+  Object.defineProperty(globalThis,'fetch',{configurable:true,value:async(input:string|URL|Request,init?:RequestInit)=>{
+    const url=String(input),auth=authHeader(init);
+    if(url.endsWith('/api/config'))return Response.json({oidc:null});
+    if(url.endsWith('/api/channels'))return rejectOld&&auth===old?new Response('expired',{status:401}):new Response(channelsPayload('general','general room'));
+    if(url.endsWith('/api/me')){
+      if(auth===old)return meResponse();
+      newMeStarted=true;return pendingMe.promise;
+    }
+    throw Error('fixture unrelated request');
+  }});
+  await act(async()=>{renderer=create(<LocaleProvider><App/></LocaleProvider>);});
+  const channel=()=>renderer!.root.findAll(n=>typeof n.props.canMintAgent==='boolean'&&'accountKey' in n.props)[0];
+  await waitFor(()=>channel()?.props.accountKey==='a@example.com');
+  // Shared storage adoption is not itself fresh server verification of /me.
+  localStorage.setItem('ap_oidc_session',storedSession(fresh,'refresh-new',Math.floor(Date.now()/1000)+600));
+  localStorage.setItem('ap_token',fresh);rejectOld=true;
+  await act(async()=>{window.dispatchEvent(new Event('focus'));});
+  await waitFor(()=>newMeStarted);await settle();
+  expect(channel()?.props.accountKey).toBe(null);expect(channel()?.props.canMintAgent).toBe(false);
+  await act(async()=>pendingMe.resolve(meResponse()));
+  await waitFor(()=>channel()?.props.accountKey==='a@example.com');
+});

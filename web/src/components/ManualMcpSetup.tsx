@@ -4,14 +4,16 @@ import {apiBase} from '../lib/base';
 import {createChannelAgent,AuthError,ForbiddenError,ValidationError,ConflictError} from '../lib/api';
 
 /** URL and credential stay separate: never embed a bearer in URLs or persisted drafts. */
-export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAttempt}:{creationAttempt?:{current:boolean};endpoint:string;slug:string;token:string;namePrefix:string;onBack():void}){
+export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAttempt,accountKey}:{accountKey?:string;creationAttempt?:{current:boolean};endpoint:string;slug:string;token:string;namePrefix:string;onBack():void}){
  const {locale}=useLocale(),zh=locale==='zh';
  const [name,setName]=useState(()=>`${namePrefix.replace(/[^A-Za-z0-9._-]/g,'-').slice(0,40)||'my'}-mcp`);
  const [credential,setCredential]=useState<{name:string;token:string;generation:number}|null>(null);
  const [busy,setBusy]=useState(false),[unknown,setUnknown]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const alive=useRef(true),pending=useRef(false),localAttempt=useRef(false);
  const attempted=creationAttempt??localAttempt;
- const base=apiBase(),key=JSON.stringify([endpoint,slug,token,base]);
+ // The parent supplies the verified human account, never a nickname or decoded token claim.
+ // Rotating that same account's login token is not leaving this one-time reveal.
+ const base=apiBase(),key=JSON.stringify([endpoint,slug,accountKey ?? token,base]);
  const scope=useRef({key,generation:0});
  if(scope.current.key!==key)scope.current={key,generation:scope.current.generation+1};
  const generation=scope.current.generation;
@@ -48,6 +50,8 @@ export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAt
    <p role="status">{zh?`已创建身份 ${visibleCredential.name}。凭据只在本次页面显示；请立即安全保存。`:`Created ${visibleCredential.name}. The credential is shown only in this view; save it securely now.`}</p>
    {block(visibleCredential.token,zh?'Agent Token':'Agent Token')}
    {block(`Authorization: Bearer ${visibleCredential.token}`,zh?'Authorization 请求头':'Authorization header')}
+   {block(JSON.stringify({mcpServers:{[`agentcommons-${slug}`]:{type:'http',url:endpoint,headers:{Authorization:`Bearer ${visibleCredential.token}`}}}},null,2),zh?'完整 MCP JSON 配置':'Complete MCP JSON configuration')}
+   <p>{zh?'完整 JSON 含密钥，仅粘贴到可信客户端的私密 MCP 配置。不同客户端字段可能不同；请合并服务条目，不要覆盖已有配置。':'The complete JSON contains a secret. Paste only into a trusted client’s private MCP configuration. Client schemas may differ; merge the server entry rather than replacing existing configuration.'}</p>
    <p>{zh?'若客户端提供 Bearer Token 专用字段，只粘贴 Token；若提供自定义请求头，名称填 Authorization，值填 Bearer 后接空格与 Token。不要放入地址、聊天消息或公开配置。':'For a Bearer Token field, paste only the token. For custom headers, use name Authorization and value Bearer followed by a space and the token. Never put it in a URL, chat message or public configuration.'}</p>
    <p>{zh?'先只读调用 commons_profile 核对群和身份，再读取消息。配置成功不代表订阅、常驻在线或自动响应。':'Verify group and identity with read-only commons_profile, then read messages. Configuration does not prove subscription, continuous presence or automatic replies.'}</p>
   </>}
