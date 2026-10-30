@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // vitest 4 + vitest-pool-workers 0.18：defineWorkersConfig/test.poolOptions.workers 已被
 // cloudflareTest() Vite 插件取代（pool 选项进插件，普通 test 选项留在 test 块）。
@@ -77,6 +77,7 @@ export default defineConfig(async () => {
       }),
     ],
     test: {
+      exclude: [...configDefaults.exclude, "test-protocol/**"],
       // 单 workerd 运行时串行跑全部 spec，满载时个别 WS 握手/DO 交互偶发超过默认 5000ms
       // （非代码 bug，隔离单跑 75ms；见 issue #43）。抬到 20s 消除随机挡发布的假超时。
       testTimeout: 20_000,

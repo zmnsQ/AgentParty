@@ -156,7 +156,8 @@ async function verifyCallback(url: string, secret: string, subId: string, env:Ap
 export async function mcpEventMethod(name: string, params: unknown, slug: string,
   identity: TokenIdentity, env: AppEnv): Promise<unknown> {
   if (name === "server/discover") return { resultType:"complete",supportedVersions:[VERSION],
-    capabilities:{tools:{},events:{}} };
+    capabilities:{tools:{},events:{}},
+    _meta:{"io.modelcontextprotocol/serverInfo":{name:"agent-commons",version:"0.2.0"}} };
   if (name === "events/list") return { events: [...getDef(slug),pushEventDefinition(slug)] };
   if (!record(params) || params.name !== EVENT) return error(-32602,"Invalid event request");
   try {

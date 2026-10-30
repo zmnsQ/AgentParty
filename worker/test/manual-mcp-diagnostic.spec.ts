@@ -2,6 +2,7 @@ import {env} from 'cloudflare:test';
 import {describe,it,expect} from 'vitest';
 import {api,createChannel,seedToken,uniq} from './helpers';
 import {enableMcpFixture} from './mcp-test-helpers';
+import {sha256Hex} from '../src/auth';
 
 describe('manual MCP diagnostic: authenticated route with synthetic credentials only',()=>{
  it('minting is not enabling; enabled policy permits complete read-only handshake',async()=>{
@@ -29,5 +30,33 @@ describe('manual MCP diagnostic: authenticated route with synthetic credentials 
   expect((await call(init,'2025-03-26')).status).toBe(400);
   await env.DB.prepare('UPDATE browser_account_security SET enabled=0 WHERE account=?').bind(account).run();
   expect((await call(init)).status).toBe(403);
+ });
+ it('serves modern discovery, tools and read-only calls through the authenticated router, with revocation intact',async()=>{
+  const account=uniq('modern-manual-owner'),owner=await seedToken('human',uniq('owner'),{owner:account});
+  const slug=await createChannel(owner.token);
+  const agent=await seedToken('agent',uniq('modern-manual'),{owner:account,channelScope:slug});
+  await enableMcpFixture(slug,account,false,false);
+  const endpoint=`/api/channels/${slug}/mcp`;
+  const call=(method:string,params:Record<string,unknown>={})=>api(endpoint,agent.token,{method:'POST',headers:{
+   accept:'application/json, text/event-stream','mcp-protocol-version':'2026-07-28','mcp-method':method,
+   ...(typeof params.name==='string'?{'mcp-name':params.name}:{}),
+  },body:JSON.stringify({jsonrpc:'2.0',id:'modern-route',method,params:{...params,_meta:{
+   'io.modelcontextprotocol/protocolVersion':'2026-07-28','io.modelcontextprotocol/clientCapabilities':{},
+  }}})});
+  for(const method of ['server/discover','tools/list']){
+   const response=await call(method);expect(response.status).toBe(200);
+   expect(response.headers.get('content-type')).toContain('application/json');
+   expect(response.headers.get('cache-control')).toBe('no-store');
+   const body=await response.json() as any;
+   expect(body).toMatchObject({jsonrpc:'2.0',id:'modern-route',result:{resultType:'complete',ttlMs:0,cacheScope:'private'}});
+   if(method==='tools/list')expect(body.result.tools.every((t:any)=>t.annotations.readOnlyHint&&!('securitySchemes' in t))).toBe(true);
+  }
+  const profile=await call('tools/call',{name:'commons_profile',arguments:{}});
+  expect(await profile.json()).toMatchObject({result:{resultType:'complete',isError:false,structuredContent:{name:agent.name,channel:slug}}});
+  const invalid=await call('tools/call',{name:'commons_read_messages',arguments:{after:'invalid'}});
+  expect(await invalid.json()).toMatchObject({result:{resultType:'complete',isError:true}});
+  expect((await call('tools/call',{name:'commons_send_message',arguments:{body:'unused',idempotency_key:'fixture'}})).status).toBe(403);
+  await env.DB.prepare('UPDATE tokens SET revoked_at=? WHERE hash=?').bind(Date.now(),await sha256Hex(agent.token)).run();
+  expect((await call('tools/list')).status).toBe(401);
  });
 });

@@ -77,7 +77,8 @@ describe("MCP 2.0 dot event subscriptions and signed delivery",()=>{
     const init=await(await mcp(identity,slug,"initialize",{protocolVersion:"2026-07-28",clientInfo:{name:"dot",version:"1"},capabilities:{}})).json() as any;
     expect(init.result.protocolVersion).toBe("2026-07-28");
     expect(init.result.capabilities.events).toEqual({});
-    const old=await handleChannelMcp(rpc("ping",{}),slug,identity,noForward);
+    const legacy=new Request(rpc("ping",{}),{headers:{"content-type":"application/json","mcp-protocol-version":"2025-06-18"}});
+    const old=await handleChannelMcp(legacy,slug,identity,noForward);
     expect((await old.json() as any).result).toEqual({});
   });
   it("rejects non-approved callbacks, bad secrets and uncorrelated group filters before storing anything",async()=>{
@@ -129,7 +130,7 @@ describe("MCP 2.0 dot event subscriptions and signed delivery",()=>{
     expect(await enqueueMcpEvent(env as never,{slug,seq:1,sender:human.name,mentions:[]})).toBe(0);
     expect(await enqueueMcpEvent(env as never,{slug,seq:2,sender:agent.name,mentions:[agent.name]})).toBe(0);
     const unsub=await mcp(identity,slug,"events/unsubscribe",{...subscribe(slug),delivery:{mode:"webhook",url:CALLBACK}});
-    expect((await unsub.json() as any).result).toEqual({});
+    expect((await unsub.json() as any).result).toEqual({resultType:"complete"});
     expect(await enqueueMcpEvent(env as never,{slug,seq:3,sender:human.name,mentions:[agent.name]})).toBe(0);
     await mcp(identity,slug,"events/unsubscribe",{...subscribe(slug),delivery:{mode:"webhook",url:CALLBACK}});
   });

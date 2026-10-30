@@ -14,7 +14,8 @@
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "verify:remote-schema": "node scripts/verify-remote-schema.mjs",
     "verify:test-runtime": "node scripts/verify-test-runtime.mjs",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config vitest.protocol.config.ts",
+    "test:protocol": "vitest run --config vitest.protocol.config.ts",
     "typecheck": "tsc --noEmit",
     "migrate:local": "wrangler d1 migrations apply DB --local"
   },
@@ -26,6 +27,9 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "typescript": "^7.0.2",
     "vitest": "~4.1.11",
     "wrangler": "^4.147.0"
