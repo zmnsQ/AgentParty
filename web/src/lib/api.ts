@@ -1658,10 +1658,20 @@ export async function setWorkflowGuard(token: string, slug: string, enabled: boo
 }
 
 /** Restore one ordinary agent membership only; never mint or revive a credential. */
-export async function restoreChannelAgent(token: string, slug: string, name: string, removalEpoch: string, signal?: AbortSignal): Promise<void> {
+export async function fetchChannelAgentAccess(token:string,slug:string,name:string,signal?:AbortSignal):Promise<ChannelAgentInfo> {
+  const res=await fetchApi(`/api/channels/${encodeURIComponent(slug)}/agents/${encodeURIComponent(name)}/access`,{
+    signal,cache:"no-store",headers:{authorization:`Bearer ${token}`},
+  });
+  if(res.status===401)throw new AuthError("invalid or revoked token");
+  if(res.status===403)throw await forbiddenFrom(res,"Cannot inspect this identity");
+  if(!res.ok)throw new Error("Owned agent access could not be confirmed");
+  return await res.json() as ChannelAgentInfo;
+}
+
+export async function restoreChannelAgent(token: string, slug: string, name: string, removalEpoch: string, signal?: AbortSignal, owner?:string): Promise<void> {
   const res = await fetchApi(`/api/channels/${encodeURIComponent(slug)}/agents/${encodeURIComponent(name)}/restore`, {
     method: "POST", headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
-    body: JSON.stringify({removal_epoch: removalEpoch}), signal,
+    body: JSON.stringify({removal_epoch: removalEpoch,...(owner?{owner}:{})}), signal,
   });
   if (res.status === 401) throw new AuthError("invalid or revoked token");
   if (res.status === 403) throw await forbiddenFrom(res, "Only a moderator can restore this identity");

@@ -28,6 +28,7 @@ let listAgentsImpl = async () => agentsFixture;
 let nicknameSaveGate: Promise<void> | null = null;
 let nicknameFailure: Error | null = null;
 let profileSaveGate: Promise<void> | null = null;
+let rotateFailure:Error|null=null,rotateCount=0;
 let listProfilesImpl = async () => profilesFixture;
 const createCalls: Array<{ token: string; body: Record<string, unknown> }> = [];
 const nicknameCalls: Array<{ token: string; slug: string; name: string; nickname: string }> = [];
@@ -57,10 +58,7 @@ mock.module("../lib/api", () => ({
   listChannelAgents: () => listAgentsImpl(),
   listProjectAgentProfiles: () => listProfilesImpl(),
   deleteChannelAgent: async () => {},
-  rotateChannelAgent: async (_token: string, _slug: string, name: string) => ({
-    name,
-    token: "ap_rotated",
-  }),
+  rotateChannelAgent: async (_token: string, _slug: string, name: string) => {rotateCount++;if(rotateFailure)throw rotateFailure;return {name,token:"ap_rotated"};},
   setChannelAgentNickname: mock(async (token: string, slug: string, name: string, nickname: string) => {
     nicknameCalls.push({ token, slug, name, nickname });
     if (nicknameSaveGate) await nicknameSaveGate;
@@ -132,6 +130,7 @@ class TestEventTarget {
 }
 
 beforeEach(() => {
+  rotateFailure=null;rotateCount=0;
   profilesFixture = [];
   agentsFixture = [];
   createdProfileOverride = null;
@@ -707,4 +706,25 @@ test("removed active credential uses explicit membership recovery instead of tok
  expect(content).toContain("Re-add this Agent");
  expect(content).not.toContain("This browser does not have this token");
  expect(renderer!.root.findAll(n=>n.type==="button"&&String(n.props.className).includes("agenttokens-rotate"))).toHaveLength(0);
+});
+
+
+test('rotation denial offers error-local recovery but never rotates again after restoration',async()=>{
+ const row={name:'race-fixture',owner:'acct-1',channel_scope:'demo',created_at:1,access_status:'active' as const};agentsFixture=[row];
+ rotateFailure=new actualApi.ForbiddenError('removed','participant_removed');
+ let current={...row,access_status:'removed',can_restore:true,removal_epoch:'epoch-rotation'},writes=0;
+ const original=Object.getOwnPropertyDescriptor(globalThis,'fetch');
+ Object.defineProperty(globalThis,'fetch',{configurable:true,value:async(url:string,init?:RequestInit)=>{
+  if(url.endsWith('/access'))return Response.json(current);
+  if(url.endsWith('/restore')){writes++;current={...current,access_status:'active'};return Response.json({restored:true});}
+  throw Error('unexpected request');
+ }});
+ (globalThis as any).window.confirm=()=>true;
+ try{
+  const r=await renderOpen();
+  const rotate=r.root.find(n=>n.type==='button'&&n.props.children==='Replace credential and rebuild instructions');
+  await act(async()=>rotate.props.onClick());expect(rotateCount).toBe(1);expect(allText(r)).toContain('Restore this identity');
+  const restore=r.root.find(n=>n.type==='button'&&n.props.children==='Re-add this Agent');
+  await act(async()=>restore.props.onClick());expect(writes).toBe(1);expect(rotateCount).toBe(1);expect(allText(r)).not.toContain('Restore this identity');
+ }finally{if(original)Object.defineProperty(globalThis,'fetch',original);else Reflect.deleteProperty(globalThis,'fetch');}
 });

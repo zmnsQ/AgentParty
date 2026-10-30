@@ -4088,6 +4088,32 @@ app.put("/api/channels/:slug/agents/:name/nickname", requireBearer, async (c) =>
   return c.json({ name, nickname });
 });
 
+// A readback must include revoked rows: after restoring a revoked name it is
+// deliberately absent from the active-agent list. Never reveal credentials.
+app.get("/api/channels/:slug/agents/:name/access", requireBearer, async (c) => {
+  const identity=c.get("identity"),slug=c.req.param("slug"),name=c.req.param("name");
+  if(identity.role!=="human"||!identity.account)return c.json(errorBody("forbidden","a human account session is required"),403);
+  if(!NAME_RE.test(name))return c.json(errorBody("bad_request","valid name required"),400);
+  const channel=await loadChannel(c.env.DB,slug);
+  if(!channel)return c.json(errorBody("not_found","channel not found"),404);
+  if(!(await canAccessLoadedChannel(c.env.DB,identity,channel)))return c.json(errorBody("forbidden","not allowed in this channel"),403);
+  const row=await c.env.DB.prepare(`SELECT name,owner,channel_scope,created_at,revoked_at FROM tokens
+    WHERE name=? AND (owner=? OR ?=1) AND channel_scope=? AND role='agent' AND parent_agent IS NULL`)
+    .bind(name,identity.account,isChannelModerator(identity,channel)?1:0,slug).first<{name:string;owner:string;channel_scope:string;created_at:number;revoked_at:number|null}>();
+  if(!row)return c.json(errorBody("not_found","owned ordinary channel agent not found"),404);
+  const oauth=await c.env.DB.prepare("SELECT 1 FROM connector_oauth_grants WHERE agent_name=?").bind(name).first();
+  if(oauth)return c.json(errorBody("conflict","OAuth agents require their connection-specific recovery flow"),409);
+  const removal=await loadChannelParticipantRemoval(c.env.DB,slug,"name",name);
+  const accountRemoved=await loadChannelParticipantRemoval(c.env.DB,slug,"account",row.owner);
+  const banned=await isChannelAccountBanned(c.env.DB,slug,row.owner);
+  c.header("Cache-Control","no-store");
+  return c.json({name:row.name,owner:row.owner,channel_scope:row.channel_scope,created_at:row.created_at,
+    credential_kind:"token",credential_revoked:row.revoked_at!==null,
+    access_status:removal||accountRemoved||banned?"removed":"active",
+    can_restore:!!removal&&!accountRemoved&&!banned&&isChannelModerator(identity,channel),
+    ...(removal?{removal_epoch:removal.removal_epoch}:{})});
+});
+
 // Explicitly restore only one ordinary agent name; never restore its owner account.
 app.post("/api/channels/:slug/agents/:name/restore", requireBearer, async (c) => {
   const identity = c.get("identity"), slug = c.req.param("slug"), name = c.req.param("name");
@@ -4097,13 +4123,15 @@ app.post("/api/channels/:slug/agents/:name/restore", requireBearer, async (c) =>
       !(await canAccessLoadedChannel(c.env.DB, identity, channel))) {
     return c.json(errorBody("forbidden", "only a channel moderator can restore an agent"), 403);
   }
-  const body = await c.req.json().catch(() => null) as { removal_epoch?: unknown } | null;
+  const body = await c.req.json().catch(() => null) as { removal_epoch?: unknown; owner?:unknown } | null;
   if (!NAME_RE.test(name) || typeof body?.removal_epoch !== "string" || !body.removal_epoch || body.removal_epoch.length > 128) {
     return c.json(errorBody("bad_request", "name and current removal_epoch required"), 400);
   }
+  if(body.owner!==undefined&&(typeof body.owner!=="string"||!body.owner||body.owner.length>256))return c.json(errorBody("bad_request","valid expected owner required"),400);
   const token = await c.env.DB.prepare(`SELECT id, owner FROM tokens WHERE name=? AND channel_scope=?
     AND role='agent' AND parent_agent IS NULL`).bind(name, slug).first<{id:number;owner:string}>();
   if (!token) return c.json(errorBody("not_found", "ordinary channel agent not found"), 404);
+  if(body.owner!==undefined&&body.owner!==token.owner)return c.json(errorBody("conflict","identity owner changed; reload before restoring"),409);
   const oauth = await c.env.DB.prepare("SELECT 1 FROM connector_oauth_grants WHERE agent_name=?").bind(name).first();
   if (oauth) return c.json(errorBody("conflict", "OAuth agents require their connection-specific recovery flow"), 409);
   if (await isChannelAccountBanned(c.env.DB, slug, token.owner) || await loadChannelParticipantRemoval(c.env.DB, slug, "account", token.owner)) {

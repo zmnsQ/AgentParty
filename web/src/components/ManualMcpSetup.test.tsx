@@ -136,7 +136,7 @@ test('removed identity is not presented as an authorization or token expiry prob
  await mount();await act(async()=>createButton().props.onClick());
  expect(text(renderer.root)).toContain('Creating or rotating tokens cannot restore membership');
  expect(renderer.root.findAllByProps({'aria-label':'Agent Token'})).toHaveLength(0);
- expect(copies).toHaveLength(0);expect(calls).toHaveLength(1);
+ expect(copies).toHaveLength(0);expect(calls.filter(c=>c.url.endsWith("/api/agents"))).toHaveLength(1);
 });
 
 test('known name conflict unlocks edit and permits exactly one explicit renamed attempt',async()=>{
@@ -158,4 +158,21 @@ test('request deadline exits pending into explicit unknown state without resubmi
  globalThis.fetch=async(url,init)=>{if(String(url).endsWith('/mcp-security'))return Response.json({policy:{enabled:true,owner_mfa_enabled:true},can_manage:false});calls.push({url:String(url),init});return new Promise((_,reject)=>init.signal.addEventListener('abort',()=>reject(new DOMException('deadline','AbortError'))));};
  await mount();await act(async()=>createButton().props.onClick());expect(text(renderer.root)).toContain('up to 30 seconds');
  await act(async()=>expire());expect(text(renderer.root)).toContain('Creation outcome unknown');expect(text(renderer.root)).not.toContain('up to 30 seconds');expect(createButton().props.disabled).toBe(true);expect(calls).toHaveLength(1);expect(copies).toHaveLength(0);
+});
+
+test('removed creation offers precise inline restoration; a new credential still needs another explicit click',async()=>{
+ let state={name:'test-mcp',owner:'fixture-owner',channel_scope:'group',created_at:1,credential_revoked:true,access_status:'removed',can_restore:true,removal_epoch:'epoch-1'},attempts=0,confirmed=false;
+ stub('window',{confirm:message=>{expect(message).toContain('test-mcp');expect(message).toContain('group');confirmed=true;return true;}});
+ globalThis.fetch=async(url,init)=>{calls.push({url:String(url),init});if(String(url).endsWith('/mcp-security'))return Response.json({policy:{enabled:true,owner_mfa_enabled:true},can_manage:false});
+ if(String(url).endsWith('/access'))return Response.json(state);
+ if(String(url).endsWith('/restore')){state={...state,access_status:'active',can_restore:false};return Response.json({restored:true});}
+ attempts++;return attempts===1?Response.json({error:{code:'participant_removed'}},{status:403}):Response.json({name:'test-mcp',token:secret});};
+ await mount();await act(async()=>createButton().props.onClick());expect(attempts).toBe(1);expect(createButton().props.disabled).toBe(true);
+ const restore=()=>renderer.root.findAllByType('button').find(b=>text(b)==='Re-add this Agent');expect(restore()).toBeTruthy();
+ await act(async()=>restore().props.onClick());expect(confirmed).toBe(true);expect(attempts).toBe(1);expect(createButton().props.disabled).toBe(false);expect(text(renderer.root)).toContain('Identity restored');
+ await act(async()=>createButton().props.onClick());expect(attempts).toBe(2);expect(text(renderer.root)).toContain(secret);
+});
+test('removed creation by nonmoderator shows guidance without a restore button',async()=>{
+ globalThis.fetch=async(url)=>String(url).endsWith('/access')?Response.json({name:'test-mcp',owner:'owner',channel_scope:'group',created_at:1,access_status:'removed',can_restore:false}):String(url).endsWith('/mcp-security')?Response.json({policy:{enabled:false,owner_mfa_enabled:false},can_manage:false}):Response.json({error:{code:'participant_removed'}},{status:403});
+ await mount();await act(async()=>createButton().props.onClick());expect(text(renderer.root)).toContain('Ask a group moderator');expect(renderer.root.findAllByType('button').some(b=>text(b)==='Re-add this Agent')).toBe(false);
 });

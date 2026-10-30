@@ -18,3 +18,7 @@
 .coding-install h4,.coding-install p{margin:0}.coding-install a{font-size:13px;align-self:flex-start}
 .coding-install .coding-command{margin:0}.coding-install-notice{color:var(--t-text)}
 @media(max-width:600px){.coding-install{padding:12px}.coding-install .coding-install-copy{width:100%;justify-content:center;text-align:center}}
+
+/* Inline access recovery also appears beside creation errors on narrow screens. */
+.agent-access-recovery{min-width:0;max-width:100%;margin-block:12px;overflow-wrap:anywhere}
+.agent-access-recovery .d-btn{max-width:100%;white-space:normal;height:auto;min-height:40px}

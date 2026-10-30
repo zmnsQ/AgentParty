@@ -1,3 +1,4 @@
+import {AgentAccessRecovery} from './AgentAccessRecovery';
 import {AgentCommonsInstall} from './AgentCommonsInstall';
 import {DirectMcpSetup} from './DirectMcpSetup';
 import {useEffect,useRef,useState} from 'react';
@@ -25,12 +26,13 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
  const [manual,setManual]=useState(client==='generic'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [storedCredential,setCredential]=useState<{name:string;token:string;generation:number}|null>(null),mounted=useRef(true),pending=useRef(false);
  const [unknown,setUnknown]=useState(false);
+ const [removedName,setRemovedName]=useState<string|null>(null),[recoveryBusy,setRecoveryBusy]=useState(false);
  const key=JSON.stringify([apiOrigin(),slug,accountKey??token]),scope=useRef({key,generation:0});
  if(scope.current.key!==key)scope.current={key,generation:scope.current.generation+1};
  const generation=scope.current.generation,origin=apiOrigin();
  const active=()=>mounted.current&&scope.current.generation===generation&&apiOrigin()===origin;
  const credential=storedCredential?.generation===generation?storedCredential:null;
- useEffect(()=>{setCredential(null);setBusy(false);setUnknown(false);setError('');setNotice('');pending.current=false;},[key]);
+ useEffect(()=>{setCredential(null);setBusy(false);setUnknown(false);setRemovedName(null);setRecoveryBusy(false);setError('');setNotice('');pending.current=false;},[key]);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
  const server=apiOrigin(),source=server+'/cli';
  const secureServer=(()=>{try{const url=new URL(server);return url.protocol==='https:'&&url.origin===server;}catch{return false;}})();
@@ -38,7 +40,7 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
  const copy=async(value:string)=>{const ok=await copyText(value);if(mounted.current)setNotice(ok?(zh?'已复制':'Copied'):(zh?'复制失败，请手动选择内容':'Copy failed; select the text manually'));};
  const create=async()=>{
   if(!secureServer){setError(secureWarning);return;}
-  if(!active()||pending.current||credential||unknown)return;
+  if(!active()||pending.current||credential||unknown||recoveryBusy||removedName)return;
   if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name.trim())){setError(zh?'名称须为 1–64 位字母、数字、点、下划线或短横线，首位为字母或数字。':'Use 1–64 letters, numbers, dots, underscores or hyphens; start with a letter or number.');return;}
   pending.current=true;setBusy(true);setError('');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30_000);
@@ -46,6 +48,7 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
   catch(e){if(active()){
    const known=e instanceof ConflictError||e instanceof AuthError||e instanceof ForbiddenError||e instanceof ValidationError;
    setUnknown(!known);
+   if(e instanceof ForbiddenError&&e.code==='participant_removed')setRemovedName(name.trim());
    setError(!known?(zh?'创建结果不明，可能已成功。请先到“我的 Agent”核对，不要重复创建。':'Creation outcome unknown; it may have succeeded. Check My Agents before creating again.'):e instanceof ForbiddenError&&e.code==='participant_removed'?(zh?'此身份已被移出群，请让群管理员明确重新加入。轮换或创建 Token 不会恢复资格。':'This identity was removed. Ask a moderator to re-add it; creating or rotating tokens cannot restore access.'):e instanceof ConflictError?(zh?'名称已被占用，可修改名称重试；已有身份请到“我的 Agent”管理。':'Name already exists. Edit it and retry, or manage the existing identity in My Agents.'):(zh?'未创建凭据，请检查权限、登录和名称后重试。':'Credentials were not created. Check permissions, sign-in and the name before retrying.'));
   }}finally{clearTimeout(timer);if(active()){pending.current=false;setBusy(false);}}
 
@@ -60,6 +63,7 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
   <header><h3>{zh?`连接 ${label}`:`Connect ${label}`}</h3><p>{zh?'这是本地连接器路径：安装工具 → 创建本群身份 → 配置客户端 → 只读核验。实时通知另行启用。':'Local connector path: install the tool, create a group identity, configure your client, then verify read-only. Realtime notifications are enabled separately.'}</p></header>
   {!secureServer&&!error&&<p role="alert" className="commons-error">{secureWarning}</p>}
   {notice&&<p role="status">{notice}</p>}{error&&<p role="alert" className="commons-error">{error}</p>}
+  {removedName&&<AgentAccessRecovery name={removedName} slug={slug} token={token} onBusyChange={setRecoveryBusy} onRestored={()=>{if(active()){setRemovedName(null);setError('');setNotice(zh?'身份已恢复。请再次明确点击创建，已有有效凭据请到“我的 Agent”管理。':'Identity restored. Click Create explicitly again, or manage an active credential in My Agents.');}}}/>}
   <AgentCommonsInstall server={server} os={os} onOsChange={setOs}/>
   <section className="coding-step"><h4>{zh?'1 · 准备编程客户端':'1 · Prepare your coding client'}</h4>
    <p>{zh?'安装并登录要连接的编程客户端。':'Install and sign in to the coding client you want to connect.'}</p>
@@ -67,8 +71,8 @@ export function CodingAgentSetup({client,slug,token,namePrefix,onBack,onLegacy,a
   </section>
   <section className="coding-step"><h4>{zh?'2 · 创建本群身份':'2 · Create this group identity'}</h4>
    <p>{zh?'创建只生成限本群的凭据，不会登录编程客户端或使 Agent 在线。已有身份请优先检查原配置，不要重复创建。':'Creation only issues group-scoped credentials; it does not sign in to your coding client or bring an agent online. For an existing identity, check its configuration before creating another.'}</p>
-   <label>{zh?'Agent 名称':'Agent name'}<input className="coding-agent-name" value={name} maxLength={64} onChange={e=>setName(e.target.value)} disabled={busy||unknown||!!credential} autoComplete="off" spellCheck={false}/></label>
-   {!credential?<button type="button" className="d-btn d-btn--primary coding-create" onClick={()=>void create()} disabled={busy||unknown||!secureServer}><StudioIcon name="key"/>{busy?(zh?'正在创建…':'Creating…'):(zh?'创建本群接入凭据':'Create group credentials')}</button>:<>
+   <label>{zh?'Agent 名称':'Agent name'}<input className="coding-agent-name" value={name} maxLength={64} onChange={e=>{setName(e.target.value);setRemovedName(null);setError('');}} disabled={busy||unknown||recoveryBusy||!!credential} autoComplete="off" spellCheck={false}/></label>
+   {!credential?<button type="button" className="d-btn d-btn--primary coding-create" onClick={()=>void create()} disabled={busy||unknown||recoveryBusy||!!removedName||!secureServer}><StudioIcon name="key"/>{busy?(zh?'正在创建…':'Creating…'):(zh?'创建本群接入凭据':'Create group credentials')}</button>:<>
     <label>{zh?'Agent Token（明文仅显示本次；只粘贴到终端隐藏输入）':'Agent token (plaintext shown this time only; paste into the terminal’s hidden prompt)'}<input className="coding-agent-token" type="password" readOnly value={credential.token} autoComplete="off"/></label>
     <button type="button" className="d-btn" onClick={()=>void copy(credential.token)}><StudioIcon name="copy"/>{zh?'复制 Token':'Copy token'}</button>
     <p>{zh?'关闭后不再显示明文。不要发到群聊、提交代码或写进命令参数；丢失后先检查本机已保存的配置；确需更换时到“我的 Agent”明确操作，避免让正在使用的连接失效。':'Plaintext is not retained after closing. Never post it to chat, commit it, or add it to command arguments. If lost, first check the saved local configuration. Rotate explicitly in My Agents only if necessary, as existing connections may depend on it.'}</p>

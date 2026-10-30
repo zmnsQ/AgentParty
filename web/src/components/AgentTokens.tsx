@@ -1,3 +1,4 @@
+import {AgentAccessRecovery} from './AgentAccessRecovery';
 import {RemovedAgentAccess} from "./RemovedAgentAccess";
 import { StudioIcon } from "./StudioIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -154,6 +155,7 @@ export function AgentTokens({
   const [editingRules, setEditingRules] = useState<string | null>(null);
   const [rulesDraft, setRulesDraft] = useState("");
   const [savingRules, setSavingRules] = useState<string | null>(null);
+  const [blockedAgentName,setBlockedAgentName]=useState<string|null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const agentRefreshSeqRef = useRef(0);
@@ -161,6 +163,7 @@ export function AgentTokens({
   const [copied, setCopied] = useState<CopyTarget | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
   const isOpen = active ?? open;
+  useEffect(()=>setBlockedAgentName(null),[slug,accountKey,token,isOpen]);
   const mutationEpochRef = useRef(0);
   const mutationScopeRef = useRef(`${token}\u0000${slug}\u0000${isOpen}`);
   const mutationScope = `${token}\u0000${slug}\u0000${isOpen}`;
@@ -473,6 +476,7 @@ export function AgentTokens({
   }
 
   async function rotate(name: string) {
+    if(blockedAgentName===name)return;
     const ok = window.confirm(t("AgentTokens.rotateConfirm", { name }));
     if (!ok) return;
     setBusyName(name);
@@ -485,7 +489,7 @@ export function AgentTokens({
       if (saved) guideFromSaved(saved, { forceJoin: true });
     } catch (err) {
       if (err instanceof AuthError) onAuthFailed(err.message);
-      else if (err instanceof ForbiddenError) setAgentError(forbiddenText(err,t,"AgentTokens.errRotateForbidden"));
+      else if (err instanceof ForbiddenError) {setAgentError(forbiddenText(err,t,"AgentTokens.errRotateForbidden"));if(err.code==="participant_removed")setBlockedAgentName(name);}
       else setAgentError(t("AgentTokens.errRotate"));
     } finally {
       setBusyName(null);
@@ -721,6 +725,7 @@ export function AgentTokens({
       </div>
 
       {agentError !== null && <p className="agenttokens-error" role="alert">{agentError}</p>}
+      {blockedAgentName&&agentError&&<AgentAccessRecovery name={blockedAgentName} token={token} slug={slug} onRestored={async()=>{setBlockedAgentName(null);await refreshAgents();}}/>}
       {residentError !== null && <p className="agenttokens-error" role="alert">{residentError}</p>}
 
       <label className="agentmanager-search"><StudioIcon name="search" />
@@ -810,7 +815,7 @@ export function AgentTokens({
                   </span>
                 </header>
 
-                {selectedAgent.access_status==="removed" ? <RemovedAgentAccess agent={selectedAgent} token={token} slug={slug} onRestored={refreshAgents}/> : selectedAgentOAuth ? (
+                {selectedAgent.access_status==="removed" ? blockedAgentName===selectedAgent.name?null:<RemovedAgentAccess agent={selectedAgent} token={token} slug={slug} onRestored={refreshAgents}/> : selectedAgentOAuth ? (
                   <section className="agentmanager-detail-section agentmanager-callout agentmanager-oauth">
                     <strong>{t("AgentTokens.oauthManaged")}</strong>
                     <p>{t("AgentTokens.oauthHint")}</p>
@@ -897,7 +902,7 @@ export function AgentTokens({
                     <button
                       type="button"
                       className="d-btn d-btn--primary"
-                      disabled={busyName === selectedAgent.name}
+                      disabled={busyName === selectedAgent.name||blockedAgentName===selectedAgent.name}
                       onClick={() => void rotate(selectedAgent.name)}
                     >
                       {busyName === selectedAgent.name ? t("AgentTokens.rotating") : t("AgentTokens.rotateAndRecover")}
@@ -1006,7 +1011,7 @@ export function AgentTokens({
                       <button
                         type="button"
                         className="d-btn agenttokens-rotate"
-                        disabled={busyName === selectedAgent.name}
+                        disabled={busyName === selectedAgent.name||blockedAgentName===selectedAgent.name}
                         onClick={() => void rotate(selectedAgent.name)}
                       >
                         {busyName === selectedAgent.name ? t("AgentTokens.rotating") : t("AgentTokens.rotate")}
@@ -1015,7 +1020,7 @@ export function AgentTokens({
                     <button
                       type="button"
                       className="d-btn agenttokens-delete"
-                      disabled={busyName === selectedAgent.name}
+                      disabled={busyName === selectedAgent.name||blockedAgentName===selectedAgent.name}
                       onClick={() => void removeAgent(selectedAgent.name)}
                     >
                       {t("AgentTokens.delete")}

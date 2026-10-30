@@ -1,4 +1,5 @@
 import { StudioIcon } from "./StudioIcon";
+import {AgentAccessRecovery} from './AgentAccessRecovery';
 import { ModalPortal } from "./ModalPortal";
 // 频道页「＋ 让 agent 加入」：登录人类先给 agent 起个能认出来的名字（默认 <你>-<频道>，
 // 可改成 drawstyle-review 这类），再铸一枚 channel-scoped agent token，然后进入引导。
@@ -341,12 +342,13 @@ export function AgentJoin({
   const [nativeClient,setNativeClient]=useState<NativeCodingClient|null>(null);
   const [name, setName] = useState("");
   const [mintUnknown,setMintUnknown]=useState(false);
+  const [removedIdentity,setRemovedIdentity]=useState<{name:string;mode:"mint"|"rotate"}|null>(null),[recoveryBusy,setRecoveryBusy]=useState(false);
   const mintPending=useRef(false),mintAlive=useRef(true);
   const mintKey=JSON.stringify([accountKey,slug,apiOrigin()]);
   const mintScope=useRef({key:mintKey,epoch:0});
   if(mintScope.current.key!==mintKey)mintScope.current={key:mintKey,epoch:mintScope.current.epoch+1};
   useEffect(()=>{mintAlive.current=true;return()=>{mintAlive.current=false;};},[]);
-  useEffect(()=>{setMintUnknown(false);mintPending.current=false;},[mintKey]);
+  useEffect(()=>{setMintUnknown(false);setRemovedIdentity(null);setRecoveryBusy(false);mintPending.current=false;},[mintKey]);
   // #612：无人值守值守预设——unattended 生成「装 CLI → init → party serve --runner <选中的>」的
   // 运维脚本（runner 见下方 state，缺省 codex），interactive 仍是贴给 agent harness 的完整接入包。
   const [mode, setMode] = useState<JoinPackMode>("interactive");
@@ -404,6 +406,7 @@ export function AgentJoin({
   }, [namePrefix, onActiveChange, slug]);
 
   const reset = useCallback(() => {
+    setRemovedIdentity(null);
     mintScope.current.epoch++;
     if(mintPending.current)setMintUnknown(true);
     setPhase((prev) => {
@@ -587,7 +590,7 @@ export function AgentJoin({
   const messages = messagesProp ?? polled.messages;
 
   const mint = useCallback(async () => {
-    if(mintPending.current||mintUnknown||!mintAlive.current)return;
+    if(mintPending.current||mintUnknown||recoveryBusy||removedIdentity||!mintAlive.current)return;
     const scope=mintScope.current.epoch,server=apiOrigin();
     const current=()=>mintAlive.current&&scope===mintScope.current.epoch&&server===apiOrigin();
     const wanted = name.trim();
@@ -647,6 +650,7 @@ export function AgentJoin({
       });
     } catch (err) {
       if(!current())return;
+      if(err instanceof ForbiddenError&&err.code==='participant_removed')setRemovedIdentity({name:wanted,mode:'mint'});
       const known=err instanceof ConflictError||err instanceof AuthError||err instanceof ForbiddenError||err instanceof ValidationError;
       if(!known)setMintUnknown(true);
       // 同名占用 → 停在起名步，让用户换个有意义的名字（不静默塞随机后缀）
@@ -666,11 +670,11 @@ export function AgentJoin({
       setPhase({ kind: "error", message });
     }
     finally{clearTimeout(timer);if(current())mintPending.current=false;}
-  }, [accountKey, charter, harness, inviterName, mode, name, nowFn, openStepper, runner, slug, token, t,mintUnknown]);
+  }, [accountKey, charter, harness, inviterName, mode, name, nowFn, openStepper, runner, slug, token, t,mintUnknown,recoveryBusy,removedIdentity]);
 
   // 「重新生成」：关掉再打开后明文 token 已丢（只出现一次），要再贴命令就 rotate 一枚新的（旧的立即作废）。
   const regenerate = useCallback(async () => {
-    if (phase.kind !== "stepper" || rotateState === "busy") return;
+    if (phase.kind !== "stepper" || rotateState === "busy" || recoveryBusy || removedIdentity) return;
     const { session } = phase;
     setRotateState("busy");
     try {
@@ -705,10 +709,11 @@ export function AgentJoin({
         kind: "stepper",
         session: { ...session, token: agent.token, command: buildStepperCommand(session.mode, packInput) },
       });
-    } catch {
+    } catch (err) {
+      if(err instanceof ForbiddenError&&err.code==="participant_removed")setRemovedIdentity({name:session.name,mode:"rotate"});
       setRotateState("error");
     }
-  }, [accountKey, charter, inviterName, nowFn, phase, rotateState, slug, t, token]);
+  }, [accountKey, charter, inviterName, nowFn, phase, rotateState, slug, t, token,recoveryBusy,removedIdentity]);
 
   // 无人值守直接运行：选工作目录（不手填、不复制接入包）→ dutyAdopt 就地落成 launchd 常驻。
   const adopt = useCallback(async () => {
@@ -869,6 +874,7 @@ export function AgentJoin({
         </p>
       )}
 
+      {removedIdentity?.mode==="mint"&&<AgentAccessRecovery key={mintKey+removedIdentity.name} name={removedIdentity.name} token={token} slug={slug} onBusyChange={setRecoveryBusy} onRestored={()=>{setRemovedIdentity(null);setNameErr(null);setPhase({kind:"compose"});}}/>}
       {composeOpen && (
         <ModalPortal><div
           ref={composeDialogRef}
@@ -912,7 +918,7 @@ export function AgentJoin({
                 value={name}
                 autoFocus
                 spellCheck={false}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {setName(e.target.value);setRemovedIdentity(null);}}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && phase.kind === "compose") mint();
                 }}
@@ -1115,11 +1121,12 @@ export function AgentJoin({
                   <button
                     type="button"
                     className="d-btn agent-join-regen-btn"
-                    disabled={rotateState === "busy"}
+                    disabled={rotateState === "busy"||recoveryBusy||!!removedIdentity}
                     onClick={() => void regenerate()}
                   >
                     {t(rotateState === "busy" ? "AgentJoin.step2.regenerating" : "AgentJoin.step2.regenerate")}
                   </button>
+                  {removedIdentity?.mode==="rotate"&&<AgentAccessRecovery key={mintKey+removedIdentity.name} name={removedIdentity.name} token={token} slug={slug} onBusyChange={setRecoveryBusy} onRestored={()=>{setRemovedIdentity(null);setRotateState("idle");}}/>}
                   {rotateState === "error" && (
                     <p className="banner banner--red" role="alert">{t("AgentJoin.errRotate")}</p>
                   )}

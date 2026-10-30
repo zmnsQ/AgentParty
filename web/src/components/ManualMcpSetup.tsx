@@ -1,3 +1,4 @@
+import {AgentAccessRecovery} from './AgentAccessRecovery';
 import {McpReadiness} from './McpReadiness';
 import {useEffect,useRef,useState} from 'react';
 import {useLocale} from '../i18n/locale';
@@ -10,6 +11,7 @@ export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAt
  const [name,setName]=useState(()=>`${namePrefix.replace(/[^A-Za-z0-9._-]/g,'-').slice(0,40)||'my'}-mcp`);
  const [credential,setCredential]=useState<{name:string;token:string;generation:number}|null>(null);
  const [busy,setBusy]=useState(false),[unknown,setUnknown]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [removedName,setRemovedName]=useState<string|null>(null),[recoveryBusy,setRecoveryBusy]=useState(false);
  const alive=useRef(true),pending=useRef(false),localAttempt=useRef(false);
  const attempted=creationAttempt??localAttempt;
  // The parent supplies the verified human account, never a nickname or decoded token claim.
@@ -20,11 +22,11 @@ export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAt
  const generation=scope.current.generation;
  const active=()=>alive.current&&scope.current.generation===generation&&apiBase()===base;
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
- useEffect(()=>{setCredential(null);setBusy(false);setUnknown(false);setError('');setNotice(attempted.current?(zh?'此接入流程已经尝试创建凭据。请先到“我的 Agent”核对；返回不会撤销凭据。':'This setup has already attempted credential creation. Check My Agents first; going back does not revoke credentials.'):'');pending.current=false;if(!creationAttempt)attempted.current=false;},[key]);
+ useEffect(()=>{setCredential(null);setBusy(false);setUnknown(false);setRemovedName(null);setRecoveryBusy(false);setError('');setNotice(attempted.current?(zh?'此接入流程已经尝试创建凭据。请先到“我的 Agent”核对；返回不会撤销凭据。':'This setup has already attempted credential creation. Check My Agents first; going back does not revoke credentials.'):'');pending.current=false;if(!creationAttempt)attempted.current=false;},[key]);
  const visibleCredential=credential?.generation===generation?credential:null;
  const secure=(()=>{try{const u=new URL(endpoint);return u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash&&u.pathname===`/api/channels/${slug}/mcp`;}catch{return false;}})();
  const create=async()=>{
-  if(!active()||pending.current||attempted.current||!secure)return;
+  if(!active()||pending.current||attempted.current||recoveryBusy||removedName||!secure)return;
   if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name.trim())){setError(zh?'名称须为1–64位字母、数字、点、下划线或短横线。':'Use 1–64 letters, numbers, dots, underscores or hyphens; start with a letter or number.');return;}
   pending.current=true;attempted.current=true;setBusy(true);setError('');
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),30_000);
@@ -33,6 +35,7 @@ export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAt
    const known=e instanceof AuthError||e instanceof ForbiddenError||e instanceof ValidationError||e instanceof ConflictError;
    setUnknown(!known);
    if(known)attempted.current=false;
+   if(e instanceof ForbiddenError&&e.code==='participant_removed')setRemovedName(name.trim());
    setError(e instanceof ConflictError ? (zh?'这个名称已存在，本次没有创建。可修改名称后再提交；要使用已有身份，请到“我的 Agent”管理。':'This name already exists; nothing was created. Edit the name and try again, or manage the existing identity in My Agents.') : e instanceof ForbiddenError && e.code==='participant_removed' ? (zh?'这个身份已被移出群，不能靠新建或轮换 Token 恢复。请让群管理员在成员管理中明确重新加入；不要反复创建凭据。':'This identity was removed from the group. Creating or rotating tokens cannot restore membership. Ask a moderator to explicitly re-add it; do not keep creating credentials.') : known?(zh?'未创建：请检查权限、登录或名称是否已存在；已有身份请在“我的 Agent”管理。':'Not created: check permission, sign-in or whether the name already exists. Manage existing identities in My Agents.'):(zh?'创建结果不明，可能已经成功。不要重复创建；先到“我的 Agent”核对，必要时使用重新生成凭据功能，旧凭据将失效。':'Creation outcome unknown; it may have succeeded. Do not repeat creation. Check My Agents first, and use credential regeneration if needed; the old token will stop working.'));
   }finally{clearTimeout(timer);if(active()){pending.current=false;setBusy(false);}}
  };
@@ -46,9 +49,10 @@ export function ManualMcpSetup({endpoint,slug,token,namePrefix,onBack,creationAt
   {secure&&<McpReadiness token={token} slug={slug}/>}
   {!secure&&<p role="alert">{zh?'请在可信 HTTPS 群页面操作。':'Use a trusted HTTPS group page.'}</p>}
   {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
+  {removedName&&<AgentAccessRecovery name={removedName} slug={slug} token={token} onBusyChange={setRecoveryBusy} onRestored={()=>{if(active()){setRemovedName(null);setError('');attempted.current=false;setNotice(zh?'身份已恢复。请再次点击创建；已有有效凭据时请使用原凭据或到“我的 Agent”管理。':'Identity restored. Click Create separately; if a credential is already active, use it or manage it in My Agents.');}}}/>}
   {secure&&block(endpoint,zh?'MCP 服务地址':'MCP server URL')}
   <p>{zh?'已有本群 Agent Token 时，可直接在客户端填写上方地址和自己的 Token，无需再创建。':'If you already hold a token for this group, use the URL above and that token in your client; do not create another.'}</p>
-  {!visibleCredential&&<><label>{zh?'Agent 身份名称':'Agent identity name'}<input value={name} onChange={e=>{setName(e.target.value);if(!busy&&!unknown)setError('');}} disabled={busy||attempted.current} maxLength={64}/></label><button type="button" className="d-btn" disabled={busy||attempted.current||!secure} onClick={()=>void create()}>{busy?(zh?'正在创建，请稍候（最多30秒）…':'Creating, please wait (up to 30 seconds)…'):(zh?'创建本群 Agent Token':'Create group Agent Token')}</button></>}
+  {!visibleCredential&&<><label>{zh?'Agent 身份名称':'Agent identity name'}<input value={name} onChange={e=>{setName(e.target.value);if(!busy&&!unknown){setError('');setRemovedName(null);}}} disabled={busy||attempted.current||recoveryBusy} maxLength={64}/></label><button type="button" className="d-btn" disabled={busy||attempted.current||recoveryBusy||!!removedName||!secure} onClick={()=>void create()}>{busy?(zh?'正在创建，请稍候（最多30秒）…':'Creating, please wait (up to 30 seconds)…'):(zh?'创建本群 Agent Token':'Create group Agent Token')}</button></>}
   {visibleCredential&&<>
    <p role="status">{zh?`已创建身份 ${visibleCredential.name}。凭据只在本次页面显示；请立即安全保存。`:`Created ${visibleCredential.name}. The credential is shown only in this view; save it securely now.`}</p>
    {block(visibleCredential.token,zh?'Agent Token':'Agent Token')}
