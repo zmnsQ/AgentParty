@@ -2911,7 +2911,7 @@ function isBlockedWebhookHost(rawHost: string): boolean {
 }
 
 const app = new Hono<AppContext>();
-app.use("/api/channels/:slug/mcp", mcpRequestDiagnostics());
+app.use("*", mcpRequestDiagnostics());
 registerConnectorOauth(app);
 registerEventDrain(app);
 const DESKTOP_CORS_ORIGINS = new Set([

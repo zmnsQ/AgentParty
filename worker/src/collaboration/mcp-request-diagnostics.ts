@@ -1,8 +1,11 @@
 import type { MiddlewareHandler } from "hono";
 
 // This is a temporary, build-opted-in diagnostic, not a request/body logger.
+declare const __AGENTPARTY_MCP_DIAGNOSTICS_FROM__: string | undefined;
 declare const __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__: string | undefined;
-const ROUTE = /^\/api\/channels\/[a-z0-9][a-z0-9-]{0,63}\/mcp$/;
+// Capture the MCP path shape, including a trailing slash or malformed channel
+// segment that the real router may reject. Never retain or emit that segment.
+const ROUTE = /^\/api\/channels\/[^/]+\/mcp\/?$/;
 const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 const CODES = ["unauthorized", "participant_removed", "origin_rejected", "permission_denied",
   "mcp_disabled", "rate_limited", "method_not_allowed", "unsupported_media_type",
@@ -26,84 +29,123 @@ function statusCode(status: number): McpDiagnosticCode | null {
     ?? (status >= 400 ? "request_rejected" : null);
 }
 
-const MINUTE = 60_000;
-const MAX_WINDOW = 3 * 60 * MINUTE;
-const MAX_RECORD_BYTES = 512; // Includes our fixed prefix and newline; all fields are ASCII.
+export const MCP_CAPTURE_LIMITS = Object.freeze({
+  maxWindowMs: 10 * 60_000,
+  maxRequests: 1024,
+  maxRecordBytes: 512,
+  maxControlRecords: 3,
+  maxRecords: 2051,
+  maxApplicationBytes: 2051 * 512,
+});
+const PREFIX = "mcp_request_diagnostic";
+type ControlCode = "diagnostic_window_opened" | "diagnostic_limit_reached" | "diagnostic_window_closed";
+type CaptureCode = McpDiagnosticCode | ControlCode | "diagnostic_pending_at_cutoff";
+type Entry = {
+  id: string; started: number; method: string; authorization: boolean;
+  code?: McpDiagnosticCode; done: boolean; timer?: ReturnType<typeof setTimeout>;
+};
+type Window = {
+  from: number; until: number; id?: string; opened: boolean; closed: boolean;
+  limitMarked: boolean; admitted: number; pending: Map<string, Entry>;
+};
 
-class Bucket {
-  private tokens: number;
-  private last: number;
-  constructor(private capacity: number, private perMinute: number, now: number) {
-    this.tokens = capacity; this.last = now;
-  }
-  take(now: number): boolean {
-    this.tokens = Math.min(this.capacity, this.tokens + Math.max(0, now - this.last) * this.perMinute / MINUTE);
-    this.last = Math.max(this.last, now);
-    if (this.tokens < 1) return false;
-    this.tokens--; return true;
-  }
-}
-
-/** Independent success/arrival sampling and failure budgets.
- * Normal traffic cannot spend failure tokens or the reserved failure log space.
- * At most 384 normal + 768 failure records, each <=512 bytes (576 KiB/isolate).
- * These hard caps cover the maximum token refill over the entire three-hour window.
- * A failure may have no sampled start. Completion means headers ready, never body read.
+/** Every admitted request reserves two records before dispatch. No sampling.
+ * The three control records have separate space, so saturation is observable.
+ * A cutoff snapshot is explicitly not an HTTP result; no body or stream is read.
  */
 export function mcpRequestDiagnostics(options: {
-  until?: () => string | undefined; now?: () => number;
+  from?: () => string | undefined; until?: () => string | undefined; now?: () => number;
 } = {}): MiddlewareHandler {
   const clock = options.now ?? (() => Date.now());
-  // workerd can expose epoch zero during module evaluation. Read the clock and
-  // initialize refill state only inside a request's I/O context.
-  let buckets: { activated: number; normal: Bucket; failure: Bucket } | undefined;
-  let normalRecords = 384, failureRecords = 768;
+  const from = options.from ?? (() => typeof __AGENTPARTY_MCP_DIAGNOSTICS_FROM__ === "string"
+    ? __AGENTPARTY_MCP_DIAGNOSTICS_FROM__ : undefined);
   const until = options.until ?? (() => typeof __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__ === "string"
     ? __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__ : undefined);
+  let window: Window | undefined;
+  function configured(): Window | undefined {
+    if (window) return window;
+    // Evaluate clocks/configuration only in the request's I/O context. Missing,
+    // invalid, reversed or overly long windows remain disabled, including old
+    // builds that provide UNTIL without the new explicit FROM opt-in.
+    const start = Date.parse(from() ?? ""), end = Date.parse(until() ?? "");
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > MCP_CAPTURE_LIMITS.maxWindowMs) return;
+    return window = { from: start, until: end, opened: false, closed: false,
+      limitMarked: false, admitted: 0, pending: new Map() };
+  }
+  function emit(at: number, id: string, method: string, authorization: boolean,
+    status: number | null, duration: number | null, code: CaptureCode | null): boolean {
+    try {
+      const serialized = JSON.stringify({request_time: new Date(at).toISOString(), request_id: id,
+        method, route: "/api/channels/:slug/mcp", authorization_present: authorization,
+        http_status: status, duration_ms: duration, error_code: code});
+      // All values are generated ASCII, fixed enums or bounded numbers.
+      if (PREFIX.length + serialized.length + 2 > MCP_CAPTURE_LIMITS.maxRecordBytes) return false;
+      console.warn(PREFIX, serialized);
+      return true;
+    } catch { return false; /* Log failures must never change authentication or results. */ }
+  }
+  function control(w: Window, at: number, code: ControlCode): boolean {
+    return emit(at, w.id ??= crypto.randomUUID(), "OTHER", false, null, null, code);
+  }
+  function limit(w: Window, at: number): void {
+    w.admitted = MCP_CAPTURE_LIMITS.maxRequests;
+    if (!w.limitMarked) {
+      w.limitMarked = true;
+      control(w, at, "diagnostic_limit_reached");
+    }
+  }
+  function finish(w: Window, entry: Entry, at: number, status: number | null, code: CaptureCode | null): void {
+    if (entry.done) return;
+    entry.done = true;
+    if (entry.timer !== undefined) clearTimeout(entry.timer);
+    w.pending.delete(entry.id);
+    if (!emit(entry.started, entry.id, entry.method, entry.authorization, status,
+      Math.max(0, at - entry.started), code)) limit(w, at);
+  }
+  function close(w: Window, observedAt: number): void {
+    if (w.closed) return;
+    w.closed = true;
+    // An in-flight request gets one explicit unknown-status cutoff snapshot,
+    // never a fabricated HTTP response and never a second completion later.
+    for (const entry of w.pending.values())
+      finish(w, entry, w.until, null, "diagnostic_pending_at_cutoff");
+    control(w, observedAt, "diagnostic_window_closed");
+  }
   return async (c, next) => {
-    const started = clock(), configuredEnd = Date.parse(until() ?? "");
-    if (!ROUTE.test(c.req.path) || !Number.isFinite(configuredEnd) || started >= configuredEnd) {
+    const w = configured(), started = clock();
+    if (!w || started < w.from || w.closed) { await next(); return; }
+    // This hook also runs on existing /api/health. A coordinator can observe
+    // OPEN/CLOSED without sending an MCP request or changing any configuration.
+    if (started >= w.until) { close(w, started); await next(); return; }
+    if (!w.opened) {
+      w.opened = true;
+      if (!control(w, started, "diagnostic_window_opened")) limit(w, started);
+    }
+    if (!ROUTE.test(c.req.path)) { await next(); return; }
+    if (w.admitted >= MCP_CAPTURE_LIMITS.maxRequests) {
+      limit(w, started);
       await next(); return;
     }
-    const active = buckets ??= { activated: started, normal: new Bucket(1, 1, started), failure: new Bucket(8, 4, started) };
-    const deadline = () => Math.min(Date.parse(until() ?? ""), active.activated + MAX_WINDOW);
-    if (started >= deadline()) { await next(); return; }
+    w.admitted++;
     const request = c.req.raw;
-    const state: { code?: McpDiagnosticCode } = {};
-    pending.set(request, state);
-    const sampled = normalRecords >= 2 && active.normal.take(started);
-    // Reserve a pair before logging the sampled arrival. No later success can
-    // consume the space reserved for failures, even with many in-flight requests.
-    if (sampled) normalRecords -= 2;
-    let requestId: string | undefined;
-    const emit = (status: number | null, code: McpDiagnosticCode | null) => {
-      try {
-        if (clock() >= deadline()) return;
-        const serialized = JSON.stringify({
-          request_time: new Date(started).toISOString(), request_id: requestId ??= crypto.randomUUID(),
-          method: METHODS.has(request.method) ? request.method : "OTHER",
-          route: "/api/channels/:slug/mcp", authorization_present: request.headers.has("authorization"),
-          http_status: status, duration_ms: status === null ? null : Math.max(0, clock() - started),
-          error_code: code,
-        });
-        if ("mcp_request_diagnostic ".length + serialized.length + 1 > MAX_RECORD_BYTES) return;
-        console.warn("mcp_request_diagnostic", serialized);
-      } catch { /* Diagnostics must never change authentication or request results. */ }
-    };
-    if (sampled) emit(null, null);
+    const entry: Entry = { id: crypto.randomUUID(), started,
+      method: METHODS.has(request.method) ? request.method : "OTHER",
+      authorization: request.headers.has("authorization"), done: false };
+    pending.set(request, entry);
+    w.pending.set(entry.id, entry);
+    if (!emit(started, entry.id, entry.method, entry.authorization, null, null, null)) limit(w, started);
+    // Only active requests own timers. Completed requests cancel their timer.
+    // If the window is idle at cutoff, the next health/API request emits CLOSED.
+    entry.timer = setTimeout(() => close(w, Math.max(clock(), w.until)), Math.max(0, w.until - started));
     let threw = false;
     try { await next(); }
     catch (error) { threw = true; throw error; }
     finally {
-      const status = threw ? 500 : c.res.status;
-      const code = threw ? "internal_error" : state.code ?? statusCode(status);
-      const failed = status < 200 || status >= 300 || code !== null;
-      if (clock() < deadline()) {
-        if (failed) {
-          if (failureRecords > 0 && active.failure.take(clock())) {
-            failureRecords--; emit(status, code);
-          }
-        } else if (sampled) emit(status, null);
+      const ended = clock();
+      if (ended >= w.until) close(w, ended);
+      if (!entry.done) {
+        const status = threw ? 500 : c.res.status;
+        finish(w, entry, ended, status, threw ? "internal_error" : entry.code ?? statusCode(status));
       }
       pending.delete(request);
     }
