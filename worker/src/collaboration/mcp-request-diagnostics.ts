@@ -26,45 +26,83 @@ function statusCode(status: number): McpDiagnosticCode | null {
     ?? (status >= 400 ? "request_rejected" : null);
 }
 
-/** At most 64 admissions / 128 small records per isolate, with no counter reset.
- * Start records distinguish a reached-but-unfinished request from no arrival.
- * Completion means response headers are ready; response streams are never read.
- * The absolute build deadline stops new admissions even after process restarts.
+const MINUTE = 60_000;
+const MAX_WINDOW = 3 * 60 * MINUTE;
+const MAX_RECORD_BYTES = 512; // Includes our fixed prefix and newline; all fields are ASCII.
+
+class Bucket {
+  private tokens: number;
+  private last: number;
+  constructor(private capacity: number, private perMinute: number, now: number) {
+    this.tokens = capacity; this.last = now;
+  }
+  take(now: number): boolean {
+    this.tokens = Math.min(this.capacity, this.tokens + Math.max(0, now - this.last) * this.perMinute / MINUTE);
+    this.last = Math.max(this.last, now);
+    if (this.tokens < 1) return false;
+    this.tokens--; return true;
+  }
+}
+
+/** Independent success/arrival sampling and failure budgets.
+ * Normal traffic cannot spend failure tokens or the reserved failure log space.
+ * At most 384 normal + 768 failure records, each <=512 bytes (576 KiB/isolate).
+ * These hard caps cover the maximum token refill over the entire three-hour window.
+ * A failure may have no sampled start. Completion means headers ready, never body read.
  */
-export function mcpRequestDiagnostics(options: { until?: () => string | undefined } = {}): MiddlewareHandler {
-  let admitted = 0;
+export function mcpRequestDiagnostics(options: {
+  until?: () => string | undefined; now?: () => number;
+} = {}): MiddlewareHandler {
+  const clock = options.now ?? (() => Date.now());
+  const activated = clock();
+  const normal = new Bucket(1, 1, activated);
+  const failure = new Bucket(8, 4, activated);
+  let normalRecords = 384, failureRecords = 768;
   const until = options.until ?? (() => typeof __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__ === "string"
     ? __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__ : undefined);
+  const deadline = () => Math.min(Date.parse(until() ?? ""), activated + MAX_WINDOW);
   return async (c, next) => {
-    const started = Date.now();
-    const deadline = Date.parse(until() ?? "");
-    if (!ROUTE.test(c.req.path) || !Number.isFinite(deadline) || started >= deadline || admitted >= 64) {
+    const started = clock(), end = deadline();
+    if (!ROUTE.test(c.req.path) || !Number.isFinite(end) || started >= end) {
       await next(); return;
     }
-    admitted++;
     const request = c.req.raw;
     const state: { code?: McpDiagnosticCode } = {};
     pending.set(request, state);
-    const fields = {
-      request_time: new Date(started).toISOString(), request_id: crypto.randomUUID(),
-      method: METHODS.has(request.method) ? request.method : "OTHER",
-      route: "/api/channels/:slug/mcp", authorization_present: request.headers.has("authorization"),
-    };
+    const sampled = normalRecords >= 2 && normal.take(started);
+    // Reserve a pair before logging the sampled arrival. No later success can
+    // consume the space reserved for failures, even with many in-flight requests.
+    if (sampled) normalRecords -= 2;
+    let requestId: string | undefined;
     const emit = (status: number | null, code: McpDiagnosticCode | null) => {
       try {
-        console.warn("mcp_request_diagnostic", JSON.stringify({ ...fields,
-          http_status: status, duration_ms: status === null ? null : Math.max(0, Date.now() - started),
+        if (clock() >= deadline()) return;
+        const serialized = JSON.stringify({
+          request_time: new Date(started).toISOString(), request_id: requestId ??= crypto.randomUUID(),
+          method: METHODS.has(request.method) ? request.method : "OTHER",
+          route: "/api/channels/:slug/mcp", authorization_present: request.headers.has("authorization"),
+          http_status: status, duration_ms: status === null ? null : Math.max(0, clock() - started),
           error_code: code,
-        }));
+        });
+        if ("mcp_request_diagnostic ".length + serialized.length + 1 > MAX_RECORD_BYTES) return;
+        console.warn("mcp_request_diagnostic", serialized);
       } catch { /* Diagnostics must never change authentication or request results. */ }
     };
-    emit(null, null);
+    if (sampled) emit(null, null);
     let threw = false;
     try { await next(); }
     catch (error) { threw = true; throw error; }
     finally {
       const status = threw ? 500 : c.res.status;
-      emit(status, threw ? "internal_error" : state.code ?? statusCode(status));
+      const code = threw ? "internal_error" : state.code ?? statusCode(status);
+      const failed = status < 200 || status >= 300 || code !== null;
+      if (clock() < deadline()) {
+        if (failed) {
+          if (failureRecords > 0 && failure.take(clock())) {
+            failureRecords--; emit(status, code);
+          }
+        } else if (sampled) emit(status, null);
+      }
       pending.delete(request);
     }
   };

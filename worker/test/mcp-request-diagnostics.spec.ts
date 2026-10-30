@@ -17,8 +17,8 @@ function spy() { return vi.spyOn(console, "warn").mockImplementation(() => {}); 
 function records(log: ReturnType<typeof spy>) {
   return log.mock.calls.filter(call => call[0] === "mcp_request_diagnostic").map(call => JSON.parse(String(call[1])));
 }
-function testApp(until: () => string | undefined = future) {
-  const app = new Hono(); app.use("*", mcpRequestDiagnostics({ until }));
+function testApp(until: () => string | undefined = future, now?: () => number) {
+  const app = new Hono(); app.use("*", mcpRequestDiagnostics({ until, now }));
   // Preserve a fixed exception response without using Hono's unrelated default console.error.
   app.onError(() => new Response("Internal Server Error", { status: 500 }));
   return app;
@@ -54,12 +54,12 @@ describe("temporary MCP request diagnostics", () => {
     expect((await app.request(endpoint)).status).toBe(200); expect(records(log)).toHaveLength(0);
   });
 
-  it("stops new admissions at expiry, while completing an already admitted request", async () => {
+  it("stops all output at expiry, including completion of an earlier arrival", async () => {
     const log = spy(); let deadline = future();
     const app = testApp(() => deadline);
     app.get("*", c => { deadline = "2000-01-01T00:00:00Z"; return c.text("ok"); });
     await app.request(endpoint); await app.request(endpoint);
-    expect(records(log)).toHaveLength(2); expect(records(log)[1].http_status).toBe(200);
+    expect(records(log)).toHaveLength(1); expect(records(log)[0].http_status).toBeNull();
   });
 
   it("ignores non-MCP routes and clamps unknown methods to OTHER", async () => {
@@ -76,13 +76,67 @@ describe("temporary MCP request diagnostics", () => {
     expect(records(log)[0].method).toBe("OTHER");
   });
 
-  it("caps at 64 requests / 128 records, including concurrent requests and completions", async () => {
+  it("high-frequency successes cannot spend the independent failure budget", async () => {
     const log = spy(), app = testApp(); app.get("*", c => c.text("ok"));
-    await Promise.all(Array.from({ length: 80 }, () => app.request(endpoint)));
-    const rows = records(log); expect(rows).toHaveLength(128);
-    expect(new Set(rows.map(row => row.request_id)).size).toBe(64);
-    expect(rows.filter(row => row.http_status === 200)).toHaveLength(64);
-    expect(JSON.stringify(rows).length).toBeLessThan(50_000);
+    app.post("*", c => c.text("denied", 403));
+    await Promise.all(Array.from({ length: 2_000 }, () => app.request(endpoint)));
+    expect(records(log)).toHaveLength(2);
+    expect((await app.request(endpoint, { method: "POST" })).status).toBe(403);
+    expect(records(log).at(-1)).toMatchObject({ http_status: 403, error_code: "permission_denied" });
+    expect(records(log)).toHaveLength(3); // Unsampled failure still has a completion.
+  });
+
+  it("bounds a failure burst and replenishes without a restart or counter reset", async () => {
+    const log = spy(); let now = Date.now(); const end = new Date(now + 60_000).toISOString();
+    const app = testApp(() => end, () => now); app.post("*", c => c.text("denied", 401));
+    await Promise.all(Array.from({ length: 50 }, () => app.request(endpoint, { method: "POST" })));
+    expect(records(log).filter(row => row.http_status === 401)).toHaveLength(8);
+    now += 15_000;
+    await app.request(endpoint, { method: "POST" });
+    expect(records(log).filter(row => row.http_status === 401)).toHaveLength(9);
+  });
+
+  it("keeps failures observable for the full three-hour window under continuous normal traffic", async () => {
+    const log = spy(), base = Date.now(); let now = base;
+    // Even a mistaken later build deadline cannot extend this isolate past three hours.
+    const end = new Date(base + 4 * 60 * 60_000).toISOString();
+    const app = testApp(() => end, () => now);
+    app.get("*", c => c.text("ok")); app.post("*", c => c.text("failed", 503));
+    for (let minute = 0; minute < 180; minute++) {
+      now = base + minute * 60_000;
+      await Promise.all(Array.from({ length: 10 }, () => app.request(endpoint)));
+      for (let quarter = 0; quarter < 4; quarter++) {
+        now = base + minute * 60_000 + quarter * 15_000;
+        await app.request(endpoint, { method: "POST" });
+      }
+    }
+    const rows = records(log);
+    expect(rows.filter(row => row.http_status === 503)).toHaveLength(720);
+    expect(rows.at(-1)).toMatchObject({ http_status: 503, error_code: "internal_error" });
+    expect(rows.length).toBeLessThanOrEqual(384 + 768);
+    expect(log.mock.calls.reduce((sum, call) => sum + String(call[0]).length + String(call[1]).length + 2, 0)).toBeLessThanOrEqual(576 * 1024);
+    now = base + 3 * 60 * 60_000;
+    await app.request(endpoint); await app.request(endpoint, { method: "POST" });
+    expect(records(log)).toHaveLength(rows.length);
+  });
+
+  it("treats HTTP200 tool errors as failures even when success sampling is unavailable", async () => {
+    const log = spy(), app = testApp(); app.get("*", c => c.text("ok"));
+    app.post("*", c => { markMcpDiagnostic(c.req.raw, "tool_error"); return c.json({ private: "response-canary" }); });
+    await app.request(endpoint);
+    await app.request(endpoint, { method: "POST" });
+    expect(records(log).at(-1)).toMatchObject({ http_status: 200, error_code: "tool_error" });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("response-canary");
+  });
+
+  it("ignores clock rollback for token refill and never extends the absolute deadline", async () => {
+    const log = spy(), base = Date.now(); let now = base;
+    const end = new Date(base + 60_000).toISOString();
+    const app = testApp(() => end, () => now); app.get("*", c => c.text("ok"));
+    await app.request(endpoint); now -= 60_000; await app.request(endpoint);
+    expect(records(log)).toHaveLength(2);
+    now = base + 60_000; await app.request(endpoint);
+    expect(records(log)).toHaveLength(2);
   });
 
   it("logs exceptions only as internal_error and never consumes an open response stream", async () => {
@@ -126,14 +180,17 @@ describe("temporary MCP request diagnostics", () => {
     const slug = await createChannel(owner.token);
     const row = await env.DB.prepare("SELECT owner FROM tokens WHERE name=?").bind(owner.name).first<{ owner: string }>();
     const agent = await seedToken("agent", uniq("private-agent"), { owner: row!.owner, channelScope: slug });
-    vi.stubGlobal("__AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__", future());
     const log = spy();
     const invoke = async (token?: string, body: unknown = init) => {
       const ctx = createExecutionContext();
-      const response = await worker.fetch(new Request(`https://commons.test/api/channels/${slug}/mcp?query-canary`, {
+      // Fresh controlled observer per call verifies real route classifications;
+      // the separate sustained-traffic tests above exercise the shared budget.
+      const observer = testApp();
+      observer.all("*", c => worker.fetch(c.req.raw, env as unknown as AppEnv, ctx));
+      const response = await observer.fetch(new Request(`https://commons.test/api/channels/${slug}/mcp?query-canary`, {
         method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
-      }), env as unknown as AppEnv, ctx);
+      }));
       await waitOnExecutionContext(ctx); return response;
     };
     expect((await invoke()).status).toBe(401);
