@@ -25,6 +25,16 @@ function testApp(until: () => string | undefined = future, now?: () => number) {
 }
 
 describe("temporary MCP request diagnostics", () => {
+  it("initializes clocks and refill buckets on a request, not during module startup at epoch zero", async () => {
+    const log = spy(), base = Date.now(); let now = 0;
+    const end = new Date(base + 60_000).toISOString();
+    const app = testApp(() => end, () => now); app.get("*", c => c.text("denied", 401));
+    now = base;
+    expect((await app.request(endpoint)).status).toBe(401);
+    expect(records(log).at(-1)).toMatchObject({ http_status: 401, error_code: "unauthorized" });
+    expect(records(log)[0].request_time).toBe(new Date(base).toISOString());
+  });
+
   it("whitelists eight fields and never reads headers/body/query/response values into logs", async () => {
     const log = spy(), app = testApp();
     app.post("*", c => {

@@ -54,22 +54,24 @@ export function mcpRequestDiagnostics(options: {
   until?: () => string | undefined; now?: () => number;
 } = {}): MiddlewareHandler {
   const clock = options.now ?? (() => Date.now());
-  const activated = clock();
-  const normal = new Bucket(1, 1, activated);
-  const failure = new Bucket(8, 4, activated);
+  // workerd can expose epoch zero during module evaluation. Read the clock and
+  // initialize refill state only inside a request's I/O context.
+  let buckets: { activated: number; normal: Bucket; failure: Bucket } | undefined;
   let normalRecords = 384, failureRecords = 768;
   const until = options.until ?? (() => typeof __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__ === "string"
     ? __AGENTPARTY_MCP_DIAGNOSTICS_UNTIL__ : undefined);
-  const deadline = () => Math.min(Date.parse(until() ?? ""), activated + MAX_WINDOW);
   return async (c, next) => {
-    const started = clock(), end = deadline();
-    if (!ROUTE.test(c.req.path) || !Number.isFinite(end) || started >= end) {
+    const started = clock(), configuredEnd = Date.parse(until() ?? "");
+    if (!ROUTE.test(c.req.path) || !Number.isFinite(configuredEnd) || started >= configuredEnd) {
       await next(); return;
     }
+    const active = buckets ??= { activated: started, normal: new Bucket(1, 1, started), failure: new Bucket(8, 4, started) };
+    const deadline = () => Math.min(Date.parse(until() ?? ""), active.activated + MAX_WINDOW);
+    if (started >= deadline()) { await next(); return; }
     const request = c.req.raw;
     const state: { code?: McpDiagnosticCode } = {};
     pending.set(request, state);
-    const sampled = normalRecords >= 2 && normal.take(started);
+    const sampled = normalRecords >= 2 && active.normal.take(started);
     // Reserve a pair before logging the sampled arrival. No later success can
     // consume the space reserved for failures, even with many in-flight requests.
     if (sampled) normalRecords -= 2;
@@ -98,7 +100,7 @@ export function mcpRequestDiagnostics(options: {
       const failed = status < 200 || status >= 300 || code !== null;
       if (clock() < deadline()) {
         if (failed) {
-          if (failureRecords > 0 && failure.take(clock())) {
+          if (failureRecords > 0 && active.failure.take(clock())) {
             failureRecords--; emit(status, code);
           }
         } else if (sampled) emit(status, null);
