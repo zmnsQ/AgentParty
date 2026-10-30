@@ -1,3 +1,4 @@
+import { markMcpDiagnostic, type McpDiagnosticCode } from "./mcp-request-diagnostics";
 import {openMcpEventStream} from './mcp-event-stream';
 import type { TokenIdentity } from "../auth";
 import { mcpEventMethod } from "./mcp-events";
@@ -228,30 +229,34 @@ async function invoke(name: string, args: RecordValue, slug: string, identity: T
 }
 
 export async function handleChannelMcp(request: Request, slug: string, identity: TokenIdentity, forward: Forward, eventEnv?: AppEnv, eventAccess?:()=>Promise<boolean>): Promise<Response> {
+  const rejected = (reason: McpDiagnosticCode, id: unknown, code: number, message: string, status = 200) => {
+    markMcpDiagnostic(request, reason);
+    return rpcError(id, code, message, status);
+  };
   if (identity.kind !== "agent" || identity.role !== "agent" || identity.channel_scope !== slug) {
-    return rpcError(null, -32001, "A dedicated agent token scoped to this group is required", 403);
+    return rejected("permission_denied", null, -32001, "A dedicated agent token scoped to this group is required", 403);
   }
   if(eventEnv){
     if(!await mcpPermission(eventEnv.DB,slug,"group.read"))
-      return rpcError(null,-32001,"MCP disabled or owner two-step verification required",403);
+      return rejected("mcp_disabled",null,-32001,"MCP disabled or owner two-step verification required",403);
     if(!await takeMcpRateLimit(eventEnv.DB,identity.hash))
-      return rpcError(null,-32001,"MCP rate limit exceeded",429);
+      return rejected("rate_limited",null,-32001,"MCP rate limit exceeded",429);
   }
   const origin = request.headers.get("origin");
-  if (origin !== null && origin !== new URL(request.url).origin) return rpcError(null, -32001, "Origin is not allowed", 403);
+  if (origin !== null && origin !== new URL(request.url).origin) return rejected("origin_rejected", null, -32001, "Origin is not allowed", 403);
   if (request.method !== "POST") return new Response(null, { status: 405, headers: { allow: "POST", "cache-control": "no-store" } });
-  if (request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json") return rpcError(null, -32600, "Content-Type must be application/json", 415);
+  if (request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json") return rejected("unsupported_media_type", null, -32600, "Content-Type must be application/json", 415);
   const version = request.headers.get("mcp-protocol-version");
-  if (version !== null && version !== COLLABORATION_MCP_VERSION && version !== "2025-11-25" && version !== "2026-07-28") return rpcError(null, -32600, `Supported protocol version: ${COLLABORATION_MCP_VERSION}`, 400);
+  if (version !== null && version !== COLLABORATION_MCP_VERSION && version !== "2025-11-25" && version !== "2026-07-28") return rejected("protocol_version_unsupported", null, -32600, `Supported protocol version: ${COLLABORATION_MCP_VERSION}`, 400);
   let message: unknown;
   try { message = await limitedJson(request); }
-  catch (error) { return rpcError(null, -32700, error instanceof Error && error.message === "body_too_large" ? "Request exceeds size limit" : "Invalid JSON", error instanceof Error && error.message === "body_too_large" ? 413 : 400); }
-  if (!record(message) || message.jsonrpc !== "2.0" || typeof message.method !== "string") return rpcError(null, -32600, "Expected one JSON-RPC request", 400);
+  catch (error) { return rejected(error instanceof Error && error.message === "body_too_large" ? "body_too_large" : "invalid_json", null, -32700, error instanceof Error && error.message === "body_too_large" ? "Request exceeds size limit" : "Invalid JSON", error instanceof Error && error.message === "body_too_large" ? 413 : 400); }
+  if (!record(message) || message.jsonrpc !== "2.0" || typeof message.method !== "string") return rejected("invalid_request", null, -32600, "Expected one JSON-RPC request", 400);
   const id = message.id;
   if (id === undefined && ["notifications/initialized", "notifications/cancelled"].includes(message.method)) return new Response(null, { status: 202, headers: { "cache-control": "no-store" } });
-  if (typeof id !== "string" && (typeof id !== "number" || !Number.isSafeInteger(id))) return rpcError(null, -32600, "A string or integer request id is required", 400);
+  if (typeof id !== "string" && (typeof id !== "number" || !Number.isSafeInteger(id))) return rejected("invalid_request", null, -32600, "A string or integer request id is required", 400);
   if (message.method === "initialize") {
-    if (!record(message.params) || typeof message.params.protocolVersion !== "string" || !record(message.params.clientInfo) || !record(message.params.capabilities)) return rpcError(id, -32602, "Invalid initialize parameters");
+    if (!record(message.params) || typeof message.params.protocolVersion !== "string" || !record(message.params.clientInfo) || !record(message.params.capabilities)) return rejected("invalid_params", id, -32602, "Invalid initialize parameters");
     const modern = version === "2026-07-28" && eventEnv !== undefined;
     return jsonRpc(id, { protocolVersion: modern ? "2026-07-28" : COLLABORATION_MCP_VERSION,
       capabilities: { tools: { listChanged: false }, ...(modern ? { events: {} } : {}) },
@@ -260,10 +265,10 @@ export async function handleChannelMcp(request: Request, slug: string, identity:
   }
   if(eventEnv && identity.name.startsWith("ac-oauth-")){
     const needed=message.method==="events/subscribe"||message.method==="events/unsubscribe"||message.method==="events/stream"?"group.events":"group.read";
-    if(!await oauthPermission(identity,eventEnv,slug,needed))return rpcError(id,-32001,"Insufficient connector OAuth scope",403);
+    if(!await oauthPermission(identity,eventEnv,slug,needed))return rejected("permission_denied",id,-32001,"Insufficient connector OAuth scope",403);
   }
   if(eventEnv && message.method==="events/subscribe" && !await mcpPermission(eventEnv.DB,slug,"group.events"))
-    return rpcError(id,-32001,"Event subscriptions are disabled for this group",403);
+    return rejected("permission_denied",id,-32001,"Event subscriptions are disabled for this group",403);
   if(eventEnv && message.method==="events/stream")return openMcpEventStream(request,id,message.params,slug,identity,eventEnv,eventAccess);
   if (eventEnv && ["server/discover","events/list","events/subscribe","events/unsubscribe"].includes(message.method)) {
     const result = await mcpEventMethod(message.method,message.params ?? {},slug,identity,eventEnv);
@@ -284,22 +289,23 @@ export async function handleChannelMcp(request: Request, slug: string, identity:
       return {...definition, ...(oauth ? { securitySchemes } : {}), name:tool.name.replace(/^party_/,"commons_")};
     }) });
   }
-  if (message.method !== "tools/call") return rpcError(id, -32601, "Method not found");
-  if (!record(message.params) || typeof message.params.name !== "string" || (message.params.arguments !== undefined && !record(message.params.arguments))) return rpcError(id, -32602, "Invalid tools/call parameters");
+  if (message.method !== "tools/call") return rejected("method_not_found", id, -32601, "Method not found");
+  if (!record(message.params) || typeof message.params.name !== "string" || (message.params.arguments !== undefined && !record(message.params.arguments))) return rejected("invalid_params", id, -32602, "Invalid tools/call parameters");
   const params:RecordValue & {name:string} = {...message.params,name:message.params.name.replace(/^commons_/,"party_")};
   const definition = COLLABORATION_MCP_TOOLS.find(tool=>tool.name===params.name);
   if(eventEnv && definition && !definition.annotations.readOnlyHint && !await mcpPermission(eventEnv.DB,slug,"group.write"))
-    return rpcError(id,-32001,"This group allows read-only MCP access",403);
-  if (!COLLABORATION_MCP_TOOLS.some((entry) => entry.name === params.name)) return rpcError(id, -32602, "Unknown tool");
+    return rejected("permission_denied",id,-32001,"This group allows read-only MCP access",403);
+  if (!COLLABORATION_MCP_TOOLS.some((entry) => entry.name === params.name)) return rejected("invalid_params", id, -32602, "Unknown tool");
   if(eventEnv && identity.name.startsWith("ac-oauth-")){
     const definition=COLLABORATION_MCP_TOOLS.find(tool=>tool.name===params.name);
     if(!await oauthPermission(identity,eventEnv,slug,definition?.annotations.readOnlyHint?"group.read":"group.write"))
-      return rpcError(id,-32001,"Insufficient connector OAuth scope",403);
+      return rejected("permission_denied",id,-32001,"Insufficient connector OAuth scope",403);
   }
   try {
     const result = await invoke(params.name as string, (params.arguments ?? {}) as RecordValue, slug, identity, forward);
     return jsonRpc(id, { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: record(result) ? result : { data: result }, isError: false });
   } catch (error) {
+    markMcpDiagnostic(request, "tool_error");
     // Only our input-validation and HTTP-status messages are returned, never provider bodies.
     const safe = error instanceof Error && /^(Invalid |Missing |Unexpected argument: |Unknown tool|File belongs|MCP file limit|idempotency_key must|Group operation denied)/.test(error.message) ? error.message : "Group operation could not be completed";
     return jsonRpc(id, { content: [{ type: "text", text: safe }], isError: true });

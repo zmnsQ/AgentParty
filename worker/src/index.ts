@@ -130,6 +130,7 @@ import { openapiDocument } from "./openapi";
 import { registerCollaborationRoutes } from "./collaboration/routes";
 import { registerConnectorOauth, oauthRestPermission } from "./collaboration/oauth";
 import {registerEventDrain} from "./collaboration/event-drain";
+import { markMcpDiagnostic, mcpRequestDiagnostics } from "./collaboration/mcp-request-diagnostics";
 
 
 declare const __AGENTPARTY_BUILD_VERSION__: string | undefined;
@@ -1843,6 +1844,7 @@ const requireBearer = createMiddleware<AppContext>(async (c, next) => {
         const metadata = `${c.env.AUTH_PUBLIC_ORIGIN}/.well-known/oauth-protected-resource/api/channels/${match[1]}/mcp`;
         c.header("WWW-Authenticate", `Bearer resource_metadata="${metadata}", error="invalid_token"`);
       }
+      markMcpDiagnostic(c.req.raw, "unauthorized");
       return c.json(errorBody("unauthorized", "invalid or revoked token"), 401);
     }
     if (c.env.AUTH_REQUIRE_GITHUB_LOGIN === "true" && identity.role === "human" && !identity.browserSessionId && !identity.desktopSessionId) {
@@ -2909,6 +2911,7 @@ function isBlockedWebhookHost(rawHost: string): boolean {
 }
 
 const app = new Hono<AppContext>();
+app.use("/api/channels/:slug/mcp", mcpRequestDiagnostics());
 registerConnectorOauth(app);
 registerEventDrain(app);
 const DESKTOP_CORS_ORIGINS = new Set([
@@ -2945,6 +2948,7 @@ app.use("/api/*", async (c, next) => {
   if (!origin) return next();
   const sameOrigin = origin === new URL(c.req.url).origin || origin === c.env.AUTH_PUBLIC_ORIGIN;
   if (!sameOrigin && !DESKTOP_CORS_ORIGINS.has(origin)) {
+    markMcpDiagnostic(c.req.raw, "origin_rejected");
     return c.json(errorBody("forbidden", "origin not allowed"), 403);
   }
 
@@ -3702,6 +3706,7 @@ const requireActiveChannelParticipant = createMiddleware<AppContext>(async (c, n
       await isChannelAccountBanned(c.env.DB, slug, identity.account)
     )
   ) {
+    markMcpDiagnostic(c.req.raw, "participant_removed");
     return c.json(errorBody("participant_removed", "participant was removed from this channel"), 403);
   }
   await next();
