@@ -13,7 +13,6 @@ export type ManagementAuditAction =
   | "channel.create"
   | "channel.permissions.update"
   | "channel.visibility.update"
-  | "channel.agent.restore"
   | "channel.member.add"
   | "channel.member.remove"
   | "channel.role.assign"
@@ -81,6 +80,13 @@ const PERMISSION_FIELDS = new Set([
 function safeMetadata(action: ManagementAuditAction, input: unknown): Record<string, unknown> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return {};
   const metadata = input as Record<string, unknown>;
+  // Agent restoration is a membership operation. Reuse the deployed action
+  // CHECK enum; a TypeScript-only action name would silently lose the audit.
+  if (action === "channel.member.add") {
+    return metadata.participant_kind === "agent" && metadata.restored === true
+      ? { participant_kind: "agent", restored: true }
+      : {};
+  }
   if (action === "token.issue") {
     const result: Record<string, unknown> = {};
     if (metadata.token_role === "agent" || metadata.token_role === "human" || metadata.token_role === "readonly") {

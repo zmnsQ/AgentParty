@@ -4117,7 +4117,11 @@ app.post("/api/channels/:slug/agents/:name/restore", requireBearer, async (c) =>
       AND NOT EXISTS (SELECT 1 FROM connector_oauth_grants WHERE agent_name=?)`)
     .bind(slug, name, body.removal_epoch, slug, token.owner, slug, token.owner, token.id, name, token.owner, slug, name).run();
   if (Number(result.meta.changes ?? 0) !== 1) return c.json(errorBody("conflict", "removal state changed; reload before restoring"), 409);
-  await bestEffortRecordManagementAudit(c.env.DB, { actor: managementAuditActor(identity), action: "channel.agent.restore", resource: `channel/${slug}/agents/${name}`, channel: slug });
+  await bestEffortRecordManagementAudit(c.env.DB, {
+    actor: managementAuditActor(identity), action: "channel.member.add",
+    resource: `channel/${slug}/agents/${name}`, channel: slug,
+    metadata: { participant_kind: "agent", restored: true },
+  });
   return c.json({ restored: true, name });
 });
 

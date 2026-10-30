@@ -23,6 +23,10 @@ describe('removed agent credentials',()=>{
   const membershipBefore=await members();
   const restore=(removal_epoch:string)=>api(`/api/channels/${slug}/agents/${name}/restore`,human.token,{method:'POST',body:JSON.stringify({removal_epoch})});
   expect((await restore(epoch)).status).toBe(200);expect(await hash(name)).toEqual(before);expect(await members()).toEqual(membershipBefore);
+  const audit=await env.DB.prepare("SELECT actor_account,action,result,metadata_json FROM management_audit WHERE channel=? AND resource=? ORDER BY id DESC LIMIT 1")
+    .bind(slug,`channel/${slug}/agents/${name}`).first<{actor_account:string;action:string;result:string;metadata_json:string}>();
+  expect(audit).toMatchObject({actor_account:owner,action:'channel.member.add',result:'success'});
+  expect(JSON.parse(audit!.metadata_json)).toEqual({participant_kind:'agent',restored:true});
   const init=await invoke('initialize',{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'isolated-fixture',version:'1'}});
   expect(init.status).toBe(200);expect(await init.json()).toMatchObject({result:{serverInfo:{name:'agent-commons'}}});
   expect((await invoke('tools/list')).status).toBe(200);
